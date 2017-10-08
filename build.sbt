@@ -1,9 +1,16 @@
+import CiCommands.ciBuild
+
 name := """skatemap-live"""
 organization := "com.swifthorseman"
 
 version := "1.0-SNAPSHOT"
 
+coverageMinimum := 100
+coverageFailOnMinimum := true
+
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
+  .settings(commands += ciBuild,
+    coverageExcludedPackages := "views\\.html;<empty>;Reverse.*;router\\.*")
 
 scalaVersion := "2.12.3"
 
