@@ -95,4 +95,35 @@
  <check level="error" class="org.scalastyle.scalariform.PublicMethodsHaveTypeChecker" enabled="true"/>
  <check level="error" class="org.scalastyle.file.NewLineAtEofChecker" enabled="true"/>
  <check level="error" class="org.scalastyle.file.NoNewLineAtEofChecker" enabled="false"/>
+ <check level="error" class="org.scalastyle.scalariform.DeprecatedJavaChecker" enabled="true"/>
+ <check level="error" class="org.scalastyle.scalariform.EmptyClassChecker" enabled="true"/>
+ <check level="error" class="org.scalastyle.scalariform.ClassTypeParameterChecker" enabled="true">
+  <parameters>
+   <parameter name="regex"><![CDATA[^[A-Z_]$]]></parameter>
+  </parameters>
+ </check>
+ <check level="error" class="org.scalastyle.scalariform.LowercasePatternMatchChecker" enabled="true"/>
+ <check level="error" class="org.scalastyle.scalariform.ImportOrderChecker" enabled="true"/>
+ <check level="error" class="org.scalastyle.scalariform.TodoCommentChecker" enabled="true"/>
+ <check level="error" class="org.scalastyle.scalariform.TokenChecker" enabled="true">
+  <parameters>
+   <parameter name="regex"><![CDATA[println]]></parameter>
+  </parameters>
+ </check>
+ <check level="error" class="org.scalastyle.scalariform.WhileChecker" enabled="true"/>
+ <check level="error" class="org.scalastyle.scalariform.RedundantIfChecker" enabled="true"/>
+ <check level="error" class="org.scalastyle.scalariform.ForBraceChecker" enabled="true"/>
+ <check level="error" class="org.scalastyle.scalariform.NotImplementedErrorUsage" enabled="true"/>
+ <check level="error" class="org.scalastyle.scalariform.NonASCIICharacterChecker" enabled="true"/>
+ <check level="error" class="org.scalastyle.scalariform.ImportGroupingChecker" enabled="false"/>
+ <check level="error" class="org.scalastyle.scalariform.MultipleStringLiteralsChecker" enabled="false">
+  <parameters>
+   <parameter name="allowed"><![CDATA[2]]></parameter>
+   <parameter name="ignoreRegex"><![CDATA[^""$]]></parameter>
+  </parameters>
+ </check>
+<check level="error" class="org.scalastyle.scalariform.VarFieldChecker" enabled="false"/>
+<check level="error" class="org.scalastyle.scalariform.VarLocalChecker" enabled="true"/>
+<check level="error" class="org.scalastyle.scalariform.UnderscoreImportChecker" enabled="false"/>
+<check level="error" class="org.scalastyle.scalariform.ProcedureDeclarationChecker" enabled="true"/>
 </scalastyle>
