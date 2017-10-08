@@ -11,7 +11,7 @@ scalastyleFailOnError := true
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
   .settings(commands += ciBuild,
-    coverageExcludedPackages := "views\\.html;<empty>;Reverse.*;router\\.*")
+    coverageExcludedPackages := "<empty>;Reverse.*;router\\.*")
 
 scalaVersion := "2.12.3"
 
