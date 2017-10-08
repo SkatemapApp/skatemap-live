@@ -7,6 +7,7 @@ version := "1.0-SNAPSHOT"
 
 coverageMinimum := 100
 coverageFailOnMinimum := true
+scalastyleFailOnError := true
 
 lazy val root = (project in file(".")).enablePlugins(PlayScala)
   .settings(commands += ciBuild,
