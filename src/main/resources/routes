@@ -6,3 +6,4 @@
 # An example controller showing a sample home page
 GET     /                           controllers.HomeController.index()
 POST    /locations                  controllers.LocationController.update()
+PUT     /skatingEvents/:skatingEventId/skaters/:skaterId    controllers.HomeController.updateLocation(skatingEventId, skaterId)
