@@ -19,6 +19,6 @@ class HomeController @Inject() (cc: ControllerComponents) extends AbstractContro
    * a path of `/`.
    */
   def index(): Action[AnyContent] = Action { implicit request: Request[AnyContent] =>
-    Ok(views.html.index())
+    Ok
   }
 }
