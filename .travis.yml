@@ -3,9 +3,4 @@ scala:
 - 2.12.3
 script:
 - sbt ciBuild
-deploy:
-  provider: heroku
-  api_key:
-    secure: EvGsG9EwwsfIzZVLnlGpHIFYA8DxLcIm2FW9gQMbzPO7qQsK3KN8PYjikmpEtb3TiG1KNWvSYs4gu0f30TsgZ7au0UxAzaqq1ElyJmGze+Vrgf6J2neUAiORFzRkOdDoT5MoEs7e1R3VTMhfI8dvvaBPhyDSRpjVt0Q3okRmLMujJKX6v7oew6HZ1htAbYEKVtKaPHDhLltMT97rIbNakfuZN7C2V7CIIwciTd52ItltVa4PqjhF/2LBx/cubJfJcydiKVbSgOcUFpjDsM3aIPv95+mmGBzHVDxSJbGYod/SOj1lGvXSkJlGfhUQ+CWoAfISBF38CxiFb4RK2aIW64lI+b2/B71S5x0iqS0U4QSkZgy3vw+jKn11k4WQx25KOIL4XAkMbkhwnvdH2tLG+5rO4vxHy6VlV4FEoIUDX3QE+XsCFbkRWRlQof6Yt3Hbgs8W4kE4DIIAF66ezH5wa4NEBkPmgYwpfWD8q00YtYsLclWz42D3sMiPgzmmSH1pxgrZ0l2BW9ByJVJm1TicZdquyTe54Qn3lg5fIIKjlY0fFM+jswx1aSb68XBgk8SCwBV7u/k1JSwcP0ICHY/Otr99pR1dp/RDuWyyBoX99+vyjAAvPVwYfdVx1MeA1TExy7tzTl5xJjL6P2lmDmUixwJ+pE9333zcM3Vt7kfiL3A=
-    app:
-      master: skatemap-live
+
