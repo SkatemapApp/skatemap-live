@@ -9,7 +9,9 @@ coverageMinimum := 100
 coverageFailOnMinimum := true
 scalastyleFailOnError := true
 
-lazy val root = (project in file(".")).enablePlugins(PlayScala)
+lazy val root = (project in file("."))
+  .enablePlugins(PlayScala)
+  .disablePlugins(PlayLayoutPlugin)
   .settings(commands += ciBuild,
     coverageExcludedPackages := "views\\.html;<empty>;Reverse.*;router\\.*")
 
