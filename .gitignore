@@ -1,5 +1,5 @@
-# Created by https://www.toptal.com/developers/gitignore/api/playframework,intellij+all,git,vim,macos,visualstudiocode,scala,linux
-# Edit at https://www.toptal.com/developers/gitignore?templates=playframework,intellij+all,git,vim,macos,visualstudiocode,scala,linux
+# Created by https://www.toptal.com/developers/gitignore/api/git,vim,linux,macos,scala,intellij+all,playframework,visualstudiocode,sbt
+# Edit at https://www.toptal.com/developers/gitignore?templates=git,vim,linux,macos,scala,intellij+all,playframework,visualstudiocode,sbt
 
 ### Git ###
 # Created by git for backups. To disable backups in Git:
@@ -169,6 +169,22 @@ server.pid
 /dist/
 .cache
 
+### SBT ###
+# Simple Build Tool
+# http://www.scala-sbt.org/release/docs/Getting-Started/Directories.html#configuring-version-control
+
+dist/*
+target/
+lib_managed/
+src_managed/
+project/boot/
+project/plugins/project/
+.history
+.lib/
+
+### SBT Patch ###
+.bsp/
+
 ### Scala ###
 *.class
 *.log
@@ -212,7 +228,6 @@ tags
 
 ### VisualStudioCode Patch ###
 # Ignore all local history of files
-.history
 .ionide
 
-# End of https://www.toptal.com/developers/gitignore/api/playframework,intellij+all,git,vim,macos,visualstudiocode,scala,linux
+# End of https://www.toptal.com/developers/gitignore/api/git,vim,linux,macos,scala,intellij+all,playframework,visualstudiocode,sbt
