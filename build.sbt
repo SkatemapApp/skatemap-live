@@ -1,3 +1,5 @@
+import CiCommands.CiBuild
+
 name := """skatemap-live"""
 organization := "skatemap.org"
 
