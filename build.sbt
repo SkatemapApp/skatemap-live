@@ -1,13 +1,12 @@
 import CiCommands.ciBuild
 
 name := """skatemap-live"""
-organization := "com.swifthorseman"
+organization := "skatemap.org"
 
 version := "1.0-SNAPSHOT"
 
-coverageMinimum := 100
+coverageMinimumStmtTotal := 100
 coverageFailOnMinimum := true
-scalastyleFailOnError := true
 
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
@@ -15,13 +14,13 @@ lazy val root = (project in file("."))
   .settings(commands += ciBuild,
     coverageExcludedPackages := "views\\.html;<empty>;Reverse.*;router\\.*")
 
-scalaVersion := "2.12.3"
+scalaVersion := "2.13.14"
 
 libraryDependencies += guice
-libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "3.0.0" % Test
+libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test
 
 // Adds additional packages into Twirl
-//TwirlKeys.templateImports += "com.swifthorseman.controllers._"
+//TwirlKeys.templateImports += "skatemap.org.controllers._"
 
 // Adds additional packages into conf/routes
-// play.sbt.routes.RoutesKeys.routesImport += "com.swifthorseman.binders._"
+// play.sbt.routes.RoutesKeys.routesImport += "skatemap.org.binders._"
