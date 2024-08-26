@@ -1,4 +1,4 @@
-import CiCommands.CiBuild
+import CiCommands.ciBuild
 
 name := """skatemap-live"""
 organization := "skatemap.org"
@@ -8,6 +8,7 @@ version := "1.0-SNAPSHOT"
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLayoutPlugin)
+  .settings(commands += ciBuild)
 
 scalaVersion := "2.13.14"
 
