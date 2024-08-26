@@ -5,10 +5,14 @@ organization := "skatemap.org"
 
 version := "1.0-SNAPSHOT"
 
+coverageMinimumStmtTotal := 100
+coverageFailOnMinimum := true
+
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLayoutPlugin)
-  .settings(commands += ciBuild)
+  .settings(commands += ciBuild,
+    coverageExcludedPackages := "views\\.html;<empty>;Reverse.*;router\\.*")
 
 scalaVersion := "2.13.14"
 
