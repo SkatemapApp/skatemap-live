@@ -23,7 +23,7 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
       val skaterId = UUID.randomUUID().toString
       val controller = new LocationController(stubControllerComponents())
       val result = controller.updateLocation(skatingEventId, skaterId).apply(FakeRequest(PUT, s"/skatingEvents/$skatingEventId/skaters/$skaterId")
-        .withBody(s"""{"latlng": [0.0, 50.0]}"""))
+        .withBody(s"""{"coordinates": [0.0, 50.0]}"""))
 
       status(result) mustBe OK
     }
@@ -32,7 +32,7 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
       val skatingEventId = UUID.randomUUID().toString
       val skaterId = UUID.randomUUID().toString
       val request = FakeRequest(PUT, s"/skatingEvents/$skatingEventId/skaters/$skaterId")
-        .withBody(s"""{"latlng": [0.0, 50.0]}""")
+        .withBody(s"""{"coordinates": [0.0, 50.0]}""")
       val result = route(app, request).fold(fail("Route not found"))(identity)
 
       status(result) mustBe OK
