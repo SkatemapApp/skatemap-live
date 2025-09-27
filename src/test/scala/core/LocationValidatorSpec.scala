@@ -147,5 +147,40 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
         result shouldBe a[Right[_, _]]
       }
     }
+
+    "test field method on validation errors" in {
+      val longError  = InvalidLongitudeError(200.0)
+      val latError   = InvalidLatitudeError(100.0)
+      val basicError = InvalidJsonError()
+
+      longError.field shouldBe Some("coordinates[0]")
+      latError.field shouldBe Some("coordinates[1]")
+      basicError.field shouldBe None
+    }
+
+    "reject coordinates field with malformed structure" in {
+      val eventId  = UUID.randomUUID().toString
+      val skaterId = UUID.randomUUID().toString
+
+      // Test case that hits the uncovered line where coordinates field exists but array pattern doesn't match
+      val malformedCoordinatesJson = """{"coordinates": "not an array"}"""
+
+      val result = LocationValidator.validate(eventId, skaterId, malformedCoordinatesJson)
+
+      result shouldBe Left(MissingCoordinatesError())
+    }
+
+    "handle unexpected exceptions in JSON parsing" in {
+      val eventId  = UUID.randomUUID().toString
+      val skaterId = UUID.randomUUID().toString
+
+      // Force a NumberFormatException by having invalid number format
+      val invalidNumberJson = """{"coordinates": [abc, def]}"""
+
+      val result = LocationValidator.validate(eventId, skaterId, invalidNumberJson)
+
+      result shouldBe Left(InvalidJsonError())
+    }
+
   }
 }

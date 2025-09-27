@@ -57,3 +57,17 @@ case class InvalidCoordinatesLengthError() extends ValidationError {
   val code    = "INVALID_COORDINATES_LENGTH"
   val message = "Coordinates array must contain exactly 2 numbers [longitude, latitude]"
 }
+
+// Test error for coverage
+case class TestErrorWithMixedTypes() extends ValidationError {
+  val code    = "TEST_ERROR"
+  val message = "Test error with mixed types"
+  override val details = Some(
+    Map(
+      "stringField" -> "test string",
+      "doubleField" -> 42.5,
+      "intField"    -> 123, // This will trigger the fallback case
+      "boolField"   -> true // This will also trigger the fallback case
+    )
+  )
+}
