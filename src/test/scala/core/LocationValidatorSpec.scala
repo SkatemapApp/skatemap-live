@@ -162,7 +162,6 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
       val eventId  = UUID.randomUUID().toString
       val skaterId = UUID.randomUUID().toString
 
-      // Test case that hits the uncovered line where coordinates field exists but array pattern doesn't match
       val malformedCoordinatesJson = """{"coordinates": "not an array"}"""
 
       val result = LocationValidator.validate(eventId, skaterId, malformedCoordinatesJson)
@@ -174,7 +173,6 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
       val eventId  = UUID.randomUUID().toString
       val skaterId = UUID.randomUUID().toString
 
-      // Force a NumberFormatException by having invalid number format
       val invalidNumberJson = """{"coordinates": [abc, def]}"""
 
       val result = LocationValidator.validate(eventId, skaterId, invalidNumberJson)

@@ -19,11 +19,10 @@ lazy val root = (project in file("."))
 scalaVersion := "2.13.14"
 
 libraryDependencies ++= Seq(
-  guice,                                                     // dependency injection
+  guice,
   "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test
 )
 
-// Exclude unused Play dependencies for API-only service
 libraryDependencies := libraryDependencies.value.map {
   case m if m.organization == "org.playframework" =>
     m.excludeAll(
@@ -34,5 +33,4 @@ libraryDependencies := libraryDependencies.value.map {
   case m => m
 }
 
-// Disable Twirl template engine for API-only service
 routesGenerator := InjectedRoutesGenerator

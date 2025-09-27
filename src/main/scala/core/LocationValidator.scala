@@ -31,7 +31,6 @@ object LocationValidator {
     Try {
       val trimmed = jsonString.trim
 
-      // First, check if it's a valid JSON structure
       if (
         trimmed.isEmpty ||
         (!trimmed.startsWith("{") || !trimmed.endsWith("}")) &&
@@ -40,17 +39,14 @@ object LocationValidator {
         throw new RuntimeException("INVALID_JSON")
       }
 
-      // If it's an array, it's invalid structure
       if (trimmed.startsWith("[")) {
         throw new RuntimeException("INVALID_JSON")
       }
 
-      // Basic validation for JSON object structure
       if (!trimmed.contains(":") || !trimmed.contains("\"")) {
         throw new RuntimeException("INVALID_JSON")
       }
 
-      // Look for "coordinates" field
       val coordinatesPattern = """"coordinates"\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]""".r
 
       coordinatesPattern.findFirstMatchIn(trimmed) match {
@@ -59,9 +55,7 @@ object LocationValidator {
           val latitude  = m.group(2).toDouble
           Coordinates(longitude, latitude)
         case None =>
-          // Check if coordinates field exists but is malformed
           if (trimmed.contains("\"coordinates\"")) {
-            // Check if it's an array with wrong length
             val arrayPattern = """"coordinates"\s*:\s*\[([^\]]*)\]""".r
             arrayPattern.findFirstMatchIn(trimmed) match {
               case Some(arrayMatch) =>
