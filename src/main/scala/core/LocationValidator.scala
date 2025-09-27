@@ -15,7 +15,7 @@ object LocationValidator {
       _           <- validateUUIDs(eventId, skaterId)
       coordinates <- parseCoordinatesFromJson(coordinatesJson)
       _           <- validateCoordinateBounds(coordinates)
-    } yield LocationUpdate(eventId, skaterId, coordinates.longitude, coordinates.latitude)
+    } yield LocationUpdate(eventId, skaterId, coordinates.longitude, coordinates.latitude, System.currentTimeMillis)
 
   private def validateUUIDs(eventId: String, skaterId: String): Either[ValidationError, Unit] =
     Try(UUID.fromString(eventId)) match {

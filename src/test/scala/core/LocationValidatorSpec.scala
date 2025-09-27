@@ -16,7 +16,8 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
 
       val result = LocationValidator.validate(eventId, skaterId, validJson)
 
-      result shouldBe Right(LocationUpdate(eventId, skaterId, 0.0, 50.0))
+      result should matchPattern { case Right(LocationUpdate(`eventId`, `skaterId`, 0.0, 50.0, _)) =>
+      }
     }
 
     "validate boundary coordinate values" in {
@@ -31,7 +32,9 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
 
       boundaryCases.foreach { case (json, expectedLon, expectedLat) =>
         val result = LocationValidator.validate(eventId, skaterId, json)
-        result shouldBe Right(LocationUpdate(eventId, skaterId, expectedLon, expectedLat))
+        result should matchPattern {
+          case Right(LocationUpdate(`eventId`, `skaterId`, `expectedLon`, `expectedLat`, _)) =>
+        }
       }
     }
 
