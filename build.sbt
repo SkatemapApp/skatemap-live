@@ -18,11 +18,19 @@ lazy val root = (project in file("."))
 
 scalaVersion := "2.13.14"
 
-libraryDependencies += guice
-libraryDependencies += "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test
+libraryDependencies ++= Seq(
+  guice,
+  "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test
+)
 
-// Adds additional packages into Twirl
-//TwirlKeys.templateImports += "skatemap.org.controllers._"
+libraryDependencies := libraryDependencies.value.map {
+  case m if m.organization == "org.playframework" =>
+    m.excludeAll(
+      ExclusionRule("org.playframework", "twirl-api_2.13"),
+      ExclusionRule("org.playframework", "play-ws_2.13"),
+      ExclusionRule("org.playframework", "play-filters-helpers_2.13")
+    )
+  case m => m
+}
 
-// Adds additional packages into conf/routes
-// play.sbt.routes.RoutesKeys.routesImport += "skatemap.org.binders._"
+routesGenerator := InjectedRoutesGenerator

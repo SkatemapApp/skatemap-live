@@ -1,4 +1,4 @@
-package adapters.play
+package adapters.playhttp
 
 import core.ValidationError
 import play.api.libs.json._

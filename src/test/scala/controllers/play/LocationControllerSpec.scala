@@ -149,7 +149,6 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
             .withTextBody("not json")
         )
 
-      // Play returns 415 Unsupported Media Type for non-JSON when expecting JSON
       status(result) must (be(BAD_REQUEST) or be(415))
     }
 
@@ -158,7 +157,6 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
       val skaterId       = UUID.randomUUID().toString
       val controller     = createController()
 
-      // Test valid boundary values
       val validCases = List(
         """{"coordinates": [-180.0, -90.0]}""", // min values
         """{"coordinates": [180.0, 90.0]}""",   // max values

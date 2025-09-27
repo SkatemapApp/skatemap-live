@@ -14,8 +14,8 @@ object LocationValidator {
     for {
       _           <- validateUUIDs(eventId, skaterId)
       coordinates <- parseCoordinatesFromJson(coordinatesJson)
-      _           <- validateCoordinateBounds(coordinates._1, coordinates._2)
-    } yield LocationUpdate(eventId, skaterId, coordinates._1, coordinates._2)
+      _           <- validateCoordinateBounds(coordinates)
+    } yield LocationUpdate(eventId, skaterId, coordinates.longitude, coordinates.latitude)
 
   private def validateUUIDs(eventId: String, skaterId: String): Either[ValidationError, Unit] =
     Try(UUID.fromString(eventId)) match {
@@ -27,11 +27,10 @@ object LocationValidator {
         }
     }
 
-  private def parseCoordinatesFromJson(jsonString: String): Either[ValidationError, (Double, Double)] =
+  private def parseCoordinatesFromJson(jsonString: String): Either[ValidationError, Coordinates] =
     Try {
       val trimmed = jsonString.trim
 
-      // First, check if it's a valid JSON structure
       if (
         trimmed.isEmpty ||
         (!trimmed.startsWith("{") || !trimmed.endsWith("}")) &&
@@ -40,28 +39,23 @@ object LocationValidator {
         throw new RuntimeException("INVALID_JSON")
       }
 
-      // If it's an array, it's invalid structure
       if (trimmed.startsWith("[")) {
         throw new RuntimeException("INVALID_JSON")
       }
 
-      // Basic validation for JSON object structure
       if (!trimmed.contains(":") || !trimmed.contains("\"")) {
         throw new RuntimeException("INVALID_JSON")
       }
 
-      // Look for "coordinates" field
       val coordinatesPattern = """"coordinates"\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]""".r
 
       coordinatesPattern.findFirstMatchIn(trimmed) match {
         case Some(m) =>
           val longitude = m.group(1).toDouble
           val latitude  = m.group(2).toDouble
-          (longitude, latitude)
+          Coordinates(longitude, latitude)
         case None =>
-          // Check if coordinates field exists but is malformed
           if (trimmed.contains("\"coordinates\"")) {
-            // Check if it's an array with wrong length
             val arrayPattern = """"coordinates"\s*:\s*\[([^\]]*)\]""".r
             arrayPattern.findFirstMatchIn(trimmed) match {
               case Some(arrayMatch) =>
@@ -89,11 +83,11 @@ object LocationValidator {
         }
     }
 
-  private def validateCoordinateBounds(longitude: Double, latitude: Double): Either[ValidationError, Unit] =
-    if (longitude < MIN_LONGITUDE || longitude > MAX_LONGITUDE) {
-      Left(InvalidLongitudeError(longitude))
-    } else if (latitude < MIN_LATITUDE || latitude > MAX_LATITUDE) {
-      Left(InvalidLatitudeError(latitude))
+  private def validateCoordinateBounds(coordinates: Coordinates): Either[ValidationError, Unit] =
+    if (coordinates.longitude < MIN_LONGITUDE || coordinates.longitude > MAX_LONGITUDE) {
+      Left(InvalidLongitudeError(coordinates.longitude))
+    } else if (coordinates.latitude < MIN_LATITUDE || coordinates.latitude > MAX_LATITUDE) {
+      Left(InvalidLatitudeError(coordinates.latitude))
     } else {
       Right(())
     }
