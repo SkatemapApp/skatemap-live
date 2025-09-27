@@ -5,11 +5,11 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json._
 
-class SLP001AcceptanceSpec extends AnyWordSpec with Matchers {
+class EventBasedDataModelSpec extends AnyWordSpec with Matchers {
 
-  "SLP-001 Acceptance Test" should {
+  "Event-based data models" should {
 
-    "pass the exact test command from SLP-001 specification" in {
+    "support Play JSON serialization with timestamps" in {
       val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074)
       val json   = Json.toJson(update)
       val parsed = json.as[LocationUpdate]
@@ -20,7 +20,7 @@ class SLP001AcceptanceSpec extends AnyWordSpec with Matchers {
       parsed.latitude shouldBe update.latitude
     }
 
-    "demonstrate framework-agnostic JSON serialization" in {
+    "support framework-agnostic JSON serialization" in {
       val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074)
 
       val json   = JsonCodec.locationUpdateCodec.encode(update)
@@ -29,7 +29,7 @@ class SLP001AcceptanceSpec extends AnyWordSpec with Matchers {
       parsed shouldBe Right(update)
     }
 
-    "demonstrate Location model usage" in {
+    "handle Location model with timestamps" in {
       val location = Location("s1", 51.5074, -0.1276, System.currentTimeMillis)
 
       val json   = JsonCodec.locationCodec.encode(location)
@@ -38,7 +38,7 @@ class SLP001AcceptanceSpec extends AnyWordSpec with Matchers {
       parsed shouldBe Right(location)
     }
 
-    "show timestamp handling in LocationUpdate" in {
+    "handle explicit and default timestamps in LocationUpdate" in {
       val updateWithTimestamp = LocationUpdate("event-1", "s1", -0.1276, 51.5074, 1234567890L)
       updateWithTimestamp.timestamp shouldBe 1234567890L
 
