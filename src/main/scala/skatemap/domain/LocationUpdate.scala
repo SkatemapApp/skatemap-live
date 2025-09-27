@@ -1,4 +1,4 @@
-package core
+package skatemap.domain
 
 case class LocationUpdate(
   eventId: String,

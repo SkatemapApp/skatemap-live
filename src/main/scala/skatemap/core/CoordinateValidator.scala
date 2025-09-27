@@ -1,6 +1,6 @@
-package core.validation
+package skatemap.core
 
-import core.{Coordinates, InvalidLatitudeError, InvalidLongitudeError, ValidationError}
+import skatemap.domain.Coordinates
 
 object CoordinateValidator {
   private val MIN_LONGITUDE = -180.0

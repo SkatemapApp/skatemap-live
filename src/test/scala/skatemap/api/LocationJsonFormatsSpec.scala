@@ -1,7 +1,7 @@
-package adapters.playhttp
+package skatemap.api.json
 
-import adapters.playhttp.LocationJsonFormats._
-import core.{Location, LocationUpdate}
+import skatemap.api.json.LocationJson._
+import skatemap.domain.{Location, LocationUpdate}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json._

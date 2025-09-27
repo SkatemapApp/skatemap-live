@@ -1,7 +1,6 @@
-package core.validation
+package skatemap.core
 
 import java.util.UUID
-import core.{InvalidSkaterIdError, InvalidSkatingEventIdError, ValidationError}
 import scala.util.{Failure, Success, Try}
 
 object UuidValidator {
