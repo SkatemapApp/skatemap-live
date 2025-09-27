@@ -12,7 +12,7 @@ lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLayoutPlugin)
   .settings(commands += ciBuild,
-    coverageExcludedPackages := "views\\.html;<empty>;Reverse.*;router\\.*",
+    coverageExcludedPackages := "<empty>;Reverse.*;router\\.*",
       Test / compile / wartremoverErrors := Warts.allBut(Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable)
   )
 
