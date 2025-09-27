@@ -4,4 +4,4 @@
 # ~~~~
 
 # Location update endpoint for skating events
-PUT     /skatingEvents/:skatingEventId/skaters/:skaterId    controllers.LocationController.updateLocation(skatingEventId, skaterId)
+PUT     /skatingEvents/:skatingEventId/skaters/:skaterId    controllers.play.LocationController.updateLocation(skatingEventId, skaterId)
