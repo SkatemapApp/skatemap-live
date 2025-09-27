@@ -12,7 +12,7 @@ class LocationValidationService {
 
   import ValidationConstants._
 
-  private def validateUUIDs(skatingEventId: String, skaterId: String): Either[ValidationError, Unit] = {
+  private def validateUUIDs(skatingEventId: String, skaterId: String): Either[ValidationError, Unit] =
     Try(UUID.fromString(skatingEventId)) match {
       case Failure(_) => Left(InvalidSkatingEventIdError())
       case Success(_) =>
@@ -21,21 +21,19 @@ class LocationValidationService {
           case Success(_) => Right(())
         }
     }
-  }
 
-  private def parseCoordinates(request: Request[AnyContent]): Either[ValidationError, Coordinates] = {
+  private def parseCoordinates(request: Request[AnyContent]): Either[ValidationError, Coordinates] =
     request.body.asJson match {
       case None => Left(InvalidJsonError())
       case Some(json) =>
         (json \ "coordinates").asOpt[List[Double]] match {
-          case None => Left(MissingCoordinatesError())
+          case None                               => Left(MissingCoordinatesError())
           case Some(coords) if coords.length != 2 => Left(InvalidCoordinatesLengthError())
-          case Some(coords) => Right(Coordinates(coords(0), coords(1)))
+          case Some(coords)                       => Right(Coordinates(coords(0), coords(1)))
         }
     }
-  }
 
-  private def validateCoordinates(coordinates: Coordinates): Either[ValidationError, Unit] = {
+  private def validateCoordinates(coordinates: Coordinates): Either[ValidationError, Unit] =
     if (coordinates.longitude < MIN_LONGITUDE || coordinates.longitude > MAX_LONGITUDE) {
       Left(InvalidLongitudeError(coordinates.longitude))
     } else if (coordinates.latitude < MIN_LATITUDE || coordinates.latitude > MAX_LATITUDE) {
@@ -43,13 +41,15 @@ class LocationValidationService {
     } else {
       Right(())
     }
-  }
 
-  def validateLocationUpdateRequest(skatingEventId: String, skaterId: String, request: Request[AnyContent]): Either[ValidationError, Unit] = {
+  def validateLocationUpdateRequest(
+    skatingEventId: String,
+    skaterId: String,
+    request: Request[AnyContent]
+  ): Either[ValidationError, Unit] =
     for {
-      _ <- validateUUIDs(skatingEventId, skaterId)
+      _           <- validateUUIDs(skatingEventId, skaterId)
       coordinates <- parseCoordinates(request)
-      _ <- validateCoordinates(coordinates)
+      _           <- validateCoordinates(coordinates)
     } yield ()
-  }
 }
