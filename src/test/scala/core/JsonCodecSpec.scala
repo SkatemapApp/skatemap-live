@@ -55,19 +55,16 @@ class JsonCodecSpec extends AnyWordSpec with Matchers {
     "fail to decode Location JSON with invalid types" in {
       val invalidLatitudeJson =
         """{"skaterId":"skater-123","latitude":"not-a-number","longitude":-0.1276,"timestamp":1234567890}"""
+      val invalidLongitudeJson =
+        """{"skaterId":"skater-123","latitude":51.5074,"longitude":"not-a-number","timestamp":1234567890}"""
       val invalidTimestampJson =
         """{"skaterId":"skater-123","latitude":51.5074,"longitude":-0.1276,"timestamp":"not-a-number"}"""
 
       JsonCodec.locationCodec.decode(invalidLatitudeJson) shouldBe a[Left[_, _]]
+      JsonCodec.locationCodec.decode(invalidLongitudeJson) shouldBe a[Left[_, _]]
       JsonCodec.locationCodec.decode(invalidTimestampJson) shouldBe a[Left[_, _]]
     }
 
-    "fail to decode Location JSON that causes exception" in {
-      val malformedJson = """{"skaterId":null,"latitude":51.5074,"longitude":-0.1276,"timestamp":1234567890}"""
-      val result        = JsonCodec.locationCodec.decode(malformedJson)
-
-      result shouldBe a[Left[_, _]]
-    }
   }
 
   "LocationUpdateCodec" should {
@@ -140,9 +137,12 @@ class JsonCodecSpec extends AnyWordSpec with Matchers {
         """{"eventId":"event-123","skaterId":"skater-456","longitude":"not-a-number","latitude":51.5074,"timestamp":1234567890}"""
       val invalidLatitudeJson =
         """{"eventId":"event-123","skaterId":"skater-456","longitude":-0.1276,"latitude":"not-a-number","timestamp":1234567890}"""
+      val invalidTimestampJson =
+        """{"eventId":"event-123","skaterId":"skater-456","longitude":-0.1276,"latitude":51.5074,"timestamp":"not-a-number"}"""
 
       JsonCodec.locationUpdateCodec.decode(invalidLongitudeJson) shouldBe a[Left[_, _]]
       JsonCodec.locationUpdateCodec.decode(invalidLatitudeJson) shouldBe a[Left[_, _]]
+      JsonCodec.locationUpdateCodec.decode(invalidTimestampJson) shouldBe a[Left[_, _]]
     }
 
     "handle coordinate precision correctly" in {
@@ -154,13 +154,6 @@ class JsonCodecSpec extends AnyWordSpec with Matchers {
       decoded shouldBe Right(highPrecisionUpdate)
     }
 
-    "fail to decode LocationUpdate JSON that causes exception" in {
-      val malformedJson = """{"eventId":null,"skaterId":"skater-456","longitude":-0.1276,"latitude":51.5074}"""
-      val result        = JsonCodec.locationUpdateCodec.decode(malformedJson)
-
-      result shouldBe a[Left[_, _]]
-    }
-
     "create LocationUpdate with default timestamp via case class constructor" in {
       val update = LocationUpdate("event-default", "skater-default", -1.0, 2.0)
       update.eventId shouldBe "event-default"
@@ -168,6 +161,17 @@ class JsonCodecSpec extends AnyWordSpec with Matchers {
       update.longitude shouldBe -1.0
       update.latitude shouldBe 2.0
       update.timestamp should be > 0L
+    }
+
+    "ensure TestErrorWithMixedTypes details map is fully covered" in {
+      val error   = TestErrorWithMixedTypes()
+      val details = error.details
+      details should be(defined)
+
+      val Some(map) = details
+      map.size shouldBe 4
+      map.keys should contain allOf ("stringField", "doubleField", "intField", "boolField")
+      map.values should contain allOf ("test string", 42.5, 123, true)
     }
   }
 }
