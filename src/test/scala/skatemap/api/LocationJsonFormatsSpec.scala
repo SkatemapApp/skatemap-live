@@ -98,7 +98,7 @@ class LocationJsonFormatsSpec extends AnyWordSpec with Matchers {
     }
 
     "be compatible with existing coordinate format (SLP-001 test command)" in {
-      val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074)
+      val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074, 1000L)
       val json   = Json.toJson(update)
       val parsed = json.as[LocationUpdate]
 

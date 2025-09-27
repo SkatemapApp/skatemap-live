@@ -13,17 +13,19 @@ lazy val root = (project in file("."))
   .disablePlugins(PlayLayoutPlugin)
   .settings(commands += ciBuild,
     coverageExcludedPackages := "<empty>;Reverse.*;router\\.*",
-      Compile / compile / wartremoverErrors := Warts.allBut(Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable) ++ Seq(Wart.UnusedImport),
+      Compile / compile / wartremoverErrors := Seq(Wart.DefaultArguments),
       Test / compile / wartremoverErrors := Warts.allBut(Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable)
   )
 
 scalaVersion := "2.13.16"
 
 scalacOptions ++= Seq(
-  "-Wunused:imports",
   "-Wunused:locals",
   "-Wunused:privates",
-  "-Xfatal-warnings"
+  "-Wunused:imports",
+  "-Wunused:patvars",
+  "-Xfatal-warnings",
+  "-Wconf:src=routes/.*:s"
 )
 
 libraryDependencies ++= Seq(

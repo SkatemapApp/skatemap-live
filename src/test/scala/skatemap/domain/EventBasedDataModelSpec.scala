@@ -10,7 +10,7 @@ class EventBasedDataModelSpec extends AnyWordSpec with Matchers {
   "Event-based data models" should {
 
     "support Play JSON serialization with timestamps" in {
-      val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074)
+      val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074, 2000L)
       val json   = Json.toJson(update)
       val parsed = json.as[LocationUpdate]
 
@@ -21,7 +21,7 @@ class EventBasedDataModelSpec extends AnyWordSpec with Matchers {
     }
 
     "support JSON round-trip serialization for LocationUpdate" in {
-      val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074)
+      val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074, 3000L)
 
       val json   = Json.toJson(update)
       val parsed = json.as[LocationUpdate]
@@ -30,7 +30,7 @@ class EventBasedDataModelSpec extends AnyWordSpec with Matchers {
     }
 
     "support JSON round-trip serialization for Location" in {
-      val location = Location("s1", -0.1276, 51.5074, System.currentTimeMillis)
+      val location = Location("s1", -0.1276, 51.5074, 5000L)
 
       val json   = Json.toJson(location)
       val parsed = json.as[Location]
@@ -42,8 +42,8 @@ class EventBasedDataModelSpec extends AnyWordSpec with Matchers {
       val updateWithTimestamp = LocationUpdate("event-1", "s1", -0.1276, 51.5074, 1234567890L)
       updateWithTimestamp.timestamp shouldBe 1234567890L
 
-      val updateWithDefault = LocationUpdate("event-1", "s1", -0.1276, 51.5074)
-      updateWithDefault.timestamp should be > 0L
+      val updateWithDefault = LocationUpdate("event-1", "s1", -0.1276, 51.5074, 4000L)
+      updateWithDefault.timestamp shouldBe 4000L
     }
   }
 }

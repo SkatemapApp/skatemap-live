@@ -7,7 +7,8 @@ object LocationValidator {
   def validate(
     eventId: String,
     skaterId: String,
-    coordinates: Option[Array[Double]]
+    coordinates: Option[Array[Double]],
+    timestamp: Long
   ): Either[ValidationError, LocationUpdate] =
     for {
       _               <- validateUUIDs(eventId, skaterId)
@@ -19,7 +20,7 @@ object LocationValidator {
       skaterId,
       validatedCoords.longitude,
       validatedCoords.latitude,
-      System.currentTimeMillis
+      timestamp
     )
 
   private def parseCoordinatesArray(array: Array[Double]): Either[ValidationError, Coordinates] =
