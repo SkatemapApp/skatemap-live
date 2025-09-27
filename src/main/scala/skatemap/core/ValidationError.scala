@@ -1,4 +1,4 @@
-package core
+package skatemap.core
 
 sealed trait ValidationError {
   def code: String
@@ -21,10 +21,10 @@ case class InvalidSkaterIdError() extends ValidationError {
 }
 
 case class InvalidLongitudeError(value: Double) extends ValidationError {
-  val code           = "INVALID_LONGITUDE"
-  val message        = "Longitude must be between -180.0 and 180.0"
-  override val field = Some("coordinates[0]")
-  override val details = Some(
+  val code                           = "INVALID_LONGITUDE"
+  val message                        = "Longitude must be between -180.0 and 180.0"
+  override val field: Option[String] = Some("coordinates[0]")
+  override val details: Option[Map[String, Any]] = Some(
     Map(
       "field"      -> "coordinates[0]",
       "value"      -> value,
@@ -34,10 +34,10 @@ case class InvalidLongitudeError(value: Double) extends ValidationError {
 }
 
 case class InvalidLatitudeError(value: Double) extends ValidationError {
-  val code           = "INVALID_LATITUDE"
-  val message        = "Latitude must be between -90.0 and 90.0"
-  override val field = Some("coordinates[1]")
-  override val details = Some(
+  val code                           = "INVALID_LATITUDE"
+  val message                        = "Latitude must be between -90.0 and 90.0"
+  override val field: Option[String] = Some("coordinates[1]")
+  override val details: Option[Map[String, Any]] = Some(
     Map(
       "field"      -> "coordinates[1]",
       "value"      -> value,
@@ -64,7 +64,7 @@ case class InvalidCoordinatesLengthError() extends ValidationError {
 case class TestErrorWithMixedTypes() extends ValidationError {
   val code    = "TEST_ERROR"
   val message = "Test error with mixed types"
-  override val details = Some(
+  override val details: Option[Map[String, Any]] = Some(
     Map(
       "stringField" -> "test string",
       "doubleField" -> 42.5,

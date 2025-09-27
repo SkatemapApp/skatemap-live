@@ -1,6 +1,6 @@
-package adapters.playhttp
+package skatemap.api
 
-import core._
+import skatemap.core._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 

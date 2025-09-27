@@ -1,6 +1,6 @@
-package adapters.playhttp
+package skatemap.api
 
-import core.ValidationError
+import skatemap.core.ValidationError
 import play.api.libs.json._
 import play.api.mvc.Result
 import play.api.mvc.Results.BadRequest

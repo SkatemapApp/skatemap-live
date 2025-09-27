@@ -1,5 +1,6 @@
-package core
+package skatemap.core
 
+import skatemap.domain.Location
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import java.time.Instant

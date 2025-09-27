@@ -1,6 +1,6 @@
-package core
+package skatemap.domain
 
-import adapters.playhttp.LocationJsonFormats._
+import skatemap.api.json.LocationJson._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json._
@@ -20,22 +20,22 @@ class EventBasedDataModelSpec extends AnyWordSpec with Matchers {
       parsed.latitude shouldBe update.latitude
     }
 
-    "support framework-agnostic JSON serialization" in {
+    "support JSON round-trip serialization for LocationUpdate" in {
       val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074)
 
-      val json   = JsonCodec.locationUpdateCodec.encode(update)
-      val parsed = JsonCodec.locationUpdateCodec.decode(json)
+      val json   = Json.toJson(update)
+      val parsed = json.as[LocationUpdate]
 
-      parsed shouldBe Right(update)
+      parsed shouldBe update
     }
 
-    "handle Location model with timestamps" in {
+    "support JSON round-trip serialization for Location" in {
       val location = Location("s1", -0.1276, 51.5074, System.currentTimeMillis)
 
-      val json   = JsonCodec.locationCodec.encode(location)
-      val parsed = JsonCodec.locationCodec.decode(json)
+      val json   = Json.toJson(location)
+      val parsed = json.as[Location]
 
-      parsed shouldBe Right(location)
+      parsed shouldBe location
     }
 
     "handle explicit and default timestamps in LocationUpdate" in {

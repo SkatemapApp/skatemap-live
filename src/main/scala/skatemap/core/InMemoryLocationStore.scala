@@ -1,14 +1,9 @@
-package core
+package skatemap.core
 
+import skatemap.domain.Location
 import java.time.Instant
 import scala.concurrent.duration._
 import scala.collection.concurrent.TrieMap
-
-trait LocationStore {
-  def put(eventId: String, location: Location): Unit
-  def getAll(eventId: String): Map[String, Location]
-  def cleanup(): Unit
-}
 
 class InMemoryLocationStore extends LocationStore {
   private val store: TrieMap[String, TrieMap[String, (Location, Instant)]] = TrieMap.empty

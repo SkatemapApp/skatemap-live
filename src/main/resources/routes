@@ -1,1 +1,1 @@
-PUT     /skatingEvents/:skatingEventId/skaters/:skaterId    controllers.play.LocationController.updateLocation(skatingEventId, skaterId)
+PUT     /skatingEvents/:skatingEventId/skaters/:skaterId    skatemap.api.LocationController.updateLocation(skatingEventId, skaterId)

@@ -1,4 +1,4 @@
-package controllers.play
+package skatemap.api
 
 import org.apache.pekko.stream.Materializer
 import org.scalatestplus.play.PlaySpec
@@ -14,7 +14,7 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
 
   implicit lazy val materializer: Materializer = app.materializer
 
-  private def createController() = new LocationController(stubControllerComponents())
+  private def createController() = new skatemap.api.LocationController(stubControllerComponents())
 
   "LocationController" should {
     "update skater location with valid coordinates" in {

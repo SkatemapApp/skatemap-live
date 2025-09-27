@@ -1,7 +1,6 @@
-package controllers.play
+package skatemap.api
 
-import adapters.playhttp.ValidationErrorAdapter
-import core.{IngestService, LocationValidator}
+import skatemap.core.{IngestService, LocationValidator}
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
 import javax.inject.{Inject, Singleton}
@@ -11,12 +10,11 @@ class LocationController @Inject() (val controllerComponents: ControllerComponen
 
   def updateLocation(skatingEventId: String, skaterId: String): Action[AnyContent] =
     Action { implicit request =>
-      val jsonString = request.body.asJson match {
-        case Some(json) => json.toString()
-        case None       => ""
+      val coordinates = request.body.asJson.flatMap { json =>
+        (json \ "coordinates").asOpt[Array[Double]]
       }
 
-      LocationValidator.validate(skatingEventId, skaterId, jsonString) match {
+      LocationValidator.validate(skatingEventId, skaterId, coordinates) match {
         case Left(error) => ValidationErrorAdapter.toJsonResponse(error)
         case Right(locationUpdate) =>
           IngestService.handle(locationUpdate)

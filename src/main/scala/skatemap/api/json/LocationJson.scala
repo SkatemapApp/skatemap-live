@@ -1,9 +1,9 @@
-package adapters.playhttp
+package skatemap.api.json
 
-import core.{Location, LocationUpdate}
+import skatemap.domain.{Location, LocationUpdate}
 import play.api.libs.json._
 
-object LocationJsonFormats {
+object LocationJson {
 
   implicit val locationFormat: Format[Location] = new Format[Location] {
     def reads(json: JsValue): JsResult[Location] =
