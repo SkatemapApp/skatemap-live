@@ -1,7 +1,7 @@
 package controllers.play
 
-import adapters.play.ValidationErrorAdapter
-import core.LocationValidator
+import adapters.playhttp.ValidationErrorAdapter
+import core.{IngestService, LocationValidator}
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
 import javax.inject.{Inject, Singleton}
@@ -19,10 +19,12 @@ class LocationController @Inject() (
         case None       => ""
       }
 
-      // Use core validator
+      // Use core validator and service
       LocationValidator.validate(skatingEventId, skaterId, jsonString) match {
         case Left(error) => ValidationErrorAdapter.toJsonResponse(error)
-        case Right(_)    => Accepted
+        case Right(locationUpdate) =>
+          IngestService.handle(locationUpdate)
+          Accepted
       }
     }
 }

@@ -1,4 +1,4 @@
-package adapters.play
+package adapters.playhttp
 
 import core._
 import org.scalatest.matchers.should.Matchers

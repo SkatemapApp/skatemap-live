@@ -14,8 +14,8 @@ object LocationValidator {
     for {
       _           <- validateUUIDs(eventId, skaterId)
       coordinates <- parseCoordinatesFromJson(coordinatesJson)
-      _           <- validateCoordinateBounds(coordinates._1, coordinates._2)
-    } yield LocationUpdate(eventId, skaterId, coordinates._1, coordinates._2)
+      _           <- validateCoordinateBounds(coordinates)
+    } yield LocationUpdate(eventId, skaterId, coordinates.longitude, coordinates.latitude)
 
   private def validateUUIDs(eventId: String, skaterId: String): Either[ValidationError, Unit] =
     Try(UUID.fromString(eventId)) match {
@@ -27,7 +27,7 @@ object LocationValidator {
         }
     }
 
-  private def parseCoordinatesFromJson(jsonString: String): Either[ValidationError, (Double, Double)] =
+  private def parseCoordinatesFromJson(jsonString: String): Either[ValidationError, Coordinates] =
     Try {
       val trimmed = jsonString.trim
 
@@ -57,7 +57,7 @@ object LocationValidator {
         case Some(m) =>
           val longitude = m.group(1).toDouble
           val latitude  = m.group(2).toDouble
-          (longitude, latitude)
+          Coordinates(longitude, latitude)
         case None =>
           // Check if coordinates field exists but is malformed
           if (trimmed.contains("\"coordinates\"")) {
@@ -89,11 +89,11 @@ object LocationValidator {
         }
     }
 
-  private def validateCoordinateBounds(longitude: Double, latitude: Double): Either[ValidationError, Unit] =
-    if (longitude < MIN_LONGITUDE || longitude > MAX_LONGITUDE) {
-      Left(InvalidLongitudeError(longitude))
-    } else if (latitude < MIN_LATITUDE || latitude > MAX_LATITUDE) {
-      Left(InvalidLatitudeError(latitude))
+  private def validateCoordinateBounds(coordinates: Coordinates): Either[ValidationError, Unit] =
+    if (coordinates.longitude < MIN_LONGITUDE || coordinates.longitude > MAX_LONGITUDE) {
+      Left(InvalidLongitudeError(coordinates.longitude))
+    } else if (coordinates.latitude < MIN_LATITUDE || coordinates.latitude > MAX_LATITUDE) {
+      Left(InvalidLatitudeError(coordinates.latitude))
     } else {
       Right(())
     }
