@@ -22,5 +22,6 @@ jobs:
       uses: coursier/setup-action@v1
       with:
         jvm: temurin:21
+        apps: sbt
     - name: Run tests
       run: sbt ciBuild
