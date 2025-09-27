@@ -30,7 +30,7 @@ class EventBasedDataModelSpec extends AnyWordSpec with Matchers {
     }
 
     "handle Location model with timestamps" in {
-      val location = Location("s1", 51.5074, -0.1276, System.currentTimeMillis)
+      val location = Location("s1", -0.1276, 51.5074, System.currentTimeMillis)
 
       val json   = JsonCodec.locationCodec.encode(location)
       val parsed = JsonCodec.locationCodec.decode(json)

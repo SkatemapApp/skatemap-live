@@ -1,17 +1,14 @@
 package controllers.play
 
-import java.util.UUID
-
 import org.apache.pekko.stream.Materializer
 import org.scalatestplus.play.PlaySpec
-import play.api.http.Status.{ACCEPTED, BAD_REQUEST, OK}
-import play.api.libs.json.Json
-import play.api.test.Helpers.{contentAsJson, status}
-
-import org.scalatestplus.play._
 import org.scalatestplus.play.guice._
-import play.api.test._
+import play.api.http.Status.{ACCEPTED, BAD_REQUEST}
+import play.api.libs.json.Json
 import play.api.test.Helpers._
+import play.api.test._
+
+import java.util.UUID
 
 class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
 

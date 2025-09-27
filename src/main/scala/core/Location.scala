@@ -1,8 +1,3 @@
 package core
 
-case class Location(
-  skaterId: String,
-  latitude: Double,
-  longitude: Double,
-  timestamp: Long
-)
+case class Location(skaterId: String, longitude: Double, latitude: Double, timestamp: Long)

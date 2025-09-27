@@ -8,7 +8,7 @@ class JsonCodecSpec extends AnyWordSpec with Matchers {
   "LocationCodec" should {
 
     "encode Location to JSON" in {
-      val location = Location("skater-123", 51.5074, -0.1276, 1234567890L)
+      val location = Location("skater-123", -0.1276, 51.5074, 1234567890L)
       val json     = JsonCodec.locationCodec.encode(location)
 
       json should include("\"skaterId\":\"skater-123\"")
@@ -21,11 +21,11 @@ class JsonCodecSpec extends AnyWordSpec with Matchers {
       val json   = """{"skaterId":"skater-123","latitude":51.5074,"longitude":-0.1276,"timestamp":1234567890}"""
       val result = JsonCodec.locationCodec.decode(json)
 
-      result shouldBe Right(Location("skater-123", 51.5074, -0.1276, 1234567890L))
+      result shouldBe Right(Location("skater-123", -0.1276, 51.5074, 1234567890L))
     }
 
     "round-trip encode/decode Location" in {
-      val original = Location("skater-456", 45.4215, 2.3490, 9876543210L)
+      val original = Location("skater-456", 2.3490, 45.4215, 9876543210L)
       val encoded  = JsonCodec.locationCodec.encode(original)
       val decoded  = JsonCodec.locationCodec.decode(encoded)
 
@@ -37,7 +37,7 @@ class JsonCodecSpec extends AnyWordSpec with Matchers {
         """{ "skaterId" : "skater-789" , "latitude" : 40.7128 , "longitude" : -74.0060 , "timestamp" : 5555555555 }"""
       val result = JsonCodec.locationCodec.decode(json)
 
-      result shouldBe Right(Location("skater-789", 40.7128, -74.0060, 5555555555L))
+      result shouldBe Right(Location("skater-789", -74.0060, 40.7128, 5555555555L))
     }
 
     "fail to decode Location JSON with missing fields" in {

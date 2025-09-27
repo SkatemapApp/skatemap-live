@@ -2,8 +2,11 @@ package core
 
 sealed trait ValidationError {
   def code: String
+
   def message: String
-  def field: Option[String]             = None
+
+  def field: Option[String] = None
+
   def details: Option[Map[String, Any]] = None
 }
 
