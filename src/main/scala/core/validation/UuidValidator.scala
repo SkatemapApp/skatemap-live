@@ -1,0 +1,19 @@
+package core.validation
+
+import java.util.UUID
+import core.{InvalidSkaterIdError, InvalidSkatingEventIdError, ValidationError}
+import scala.util.{Failure, Success, Try}
+
+object UuidValidator {
+  def validateEventId(value: String): Either[ValidationError, UUID] =
+    Try(UUID.fromString(value)) match {
+      case Success(uuid) => Right(uuid)
+      case Failure(_)    => Left(InvalidSkatingEventIdError())
+    }
+
+  def validateSkaterId(value: String): Either[ValidationError, UUID] =
+    Try(UUID.fromString(value)) match {
+      case Success(uuid) => Right(uuid)
+      case Failure(_)    => Left(InvalidSkaterIdError())
+    }
+}

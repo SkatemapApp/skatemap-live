@@ -7,9 +7,7 @@ import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 import javax.inject.{Inject, Singleton}
 
 @Singleton
-class LocationController @Inject() (
-  val controllerComponents: ControllerComponents
-) extends BaseController {
+class LocationController @Inject() (val controllerComponents: ControllerComponents) extends BaseController {
 
   def updateLocation(skatingEventId: String, skaterId: String): Action[AnyContent] =
     Action { implicit request =>

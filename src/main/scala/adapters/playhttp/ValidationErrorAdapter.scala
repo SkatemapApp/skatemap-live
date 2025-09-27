@@ -8,10 +8,7 @@ import play.api.mvc.Results.BadRequest
 object ValidationErrorAdapter {
 
   def toJsonResponse(error: ValidationError): Result = {
-    val baseJson = Json.obj(
-      "error"   -> error.code,
-      "message" -> error.message
-    )
+    val baseJson = Json.obj("error" -> error.code, "message" -> error.message)
 
     val jsonWithDetails = error.details match {
       case Some(details) =>

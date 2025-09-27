@@ -11,7 +11,7 @@ class LocationJsonFormatsSpec extends AnyWordSpec with Matchers {
   "LocationJsonFormats" should {
 
     "serialize Location to JSON and back" in {
-      val location = Location("skater-123", 51.5074, -0.1276, 1234567890L)
+      val location = Location("skater-123", -0.1276, 51.5074, 1234567890L)
       val json     = Json.toJson(location)
       val parsed   = json.as[Location]
 
@@ -44,7 +44,7 @@ class LocationJsonFormatsSpec extends AnyWordSpec with Matchers {
     }
 
     "write Location to correct JSON structure" in {
-      val location = Location("skater-789", 40.7128, -74.0060, 9876543210L)
+      val location = Location("skater-789", -74.0060, 40.7128, 9876543210L)
       val json     = Json.toJson(location)
 
       (json \ "skaterId").as[String] shouldBe "skater-789"
@@ -88,7 +88,7 @@ class LocationJsonFormatsSpec extends AnyWordSpec with Matchers {
     }
 
     "handle coordinate precision in Play JSON" in {
-      val highPrecisionLocation = Location("skater-precision", 51.987654321, -0.123456789, 1111111111L)
+      val highPrecisionLocation = Location("skater-precision", -0.123456789, 51.987654321, 1111111111L)
       val json                  = Json.toJson(highPrecisionLocation)
       val parsed                = json.as[Location]
 

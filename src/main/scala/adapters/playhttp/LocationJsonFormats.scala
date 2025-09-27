@@ -12,7 +12,7 @@ object LocationJsonFormats {
         latitude  <- (json \ "latitude").validate[Double]
         longitude <- (json \ "longitude").validate[Double]
         timestamp <- (json \ "timestamp").validate[Long]
-      } yield Location(skaterId, latitude, longitude, timestamp)
+      } yield Location(skaterId, longitude, latitude, timestamp)
 
     def writes(location: Location): JsValue = Json.obj(
       "skaterId"  -> location.skaterId,
