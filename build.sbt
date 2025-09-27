@@ -16,7 +16,7 @@ lazy val root = (project in file("."))
       Test / compile / wartremoverErrors := Warts.allBut(Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable)
   )
 
-scalaVersion := "2.13.14"
+scalaVersion := "2.13.16"
 
 libraryDependencies ++= Seq(
   guice,
