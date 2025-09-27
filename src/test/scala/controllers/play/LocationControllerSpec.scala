@@ -1,13 +1,12 @@
-package controllers
+package controllers.play
 
 import java.util.UUID
 
 import org.apache.pekko.stream.Materializer
 import org.scalatestplus.play.PlaySpec
-import play.api.http.Status.{BAD_REQUEST, OK}
+import play.api.http.Status.{ACCEPTED, BAD_REQUEST, OK}
 import play.api.libs.json.Json
 import play.api.test.Helpers.{contentAsJson, status}
-import services.LocationValidationService
 
 import org.scalatestplus.play._
 import org.scalatestplus.play.guice._
@@ -18,7 +17,7 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
 
   implicit lazy val materializer: Materializer = app.materializer
 
-  private def createController() = new LocationController(stubControllerComponents(), new LocationValidationService())
+  private def createController() = new LocationController(stubControllerComponents())
 
   "LocationController" should {
     "update skater location with valid coordinates" in {
@@ -33,7 +32,7 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
             .withJsonBody(Json.parse("""{"coordinates": [0.0, 50.0]}"""))
         )
 
-      status(result) mustBe OK
+      status(result) mustBe ACCEPTED
     }
 
     "update skater location from the router" in {
@@ -44,7 +43,7 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
         .withJsonBody(Json.parse("""{"coordinates": [0.0, 50.0]}"""))
       val result = route(app, request).fold(fail("Route not found"))(identity)
 
-      status(result) mustBe OK
+      status(result) mustBe ACCEPTED
     }
 
     "reject invalid skating event ID" in {
@@ -174,7 +173,7 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
               .withHeaders("Content-Type" -> "application/json")
               .withJsonBody(Json.parse(coordinates))
           )
-        status(result) mustBe OK
+        status(result) mustBe ACCEPTED
       }
     }
   }
