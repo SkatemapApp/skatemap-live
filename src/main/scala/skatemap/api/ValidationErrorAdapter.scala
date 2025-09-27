@@ -15,9 +15,12 @@ object ValidationErrorAdapter {
         val detailsJson = Json.obj(
           details.map { case (key, value) =>
             val jsValue: Json.JsValueWrapper = value match {
-              case s: String => s
-              case d: Double => d
-              case _         => value.toString
+              case s: String  => s
+              case d: Double  => d
+              case i: Int     => i
+              case b: Boolean => b
+              case l: Long    => l
+              case _          => String.valueOf(value)
             }
             key -> jsValue
           }.toSeq: _*

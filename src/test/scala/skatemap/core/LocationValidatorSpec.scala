@@ -15,7 +15,7 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
       val skaterId    = UUID.randomUUID().toString
       val coordinates = Some(Array(0.0, 50.0))
 
-      val result = LocationValidator.validate(eventId, skaterId, coordinates)
+      val result = LocationValidator.validate(eventId, skaterId, coordinates, 1000L)
 
       result should matchPattern { case Right(LocationUpdate(`eventId`, `skaterId`, 0.0, 50.0, _)) =>
       }
@@ -32,7 +32,7 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
       )
 
       boundaryCases.foreach { case (coordinates, expectedLon, expectedLat) =>
-        val result = LocationValidator.validate(eventId, skaterId, coordinates)
+        val result = LocationValidator.validate(eventId, skaterId, coordinates, 1000L)
         result should matchPattern {
           case Right(LocationUpdate(`eventId`, `skaterId`, `expectedLon`, `expectedLat`, _)) =>
         }
@@ -43,7 +43,7 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
       val skaterId    = UUID.randomUUID().toString
       val coordinates = Some(Array(0.0, 50.0))
 
-      val result = LocationValidator.validate("invalid-uuid", skaterId, coordinates)
+      val result = LocationValidator.validate("invalid-uuid", skaterId, coordinates, 3000L)
 
       result shouldBe Left(InvalidSkatingEventIdError())
     }
@@ -52,7 +52,7 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
       val eventId     = UUID.randomUUID().toString
       val coordinates = Some(Array(0.0, 50.0))
 
-      val result = LocationValidator.validate(eventId, "invalid-uuid", coordinates)
+      val result = LocationValidator.validate(eventId, "invalid-uuid", coordinates, 4000L)
 
       result shouldBe Left(InvalidSkaterIdError())
     }
@@ -68,7 +68,7 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
       )
 
       invalidLongitudeCases.foreach { case (coordinates, invalidLon) =>
-        val result = LocationValidator.validate(eventId, skaterId, coordinates)
+        val result = LocationValidator.validate(eventId, skaterId, coordinates, 1000L)
         result shouldBe Left(InvalidLongitudeError(invalidLon))
       }
     }
@@ -84,7 +84,7 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
       )
 
       invalidLatitudeCases.foreach { case (coordinates, invalidLat) =>
-        val result = LocationValidator.validate(eventId, skaterId, coordinates)
+        val result = LocationValidator.validate(eventId, skaterId, coordinates, 1000L)
         result shouldBe Left(InvalidLatitudeError(invalidLat))
       }
     }
@@ -93,7 +93,7 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
       val eventId  = UUID.randomUUID().toString
       val skaterId = UUID.randomUUID().toString
 
-      val result = LocationValidator.validate(eventId, skaterId, None)
+      val result = LocationValidator.validate(eventId, skaterId, None, 5000L)
 
       result shouldBe Left(MissingCoordinatesError())
     }
@@ -109,7 +109,7 @@ class LocationValidatorSpec extends AnyWordSpec with Matchers {
       )
 
       wrongLengthCases.foreach { coordinates =>
-        val result = LocationValidator.validate(eventId, skaterId, coordinates)
+        val result = LocationValidator.validate(eventId, skaterId, coordinates, 1000L)
         result shouldBe Left(InvalidCoordinatesLengthError())
       }
     }

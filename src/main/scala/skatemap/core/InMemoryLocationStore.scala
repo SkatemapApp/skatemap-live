@@ -24,7 +24,7 @@ class InMemoryLocationStore extends LocationStore {
   def cleanup(): Unit = {
     val cutoff = Instant.now().minusSeconds(maxAge.toSeconds)
 
-    store.foreach { case (eventId, eventMap) =>
+    store.foreachEntry { case (eventId, eventMap) =>
       eventMap.filterInPlace { case (_, (_, timestamp)) => timestamp.isAfter(cutoff) }
 
       if (eventMap.isEmpty) {

@@ -3,7 +3,6 @@ package skatemap.core
 import skatemap.domain.Location
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import java.time.Instant
 import java.util.concurrent.{CountDownLatch, Executors}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Random
@@ -98,7 +97,7 @@ class LocationStoreSpec extends AnyFlatSpec with Matchers {
     implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executor)
     val latch                         = new CountDownLatch(numThreads)
 
-    val futures = (1 to numThreads).map { threadId =>
+    (1 to numThreads).foreach { threadId =>
       Future {
         try {
           (1 to numOperationsPerThread).foreach { opId =>
