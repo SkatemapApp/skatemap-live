@@ -1,6 +1,6 @@
 package skatemap.api
 
-import skatemap.core.{IngestService, LocationValidator}
+import skatemap.core.LocationValidator
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
 
 import javax.inject.{Inject, Singleton}
@@ -15,9 +15,9 @@ class LocationController @Inject() (val controllerComponents: ControllerComponen
       }
 
       LocationValidator.validate(skatingEventId, skaterId, coordinates) match {
-        case Left(error) => ValidationErrorAdapter.toJsonResponse(error)
+        case Left(error)           => ValidationErrorAdapter.toJsonResponse(error)
         case Right(locationUpdate) =>
-          IngestService.handle(locationUpdate)
+          // TODO: Add actual storage when implementing LocationStore integration
           Accepted
       }
     }
