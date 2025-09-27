@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Pre-commit hook to format Scala files with scalafmt
+# This hook runs scalafmt on all staged Scala files and adds them back to the commit
+
+set -e
+
+# Check if there are any staged Scala files
+staged_scala_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.scala$' || true)
+
+if [ -z "$staged_scala_files" ]; then
+    # No Scala files staged, exit successfully
+    exit 0
+fi
+
+echo "Running scalafmt on staged Scala files..."
+
+# Run scalafmt on the project
+sbt scalafmtAll > /dev/null 2>&1
+
+# Check if scalafmt made any changes to staged files
+changes_made=false
+for file in $staged_scala_files; do
+    if git diff --name-only | grep -q "^$file$"; then
+        changes_made=true
+        echo "Formatted: $file"
+        # Re-add the formatted file to the staging area
+        git add "$file"
+    fi
+done
+
+if [ "$changes_made" = true ]; then
+    echo "Scala files have been formatted and re-staged."
+    echo "Please review the changes and commit again if needed."
+fi
+
+echo "Pre-commit scalafmt check completed successfully."
+exit 0

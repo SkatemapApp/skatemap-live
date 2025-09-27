@@ -7,15 +7,17 @@ set -e
 
 echo "Setting up git hooks..."
 
-# Copy commit-msg hook
+# Copy hooks
 cp scripts/git-hooks/commit-msg .git/hooks/commit-msg
+cp scripts/git-hooks/pre-commit .git/hooks/pre-commit
 chmod +x .git/hooks/commit-msg
+chmod +x .git/hooks/pre-commit
 
 echo "✅ Git hooks installed successfully!"
 echo ""
 echo "The following hooks are now active:"
+echo "  - pre-commit: Formats Scala files with scalafmt"
 echo "  - commit-msg: Validates conventional commit message format"
-echo "  - pre-commit: Formats Scala files with scalafmt (already installed)"
 echo ""
 echo "Your commit messages must now follow the conventional commits format:"
 echo "  https://www.conventionalcommits.org/en/v1.0.0/"
