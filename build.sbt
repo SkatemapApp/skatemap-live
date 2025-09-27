@@ -11,10 +11,17 @@ coverageFailOnMinimum := true
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLayoutPlugin)
-  .settings(commands += ciBuild,
+  .settings(
+    commands += ciBuild,
     coverageExcludedPackages := "<empty>;Reverse.*;router\\.*",
-      Compile / compile / wartremoverErrors := Seq(Wart.DefaultArguments),
-      Test / compile / wartremoverErrors := Warts.allBut(Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable)
+    // WartRemover incorrectly analyzes routes files - exclude warts that routes files trigger
+    Compile / compile / wartremoverErrors := Warts.allBut(
+      // Core exclusions for legitimate use cases
+      Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable,
+      // Play Framework routes file exclusions (should be fixed by proper exclusion)
+      Wart.AsInstanceOf, Wart.JavaSerializable, Wart.Overloading, Wart.Var, Wart.Product
+    ),
+    Test / compile / wartremoverErrors := Warts.allBut(Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable)
   )
 
 scalaVersion := "2.13.16"
@@ -27,6 +34,9 @@ scalacOptions ++= Seq(
   "-Xfatal-warnings",
   "-Wconf:src=routes/.*:s"
 )
+
+// Attempt to exclude routes file from WartRemover (doesn't work properly)
+wartremoverExcluded += (Compile / resourceDirectory).value
 
 libraryDependencies ++= Seq(
   guice,

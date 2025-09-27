@@ -39,6 +39,7 @@ class ValidationErrorAdapterSpec extends AnyWordSpec with Matchers {
       details("doubleField") shouldBe 42.5
       details("intField") shouldBe 123
       details("boolField") shouldBe true
+      details("longField") shouldBe 999L
     }
   }
 }

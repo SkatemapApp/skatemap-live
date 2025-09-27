@@ -24,10 +24,9 @@ object LocationValidator {
     )
 
   private def parseCoordinatesArray(array: Array[Double]): Either[ValidationError, Coordinates] =
-    if (array.length == 2) {
-      Right(Coordinates(array(0), array(1)))
-    } else {
-      Left(InvalidCoordinatesLengthError())
+    array.length match {
+      case 2 => Right(Coordinates(array(0), array(1)))
+      case _ => Left(InvalidCoordinatesLengthError())
     }
 
   private def validateUUIDs(eventId: String, skaterId: String): Either[ValidationError, Unit] =
