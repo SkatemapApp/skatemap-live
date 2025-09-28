@@ -15,14 +15,11 @@ object CoordinateValidator {
     } yield coordinates
 
   private def validateLongitude(longitude: Double): Either[ValidationError, Unit] =
-    if (longitude < MIN_LONGITUDE || longitude > MAX_LONGITUDE)
+    if (longitude.isNaN || longitude < MIN_LONGITUDE || longitude > MAX_LONGITUDE)
       Left(InvalidLongitudeError(longitude))
-    else
-      Right(())
+    else Right(())
 
   private def validateLatitude(latitude: Double): Either[ValidationError, Unit] =
-    if (latitude < MIN_LATITUDE || latitude > MAX_LATITUDE)
-      Left(InvalidLatitudeError(latitude))
-    else
-      Right(())
+    if (latitude.isNaN || latitude < MIN_LATITUDE || latitude > MAX_LATITUDE) Left(InvalidLatitudeError(latitude))
+    else Right(())
 }

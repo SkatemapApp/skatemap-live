@@ -15,18 +15,12 @@ object LocationValidator {
       coordsArray     <- coordinates.toRight(MissingCoordinatesError())
       coords          <- parseCoordinatesArray(coordsArray)
       validatedCoords <- CoordinateValidator.validateBounds(coords)
-    } yield LocationUpdate(
-      eventId,
-      skaterId,
-      validatedCoords.longitude,
-      validatedCoords.latitude,
-      timestamp
-    )
+    } yield LocationUpdate(eventId, skaterId, validatedCoords.longitude, validatedCoords.latitude, timestamp)
 
   private def parseCoordinatesArray(array: Array[Double]): Either[ValidationError, Coordinates] =
-    array.length match {
-      case 2 => Right(Coordinates(array(0), array(1)))
-      case _ => Left(InvalidCoordinatesLengthError())
+    array match {
+      case Array(longitude, latitude) => Right(Coordinates(longitude, latitude))
+      case _                          => Left(InvalidCoordinatesLengthError())
     }
 
   private def validateUUIDs(eventId: String, skaterId: String): Either[ValidationError, Unit] =
