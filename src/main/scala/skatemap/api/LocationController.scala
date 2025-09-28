@@ -10,15 +10,11 @@ class LocationController @Inject() (val controllerComponents: ControllerComponen
 
   def updateLocation(skatingEventId: String, skaterId: String): Action[AnyContent] =
     Action { implicit request =>
-      val coordinates = request.body.asJson.flatMap { json =>
-        (json \ "coordinates").asOpt[Array[Double]]
-      }
+      val coordinates = request.body.asJson.flatMap(json => (json \ "coordinates").asOpt[Array[Double]])
 
       LocationValidator.validate(skatingEventId, skaterId, coordinates, System.currentTimeMillis) match {
         case Left(error) => ValidationErrorAdapter.toJsonResponse(error)
-        case Right(_)    =>
-          // TODO: Add actual storage when implementing LocationStore integration
-          Accepted
+        case Right(_)    => Accepted
       }
     }
 }

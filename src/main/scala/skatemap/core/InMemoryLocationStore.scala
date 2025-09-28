@@ -1,11 +1,12 @@
 package skatemap.core
 
 import skatemap.domain.Location
-import java.time.Instant
-import scala.concurrent.duration._
-import scala.collection.concurrent.TrieMap
 
-class InMemoryLocationStore extends LocationStore {
+import java.time.{Clock, Instant}
+import scala.collection.concurrent.TrieMap
+import scala.concurrent.duration._
+
+class InMemoryLocationStore(clock: Clock) extends LocationStore {
   private val store: TrieMap[String, TrieMap[String, (Location, Instant)]] = TrieMap.empty
   private val maxAge                                                       = 30.seconds
 
@@ -22,14 +23,12 @@ class InMemoryLocationStore extends LocationStore {
     }
 
   def cleanup(): Unit = {
-    val cutoff = Instant.now().minusSeconds(maxAge.toSeconds)
+    val cutoff = clock.instant().minusSeconds(maxAge.toSeconds)
 
     store.foreachEntry { case (eventId, eventMap) =>
       eventMap.filterInPlace { case (_, (_, timestamp)) => timestamp.isAfter(cutoff) }
 
-      if (eventMap.isEmpty) {
-        store.remove(eventId)
-      }
+      if (eventMap.isEmpty) { store.remove(eventId) }
     }
   }
 }

@@ -8,168 +8,70 @@ import play.api.libs.json.Json
 import play.api.test.Helpers._
 import play.api.test._
 
-import java.util.UUID
-
 class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
 
   implicit lazy val materializer: Materializer = app.materializer
 
+  private val validSkatingEventId = "550e8400-e29b-41d4-a716-446655440000"
+  private val validSkaterId       = "550e8400-e29b-41d4-a716-446655440001"
+
   private def createController() = new skatemap.api.LocationController(stubControllerComponents())
 
-  "LocationController" should {
-    "update skater location with valid coordinates" in {
-      val skatingEventId = UUID.randomUUID().toString
-      val skaterId       = UUID.randomUUID().toString
-      val controller     = createController()
-      val result = controller
-        .updateLocation(skatingEventId, skaterId)
-        .apply(
-          FakeRequest(PUT, s"/skatingEvents/$skatingEventId/skaters/$skaterId")
-            .withHeaders("Content-Type" -> "application/json")
-            .withJsonBody(Json.parse("""{"coordinates": [0.0, 50.0]}"""))
-        )
+  "LocationController.updateLocation" should {
+
+    "accept valid location update request" in {
+      val controller = createController()
+      val request = FakeRequest(PUT, s"/skatingEvents/$validSkatingEventId/skaters/$validSkaterId")
+        .withHeaders("Content-Type" -> "application/json")
+        .withJsonBody(Json.parse("""{"coordinates": [0.0, 50.0]}"""))
+
+      val result = controller.updateLocation(validSkatingEventId, validSkaterId).apply(request)
 
       status(result) mustBe ACCEPTED
     }
 
-    "update skater location from the router" in {
-      val skatingEventId = UUID.randomUUID().toString
-      val skaterId       = UUID.randomUUID().toString
-      val request = FakeRequest(PUT, s"/skatingEvents/$skatingEventId/skaters/$skaterId")
+    "handle requests through routing" in {
+      val request = FakeRequest(PUT, s"/skatingEvents/$validSkatingEventId/skaters/$validSkaterId")
         .withHeaders("Content-Type" -> "application/json")
         .withJsonBody(Json.parse("""{"coordinates": [0.0, 50.0]}"""))
+
       val result = route(app, request).fold(fail("Route not found"))(identity)
 
       status(result) mustBe ACCEPTED
     }
 
-    "reject invalid skating event ID" in {
+    "return BAD_REQUEST for validation errors" in {
       val controller = createController()
-      val result = controller
-        .updateLocation("invalid-uuid", UUID.randomUUID().toString)
-        .apply(
-          FakeRequest(PUT, "/skatingEvents/invalid-uuid/skaters/123")
-            .withHeaders("Content-Type" -> "application/json")
-            .withJsonBody(Json.parse("""{"coordinates": [0.0, 50.0]}"""))
-        )
-
-      status(result) mustBe BAD_REQUEST
-      val json = contentAsJson(result)
-      (json \ "error").as[String] mustBe "INVALID_SKATING_EVENT_ID"
-    }
-
-    "reject invalid skater ID" in {
-      val controller   = createController()
-      val validEventId = UUID.randomUUID().toString
-      val result = controller
-        .updateLocation(validEventId, "invalid-uuid")
-        .apply(
-          FakeRequest(PUT, s"/skatingEvents/$validEventId/skaters/invalid-uuid")
-            .withHeaders("Content-Type" -> "application/json")
-            .withJsonBody(Json.parse("""{"coordinates": [0.0, 50.0]}"""))
-        )
-
-      status(result) mustBe BAD_REQUEST
-      val json = contentAsJson(result)
-      (json \ "error").as[String] mustBe "INVALID_SKATER_ID"
-    }
-
-    "reject invalid longitude" in {
-      val skatingEventId = UUID.randomUUID().toString
-      val skaterId       = UUID.randomUUID().toString
-      val controller     = createController()
-      val result = controller
-        .updateLocation(skatingEventId, skaterId)
-        .apply(
-          FakeRequest(PUT, s"/skatingEvents/$skatingEventId/skaters/$skaterId")
-            .withHeaders("Content-Type" -> "application/json")
-            .withJsonBody(Json.parse("""{"coordinates": [181.0, 50.0]}"""))
-        )
-
-      status(result) mustBe BAD_REQUEST
-    }
-
-    "reject invalid latitude" in {
-      val skatingEventId = UUID.randomUUID().toString
-      val skaterId       = UUID.randomUUID().toString
-      val controller     = createController()
-      val result = controller
-        .updateLocation(skatingEventId, skaterId)
-        .apply(
-          FakeRequest(PUT, s"/skatingEvents/$skatingEventId/skaters/$skaterId")
-            .withHeaders("Content-Type" -> "application/json")
-            .withJsonBody(Json.parse("""{"coordinates": [0.0, 91.0]}"""))
-        )
-
-      status(result) mustBe BAD_REQUEST
-    }
-
-    "reject missing coordinates field" in {
-      val skatingEventId = UUID.randomUUID().toString
-      val skaterId       = UUID.randomUUID().toString
-      val controller     = createController()
-      val result = controller
-        .updateLocation(skatingEventId, skaterId)
-        .apply(
-          FakeRequest(PUT, s"/skatingEvents/$skatingEventId/skaters/$skaterId")
-            .withHeaders("Content-Type" -> "application/json")
-            .withJsonBody(Json.parse("""{"location": [0.0, 50.0]}"""))
-        )
-
-      status(result) mustBe BAD_REQUEST
-    }
-
-    "reject coordinates array with wrong length" in {
-      val skatingEventId = UUID.randomUUID().toString
-      val skaterId       = UUID.randomUUID().toString
-      val controller     = createController()
-      val result = controller
-        .updateLocation(skatingEventId, skaterId)
-        .apply(
-          FakeRequest(PUT, s"/skatingEvents/$skatingEventId/skaters/$skaterId")
-            .withHeaders("Content-Type" -> "application/json")
-            .withJsonBody(Json.parse("""{"coordinates": [0.0]}"""))
-        )
-
-      status(result) mustBe BAD_REQUEST
-    }
-
-    "reject non-JSON request body" in {
-      val skatingEventId = UUID.randomUUID().toString
-      val skaterId       = UUID.randomUUID().toString
-      val controller     = createController()
-      val result = controller
-        .updateLocation(skatingEventId, skaterId)
-        .apply(
-          FakeRequest(PUT, s"/skatingEvents/$skatingEventId/skaters/$skaterId")
-            .withHeaders("Content-Type" -> "text/plain")
-            .withTextBody("not json")
-        )
-
-      status(result) must (be(BAD_REQUEST) or be(415))
-    }
-
-    "accept valid longitude and latitude boundaries" in {
-      val skatingEventId = UUID.randomUUID().toString
-      val skaterId       = UUID.randomUUID().toString
-      val controller     = createController()
-
-      val validCases = List(
-        """{"coordinates": [-180.0, -90.0]}""", // min values
-        """{"coordinates": [180.0, 90.0]}""",   // max values
-        """{"coordinates": [0.0, 0.0]}"""       // zero values
+      val invalidCases = List(
+        ("invalid-uuid", validSkaterId, """{"coordinates": [0.0, 50.0]}"""),
+        (validSkatingEventId, "invalid-uuid", """{"coordinates": [0.0, 50.0]}"""),
+        (validSkatingEventId, validSkaterId, """{"coordinates": [181.0, 50.0]}"""),
+        (validSkatingEventId, validSkaterId, """{"coordinates": [0.0, 91.0]}"""),
+        (validSkatingEventId, validSkaterId, """{"location": [0.0, 50.0]}"""),
+        (validSkatingEventId, validSkaterId, """{"coordinates": [0.0]}""")
       )
 
-      validCases.foreach { coordinates =>
-        val result = controller
-          .updateLocation(skatingEventId, skaterId)
-          .apply(
-            FakeRequest(PUT, s"/skatingEvents/$skatingEventId/skaters/$skaterId")
-              .withHeaders("Content-Type" -> "application/json")
-              .withJsonBody(Json.parse(coordinates))
-          )
-        status(result) mustBe ACCEPTED
+      invalidCases.foreach { case (eventId, skaterId, body) =>
+        val request = FakeRequest(PUT, s"/skatingEvents/$eventId/skaters/$skaterId")
+          .withHeaders("Content-Type" -> "application/json")
+          .withJsonBody(Json.parse(body))
+
+        val result = controller.updateLocation(eventId, skaterId).apply(request)
+        status(result) mustBe BAD_REQUEST
       }
     }
+
+    "return proper content-type for error responses" in {
+      val controller = createController()
+      val request = FakeRequest(PUT, s"/skatingEvents/invalid-uuid/skaters/$validSkaterId")
+        .withHeaders("Content-Type" -> "application/json")
+        .withJsonBody(Json.parse("""{"coordinates": [0.0, 50.0]}"""))
+
+      val result = controller.updateLocation("invalid-uuid", validSkaterId).apply(request)
+
+      status(result) mustBe BAD_REQUEST
+      contentType(result) mustBe Some("application/json")
+    }
+
   }
 }

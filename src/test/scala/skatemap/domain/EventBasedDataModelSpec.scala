@@ -1,49 +1,91 @@
 package skatemap.domain
 
-import skatemap.api.json.LocationJson._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import play.api.libs.json._
 
 class EventBasedDataModelSpec extends AnyWordSpec with Matchers {
 
-  "Event-based data models" should {
+  "Location" should {
 
-    "support Play JSON serialization with timestamps" in {
-      val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074, 2000L)
-      val json   = Json.toJson(update)
-      val parsed = json.as[LocationUpdate]
+    "create with basic valid coordinates" in {
+      val location = Location("skater-1", -0.1276, 51.5074, 1234567890L)
 
-      parsed.eventId shouldBe update.eventId
-      parsed.skaterId shouldBe update.skaterId
-      parsed.longitude shouldBe update.longitude
-      parsed.latitude shouldBe update.latitude
+      location.skaterId shouldBe "skater-1"
+      location.longitude shouldBe -0.1276
+      location.latitude shouldBe 51.5074
+      location.timestamp shouldBe 1234567890L
     }
 
-    "support JSON round-trip serialization for LocationUpdate" in {
-      val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074, 3000L)
+    "handle boundary coordinates" in {
+      val location = Location("skater-1", -180.0, -90.0, 1000L)
 
-      val json   = Json.toJson(update)
-      val parsed = json.as[LocationUpdate]
-
-      parsed shouldBe update
+      location.longitude shouldBe -180.0
+      location.latitude shouldBe -90.0
     }
 
-    "support JSON round-trip serialization for Location" in {
-      val location = Location("s1", -0.1276, 51.5074, 5000L)
+    "handle high precision coordinates" in {
+      val location = Location("skater-1", -0.123456789, 51.987654321, 1000L)
 
-      val json   = Json.toJson(location)
-      val parsed = json.as[Location]
-
-      parsed shouldBe location
+      location.longitude shouldBe -0.123456789
+      location.latitude shouldBe 51.987654321
     }
 
-    "handle explicit and default timestamps in LocationUpdate" in {
-      val updateWithTimestamp = LocationUpdate("event-1", "s1", -0.1276, 51.5074, 1234567890L)
-      updateWithTimestamp.timestamp shouldBe 1234567890L
+    "preserve timestamp values" in {
+      val timestamp = 1640995200000L
+      val location  = Location("skater-1", 0.0, 0.0, timestamp)
 
-      val updateWithDefault = LocationUpdate("event-1", "s1", -0.1276, 51.5074, 4000L)
-      updateWithDefault.timestamp shouldBe 4000L
+      location.timestamp shouldBe timestamp
+    }
+  }
+
+  "LocationUpdate" should {
+
+    "create with all required fields" in {
+      val update = LocationUpdate("event-1", "skater-1", -0.1276, 51.5074, 1234567890L)
+
+      update.eventId shouldBe "event-1"
+      update.skaterId shouldBe "skater-1"
+      update.longitude shouldBe -0.1276
+      update.latitude shouldBe 51.5074
+      update.timestamp shouldBe 1234567890L
+    }
+
+    "handle boundary coordinates" in {
+      val update = LocationUpdate("event-1", "skater-1", 180.0, 90.0, 1000L)
+
+      update.longitude shouldBe 180.0
+      update.latitude shouldBe 90.0
+    }
+
+    "preserve high precision values" in {
+      val update = LocationUpdate("event-1", "skater-1", 179.999999999, 89.999999999, 1000L)
+
+      update.longitude shouldBe 179.999999999
+      update.latitude shouldBe 89.999999999
+    }
+  }
+
+  "Coordinates" should {
+
+    "create with longitude and latitude" in {
+      val coords = Coordinates(-0.1276, 51.5074)
+
+      coords.longitude shouldBe -0.1276
+      coords.latitude shouldBe 51.5074
+    }
+
+    "handle zero coordinates" in {
+      val coords = Coordinates(0.0, 0.0)
+
+      coords.longitude shouldBe 0.0
+      coords.latitude shouldBe 0.0
+    }
+
+    "handle extreme boundary values" in {
+      val coords = Coordinates(-180.0, -90.0)
+
+      coords.longitude shouldBe -180.0
+      coords.latitude shouldBe -90.0
     }
   }
 }

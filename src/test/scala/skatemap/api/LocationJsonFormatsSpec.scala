@@ -8,7 +8,7 @@ import play.api.libs.json._
 
 class LocationJsonFormatsSpec extends AnyWordSpec with Matchers {
 
-  "LocationJsonFormats" should {
+  "Location JSON serialization" should {
 
     "serialize Location to JSON and back" in {
       val location = Location("skater-123", -0.1276, 51.5074, 1234567890L)
@@ -97,15 +97,168 @@ class LocationJsonFormatsSpec extends AnyWordSpec with Matchers {
       parsed.longitude shouldBe -0.123456789
     }
 
-    "be compatible with existing coordinate format (SLP-001 test command)" in {
-      val update = LocationUpdate("event-1", "s1", -0.1276, 51.5074, 1000L)
-      val json   = Json.toJson(update)
-      val parsed = json.as[LocationUpdate]
+    "handle scientific notation in coordinates" in {
+      val scientificNotationJson = Json.obj(
+        "eventId"   -> "event-123",
+        "skaterId"  -> "skater-456",
+        "longitude" -> JsNumber(BigDecimal("1.23456789E2")),
+        "latitude"  -> JsNumber(BigDecimal("-4.56789012E1")),
+        "timestamp" -> 1000L
+      )
 
-      parsed.eventId shouldBe update.eventId
-      parsed.skaterId shouldBe update.skaterId
-      parsed.longitude shouldBe update.longitude
-      parsed.latitude shouldBe update.latitude
+      val parsed = scientificNotationJson.as[LocationUpdate]
+      parsed.longitude shouldBe 123.456789
+      parsed.latitude shouldBe -45.6789012
     }
+
+    "handle very large coordinate numbers" in {
+      val largeNumberJson = Json.obj(
+        "eventId"   -> "event-123",
+        "skaterId"  -> "skater-456",
+        "longitude" -> JsNumber(BigDecimal("179.99999999999999999")),
+        "latitude"  -> JsNumber(BigDecimal("-89.99999999999999999")),
+        "timestamp" -> 1000L
+      )
+
+      val parsed = largeNumberJson.as[LocationUpdate]
+      parsed.longitude shouldBe 179.99999999999999999
+      parsed.latitude shouldBe -89.99999999999999999
+    }
+
+    "handle zero and negative zero coordinates" in {
+      val zeroCoordinatesJson = Json.obj(
+        "eventId"   -> "event-123",
+        "skaterId"  -> "skater-456",
+        "longitude" -> 0.0,
+        "latitude"  -> -0.0,
+        "timestamp" -> 1000L
+      )
+
+      val parsed = zeroCoordinatesJson.as[LocationUpdate]
+      parsed.longitude shouldBe 0.0
+      parsed.latitude shouldBe 0.0
+    }
+
+    "fail to parse coordinates with invalid JSON types" in {
+      val invalidTypesCases = List(
+        Json.obj(
+          "eventId"   -> "event-123",
+          "skaterId"  -> "skater-456",
+          "longitude" -> "not-a-number",
+          "latitude"  -> 50.0,
+          "timestamp" -> 1000L
+        ),
+        Json.obj(
+          "eventId"   -> "event-123",
+          "skaterId"  -> "skater-456",
+          "longitude" -> 0.0,
+          "latitude"  -> true,
+          "timestamp" -> 1000L
+        ),
+        Json.obj(
+          "eventId"   -> "event-123",
+          "skaterId"  -> "skater-456",
+          "longitude" -> JsNull,
+          "latitude"  -> 50.0,
+          "timestamp" -> 1000L
+        ),
+        Json.obj(
+          "eventId"   -> "event-123",
+          "skaterId"  -> "skater-456",
+          "longitude" -> 0.0,
+          "latitude"  -> JsArray(),
+          "timestamp" -> 1000L
+        )
+      )
+
+      invalidTypesCases.foreach { json =>
+        val result = json.validate[LocationUpdate]
+        result shouldBe a[JsError]
+      }
+    }
+
+    "fail to parse with invalid timestamp types" in {
+      val invalidTimestampCases = List(
+        Json.obj(
+          "eventId"   -> "event-123",
+          "skaterId"  -> "skater-456",
+          "longitude" -> 0.0,
+          "latitude"  -> 50.0,
+          "timestamp" -> "not-a-number"
+        ),
+        Json.obj(
+          "eventId"   -> "event-123",
+          "skaterId"  -> "skater-456",
+          "longitude" -> 0.0,
+          "latitude"  -> 50.0,
+          "timestamp" -> 1.5
+        ),
+        Json.obj(
+          "eventId"   -> "event-123",
+          "skaterId"  -> "skater-456",
+          "longitude" -> 0.0,
+          "latitude"  -> 50.0,
+          "timestamp" -> true
+        )
+      )
+
+      invalidTimestampCases.foreach { json =>
+        val result = json.validate[LocationUpdate]
+        result shouldBe a[JsError]
+      }
+    }
+
+    "fail to parse with null string fields" in {
+      val nullStringCases = List(
+        Json.obj(
+          "eventId"   -> JsNull,
+          "skaterId"  -> "skater-456",
+          "longitude" -> 0.0,
+          "latitude"  -> 50.0,
+          "timestamp" -> 1000L
+        ),
+        Json.obj(
+          "eventId"   -> "event-123",
+          "skaterId"  -> JsNull,
+          "longitude" -> 0.0,
+          "latitude"  -> 50.0,
+          "timestamp" -> 1000L
+        )
+      )
+
+      nullStringCases.foreach { json =>
+        val result = json.validate[LocationUpdate]
+        result shouldBe a[JsError]
+      }
+    }
+
+    "handle very large timestamp values" in {
+      val largeTimestamp = Long.MaxValue
+      val location       = Location("skater-123", 0.0, 50.0, largeTimestamp)
+      val json           = Json.toJson(location)
+      val parsed         = json.as[Location]
+
+      parsed shouldBe location
+      parsed.timestamp shouldBe largeTimestamp
+    }
+
+    "preserve exact coordinate values through JSON round-trip with extreme precision" in {
+      val extremePrecisionCoordinates = List(
+        (-179.999999999999999, -89.999999999999999),
+        (179.999999999999999, 89.999999999999999),
+        (0.000000000000001, 0.000000000000001),
+        (-0.000000000000001, -0.000000000000001)
+      )
+
+      extremePrecisionCoordinates.foreach { case (lon, lat) =>
+        val location = Location("skater-precision", lon, lat, 1000L)
+        val json     = Json.toJson(location)
+        val parsed   = json.as[Location]
+
+        parsed.longitude shouldBe lon
+        parsed.latitude shouldBe lat
+      }
+    }
+
   }
 }

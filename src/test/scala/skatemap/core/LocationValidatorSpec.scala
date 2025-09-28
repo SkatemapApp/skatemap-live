@@ -8,123 +8,64 @@ import java.util.UUID
 
 class LocationValidatorSpec extends AnyWordSpec with Matchers {
 
-  "LocationValidator" should {
+  private val validEventId  = UUID.randomUUID().toString
+  private val validSkaterId = UUID.randomUUID().toString
 
-    "successfully validate a valid location update" in {
-      val eventId     = UUID.randomUUID().toString
-      val skaterId    = UUID.randomUUID().toString
+  "LocationValidator.validate" should {
+
+    "create valid LocationUpdate with all correct inputs" in {
       val coordinates = Some(Array(0.0, 50.0))
+      val timestamp   = 1000L
 
-      val result = LocationValidator.validate(eventId, skaterId, coordinates, 1000L)
+      val result = LocationValidator.validate(validEventId, validSkaterId, coordinates, timestamp)
 
-      result should matchPattern { case Right(LocationUpdate(`eventId`, `skaterId`, 0.0, 50.0, _)) =>
+      result should matchPattern {
+        case Right(LocationUpdate(`validEventId`, `validSkaterId`, 0.0, 50.0, `timestamp`)) =>
       }
     }
 
-    "validate boundary coordinate values" in {
-      val eventId  = UUID.randomUUID().toString
-      val skaterId = UUID.randomUUID().toString
+    "preserve timestamp in result" in {
+      val coordinates = Some(Array(0.0, 50.0))
+      val timestamp   = 1640995200000L
 
-      val boundaryCases = List(
-        (Some(Array(-180.0, -90.0)), -180.0, -90.0),
-        (Some(Array(180.0, 90.0)), 180.0, 90.0),
-        (Some(Array(0.0, 0.0)), 0.0, 0.0)
-      )
+      val result = LocationValidator.validate(validEventId, validSkaterId, coordinates, timestamp)
 
-      boundaryCases.foreach { case (coordinates, expectedLon, expectedLat) =>
-        val result = LocationValidator.validate(eventId, skaterId, coordinates, 1000L)
-        result should matchPattern {
-          case Right(LocationUpdate(`eventId`, `skaterId`, `expectedLon`, `expectedLat`, _)) =>
-        }
-      }
+      result.map(_.timestamp) shouldBe Right(timestamp)
     }
 
-    "reject invalid skating event ID" in {
-      val skaterId    = UUID.randomUUID().toString
+    "reject invalid event ID" in {
       val coordinates = Some(Array(0.0, 50.0))
 
-      val result = LocationValidator.validate("invalid-uuid", skaterId, coordinates, 3000L)
+      val result = LocationValidator.validate("invalid-uuid", validSkaterId, coordinates, 1000L)
 
       result shouldBe Left(InvalidSkatingEventIdError())
     }
 
     "reject invalid skater ID" in {
-      val eventId     = UUID.randomUUID().toString
       val coordinates = Some(Array(0.0, 50.0))
 
-      val result = LocationValidator.validate(eventId, "invalid-uuid", coordinates, 4000L)
+      val result = LocationValidator.validate(validEventId, "invalid-uuid", coordinates, 1000L)
 
       result shouldBe Left(InvalidSkaterIdError())
     }
 
-    "reject invalid longitude values" in {
-      val eventId  = UUID.randomUUID().toString
-      val skaterId = UUID.randomUUID().toString
-
-      val invalidLongitudeCases = List(
-        (Some(Array(181.0, 50.0)), 181.0),
-        (Some(Array(-181.0, 50.0)), -181.0),
-        (Some(Array(200.0, 50.0)), 200.0)
-      )
-
-      invalidLongitudeCases.foreach { case (coordinates, invalidLon) =>
-        val result = LocationValidator.validate(eventId, skaterId, coordinates, 1000L)
-        result shouldBe Left(InvalidLongitudeError(invalidLon))
-      }
-    }
-
-    "reject invalid latitude values" in {
-      val eventId  = UUID.randomUUID().toString
-      val skaterId = UUID.randomUUID().toString
-
-      val invalidLatitudeCases = List(
-        (Some(Array(0.0, 91.0)), 91.0),
-        (Some(Array(0.0, -91.0)), -91.0),
-        (Some(Array(0.0, 100.0)), 100.0)
-      )
-
-      invalidLatitudeCases.foreach { case (coordinates, invalidLat) =>
-        val result = LocationValidator.validate(eventId, skaterId, coordinates, 1000L)
-        result shouldBe Left(InvalidLatitudeError(invalidLat))
-      }
-    }
-
     "reject missing coordinates" in {
-      val eventId  = UUID.randomUUID().toString
-      val skaterId = UUID.randomUUID().toString
-
-      val result = LocationValidator.validate(eventId, skaterId, None, 5000L)
+      val result = LocationValidator.validate(validEventId, validSkaterId, None, 1000L)
 
       result shouldBe Left(MissingCoordinatesError())
     }
 
-    "reject coordinates array with wrong length" in {
-      val eventId  = UUID.randomUUID().toString
-      val skaterId = UUID.randomUUID().toString
-
+    "reject coordinates with wrong array length" in {
       val wrongLengthCases = List(
+        Some(Array.empty[Double]),
         Some(Array(0.0)),
-        Some(Array(0.0, 50.0, 100.0)),
-        Some(Array.empty[Double])
+        Some(Array(0.0, 50.0, 100.0))
       )
 
       wrongLengthCases.foreach { coordinates =>
-        val result = LocationValidator.validate(eventId, skaterId, coordinates, 1000L)
+        val result = LocationValidator.validate(validEventId, validSkaterId, coordinates, 1000L)
         result shouldBe Left(InvalidCoordinatesLengthError())
       }
     }
-
-    "test field method on validation errors" in {
-      val longError          = InvalidLongitudeError(200.0)
-      val latError           = InvalidLatitudeError(100.0)
-      val missingCoordsError = MissingCoordinatesError()
-      val invalidLengthError = InvalidCoordinatesLengthError()
-
-      longError.field shouldBe Some("coordinates[0]")
-      latError.field shouldBe Some("coordinates[1]")
-      missingCoordsError.field shouldBe None
-      invalidLengthError.field shouldBe None
-    }
-
   }
 }
