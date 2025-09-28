@@ -1,1 +1,2 @@
 PUT     /skatingEvents/:skatingEventId/skaters/:skaterId    skatemap.api.LocationController.updateLocation(skatingEventId, skaterId)
+GET     /skatingEvents/:eventId/stream                      skatemap.api.StreamController.streamEvent(eventId)
