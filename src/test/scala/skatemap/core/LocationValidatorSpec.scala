@@ -4,12 +4,10 @@ import skatemap.domain.LocationUpdate
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.util.UUID
-
 class LocationValidatorSpec extends AnyWordSpec with Matchers {
 
-  private val validEventId  = UUID.randomUUID().toString
-  private val validSkaterId = UUID.randomUUID().toString
+  private val validEventId  = "550e8400-e29b-41d4-a716-446655440000"
+  private val validSkaterId = "550e8400-e29b-41d4-a716-446655440001"
 
   "LocationValidator.validate" should {
 

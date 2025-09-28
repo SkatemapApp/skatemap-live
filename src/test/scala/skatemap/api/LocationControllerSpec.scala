@@ -73,5 +73,16 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
       contentType(result) mustBe Some("application/json")
     }
 
+    "handle controller internal failures gracefully" in {
+      val controller = createController()
+      val request = FakeRequest(PUT, s"/skatingEvents/$validSkatingEventId/skaters/$validSkaterId")
+        .withHeaders("Content-Type" -> "application/json")
+        .withTextBody("malformed json")
+
+      val result = controller.updateLocation(validSkatingEventId, validSkaterId).apply(request)
+
+      status(result) mustBe BAD_REQUEST
+    }
+
   }
 }

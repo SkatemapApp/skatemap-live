@@ -3,6 +3,7 @@ package skatemap.core
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import skatemap.domain.Coordinates
+import skatemap.core._
 
 class CoordinateValidatorSpec extends AnyWordSpec with Matchers {
 
@@ -109,14 +110,18 @@ class CoordinateValidatorSpec extends AnyWordSpec with Matchers {
         }
       }
 
-      val nanLongitude = Coordinates(Double.NaN, 0.0)
-      val nanLatitude  = Coordinates(0.0, Double.NaN)
+      val nanCases = List(
+        (Coordinates(Double.NaN, 0.0), "NaN longitude"),
+        (Coordinates(0.0, Double.NaN), "NaN latitude")
+      )
 
-      val nanLongResult = CoordinateValidator.validateBounds(nanLongitude)
-      val nanLatResult  = CoordinateValidator.validateBounds(nanLatitude)
+      nanCases.foreach { case (coords, description) =>
+        val result = CoordinateValidator.validateBounds(coords)
 
-      nanLongResult shouldBe Right(nanLongitude)
-      nanLatResult shouldBe Right(nanLatitude)
+        withClue(s"$description should be rejected: ") {
+          result.isLeft shouldBe true
+        }
+      }
     }
 
     "handle very small precision values" in {
