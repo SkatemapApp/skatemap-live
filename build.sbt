@@ -40,6 +40,13 @@ wartremoverExcluded += (Compile / resourceDirectory).value
 
 libraryDependencies ++= Seq(
   guice,
+  "org.apache.pekko" %% "pekko-stream" % "1.1.2",
+  "org.apache.pekko" %% "pekko-slf4j" % "1.1.2",
+  "org.apache.pekko" %% "pekko-serialization-jackson" % "1.1.2",
+  "org.apache.pekko" %% "pekko-actor-typed" % "1.1.2",
+  "org.apache.pekko" %% "pekko-testkit" % "1.1.2" % Test,
+  "org.apache.pekko" %% "pekko-stream-testkit" % "1.1.2" % Test,
+  "org.apache.pekko" %% "pekko-http-testkit" % "1.2.0" % Test,
   "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test
 )
 

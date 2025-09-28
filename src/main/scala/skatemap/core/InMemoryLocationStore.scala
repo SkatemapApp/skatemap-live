@@ -3,10 +3,12 @@ package skatemap.core
 import skatemap.domain.Location
 
 import java.time.{Clock, Instant}
+import javax.inject.{Inject, Singleton}
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 
-class InMemoryLocationStore(clock: Clock) extends LocationStore {
+@Singleton
+class InMemoryLocationStore @Inject() (clock: Clock) extends LocationStore {
   private val store: TrieMap[String, TrieMap[String, (Location, Instant)]] = TrieMap.empty
   private val maxAge                                                       = 30.seconds
 

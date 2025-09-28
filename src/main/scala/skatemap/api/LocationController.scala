@@ -1,12 +1,17 @@
 package skatemap.api
 
 import play.api.mvc.{Action, AnyContent, BaseController, ControllerComponents}
-import skatemap.core.LocationValidator
+import skatemap.core.{Broadcaster, LocationStore, LocationValidator}
+import skatemap.domain.Location
 
 import javax.inject.{Inject, Singleton}
 
 @Singleton
-class LocationController @Inject() (val controllerComponents: ControllerComponents) extends BaseController {
+class LocationController @Inject() (
+  val controllerComponents: ControllerComponents,
+  store: LocationStore,
+  broadcaster: Broadcaster
+) extends BaseController {
 
   def updateLocation(skatingEventId: String, skaterId: String): Action[AnyContent] =
     Action { implicit request =>
@@ -14,7 +19,16 @@ class LocationController @Inject() (val controllerComponents: ControllerComponen
 
       LocationValidator.validate(skatingEventId, skaterId, coordinates, System.currentTimeMillis) match {
         case Left(error) => ValidationErrorAdapter.toJsonResponse(error)
-        case Right(_)    => Accepted
+        case Right(locationUpdate) =>
+          val location = Location(
+            locationUpdate.skaterId,
+            locationUpdate.longitude,
+            locationUpdate.latitude,
+            locationUpdate.timestamp
+          )
+          store.put(skatingEventId, location)
+          broadcaster.publish(skatingEventId, location)
+          Accepted
       }
     }
 }
