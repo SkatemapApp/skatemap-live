@@ -10,7 +10,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpecLike
 import play.api.libs.json.{Format, Json}
-import skatemap.domain.Location
+import skatemap.domain.{Location, LocationBatch}
 
 import java.util.concurrent.ConcurrentHashMap
 
@@ -59,7 +59,7 @@ class EventStreamServiceSpec
     "create stream with empty store and empty broadcaster" in {
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
-      val service     = new EventStreamService(store, broadcaster)
+      val service     = new EventStreamService(store, broadcaster, StreamConfig.default)
 
       noException should be thrownBy service.createEventStream(eventId)
     }
@@ -67,7 +67,7 @@ class EventStreamServiceSpec
     "create stream with store data and empty broadcaster" in {
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
-      val service     = new EventStreamService(store, broadcaster)
+      val service     = new EventStreamService(store, broadcaster, StreamConfig.default)
 
       store.put(eventId, location1)
       store.put(eventId, location2)
@@ -84,7 +84,7 @@ class EventStreamServiceSpec
         override def subscribe(eventId: String): Source[Location, NotUsed] =
           Source(List(location1, location2))
       }
-      val service = new EventStreamService(store, broadcaster)
+      val service = new EventStreamService(store, broadcaster, StreamConfig.default)
 
       val result = service.createEventStream(eventId).take(1).runWith(Sink.head).futureValue
       val parsed = Json.parse(result).as[LocationBatch]
@@ -99,7 +99,7 @@ class EventStreamServiceSpec
         override def subscribe(eventId: String): Source[Location, NotUsed] =
           Source(List(location3))
       }
-      val service = new EventStreamService(store, broadcaster)
+      val service = new EventStreamService(store, broadcaster, StreamConfig.default)
 
       store.put(eventId, location1)
       store.put(eventId, location2)
@@ -114,7 +114,7 @@ class EventStreamServiceSpec
     "serialize LocationBatch correctly" in {
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
-      val service     = new EventStreamService(store, broadcaster)
+      val service     = new EventStreamService(store, broadcaster, StreamConfig.default)
 
       store.put(eventId, location1)
 

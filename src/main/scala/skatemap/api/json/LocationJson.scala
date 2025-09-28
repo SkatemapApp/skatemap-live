@@ -1,6 +1,6 @@
 package skatemap.api.json
 
-import skatemap.domain.{Location, LocationUpdate}
+import skatemap.domain.{Location, LocationBatch, LocationUpdate}
 import play.api.libs.json._
 
 object LocationJson {
@@ -40,4 +40,7 @@ object LocationJson {
       "timestamp" -> update.timestamp
     )
   }
+
+  implicit val locationWrites: Writes[Location]           = Json.writes[Location]
+  implicit val locationBatchWrites: Writes[LocationBatch] = Json.writes[LocationBatch]
 }

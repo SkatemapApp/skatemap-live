@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.test.FakeRequest
 import play.api.test.Helpers.stubControllerComponents
-import skatemap.core.{Broadcaster, EventStreamService, LocationStore}
+import skatemap.core.{Broadcaster, EventStreamService, LocationStore, StreamConfig}
 import skatemap.domain.Location
 
 class StreamControllerSpec extends AnyWordSpec with Matchers {
@@ -22,7 +22,8 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
     def subscribe(eventId: String): Source[Location, NotUsed] = Source.empty
   }
 
-  private class MockEventStreamService extends EventStreamService(new MockLocationStore(), new MockBroadcaster()) {
+  private class MockEventStreamService
+      extends EventStreamService(new MockLocationStore(), new MockBroadcaster(), StreamConfig.default) {
     override def createEventStream(eventId: String): Source[String, NotUsed] =
       Source.single("test-data")
   }
