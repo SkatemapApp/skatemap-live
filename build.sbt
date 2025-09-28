@@ -1,4 +1,4 @@
-import CiCommands.ciBuild
+import BuildCommands.{ciBuild, devBuild}
 
 name := """skatemap-live"""
 organization := "skatemap.org"
@@ -12,7 +12,7 @@ lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLayoutPlugin)
   .settings(
-    commands += ciBuild,
+    commands ++= Seq(ciBuild, devBuild),
     coverageExcludedPackages := "<empty>;Reverse.*;router\\.*",
     // WartRemover incorrectly analyzes routes files - exclude warts that routes files trigger
     Compile / compile / wartremoverErrors := Warts.allBut(
