@@ -23,23 +23,21 @@ class ValidationErrorAdapterSpec extends AnyWordSpec with Matchers {
     }
 
     "handle various types in details map" in {
-      val error  = TestErrorWithMixedTypes()
+      val error  = InvalidLongitudeError(200.0)
       val result = ValidationErrorAdapter.toJsonResponse(error)
 
       result.header.status shouldBe 400
 
       error.details should be(defined)
       val Some(details) = error.details
-      details should contain key "stringField"
-      details should contain key "doubleField"
-      details should contain key "intField"
-      details should contain key "boolField"
+      details should contain key "field"
+      details should contain key "value"
+      details should contain key "constraint"
 
-      details("stringField") shouldBe "test string"
-      details("doubleField") shouldBe 42.5
-      details("intField") shouldBe 123
-      details("boolField") shouldBe true
-      details("longField") shouldBe 999L
+      details("field") shouldBe "coordinates[0]"
+      details("value") shouldBe 200.0
+      details("constraint") shouldBe "range(-180.0, 180.0)"
     }
+
   }
 }

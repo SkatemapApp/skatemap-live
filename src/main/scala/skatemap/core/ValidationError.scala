@@ -60,18 +60,3 @@ final case class InvalidCoordinatesLengthError() extends ValidationError {
   val code    = "INVALID_COORDINATES_LENGTH"
   val message = "Coordinates array must contain exactly 2 numbers [longitude, latitude]"
 }
-
-final case class TestErrorWithMixedTypes() extends ValidationError {
-  val code    = "TEST_ERROR"
-  val message = "Test error with mixed types"
-  override val details: Option[Map[String, Any]] = Some(
-    Map(
-      "stringField" -> "test string",
-      "doubleField" -> 42.5,
-      "intField"    -> 123,
-      "boolField"   -> true,
-      "longField"   -> 999L,
-      "floatField"  -> 3.14f
-    )
-  )
-}
