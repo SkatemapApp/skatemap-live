@@ -2,20 +2,18 @@ package skatemap.core
 
 import org.apache.pekko.NotUsed
 import org.apache.pekko.stream.scaladsl.Source
-import play.api.libs.json.{Json, Writes}
-import skatemap.domain.Location
+import play.api.libs.json.Json
+import skatemap.api.json.LocationJson._
+import skatemap.domain.{Location, LocationBatch}
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.duration._
 
 @Singleton
 class EventStreamService @Inject() (
   store: LocationStore,
-  broadcaster: Broadcaster
+  broadcaster: Broadcaster,
+  config: StreamConfig
 ) {
-
-  implicit val locationWrites: Writes[Location]           = Json.writes[Location]
-  implicit val locationBatchWrites: Writes[LocationBatch] = Json.writes[LocationBatch]
 
   def createEventStream(eventId: String): Source[String, NotUsed] = {
     val initial: Source[Location, NotUsed] =
@@ -25,10 +23,8 @@ class EventStreamService @Inject() (
       broadcaster.subscribe(eventId)
 
     (initial ++ updates)
-      .groupedWithin(100, 500.millis)
+      .groupedWithin(config.batchSize, config.batchInterval)
       .map(batch => LocationBatch(batch.toList))
       .map(batch => Json.toJson(batch).toString)
   }
 }
-
-final case class LocationBatch(locations: List[Location])
