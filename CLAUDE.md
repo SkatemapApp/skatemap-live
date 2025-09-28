@@ -66,4 +66,5 @@ The application follows a clean architecture pattern with clear separation of co
 
 ## Commit Messages
 - Use conventional commit format: `type: description`
-- Common types: `chore:`, `feat:`, `fix:`, `refactor:`
+- Common types: `chore:`, `fix:`, `feat:`, `refactor:`
+- Use conventional commit format in pull request titles.
