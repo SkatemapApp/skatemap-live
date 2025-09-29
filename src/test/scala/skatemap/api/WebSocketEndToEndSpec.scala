@@ -75,6 +75,9 @@ class WebSocketEndToEndSpec extends PlaySpec with GuiceOneAppPerSuite {
         case None => fail("Expected at least one location")
       }
 
+      (json \ "serverTime").isDefined mustBe true
+      (json \ "serverTime").as[Long] must be > 0L
+
       testSink.cancel()
     }
 
