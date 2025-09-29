@@ -90,5 +90,28 @@ class LocationStoreSpec extends AnyWordSpec with Matchers {
       remaining shouldBe empty
     }
 
+    "cleanupAll should remove stale locations from all events" in {
+      val store           = new InMemoryLocationStore(fixedClock)
+      val event1          = "event-1"
+      val event2          = "event-2"
+      val oldTimestamp    = 10000L
+      val recentTimestamp = 40000L
+
+      val oldLocation    = Location("skater-old", 45.0, -122.0, oldTimestamp)
+      val recentLocation = Location("skater-recent", 46.0, -123.0, recentTimestamp)
+
+      store.put(event1, oldLocation)
+      store.put(event1, recentLocation)
+      store.put(event2, oldLocation)
+
+      store.cleanupAll()
+
+      val event1Remaining = store.getAll(event1)
+      val event2Remaining = store.getAll(event2)
+
+      event1Remaining should contain only ("skater-recent" -> recentLocation)
+      event2Remaining shouldBe empty
+    }
+
   }
 }

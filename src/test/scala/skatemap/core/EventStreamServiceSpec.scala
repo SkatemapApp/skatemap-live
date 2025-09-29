@@ -47,6 +47,8 @@ class EventStreamServiceSpec
       Option(storage.get(eventId)).getOrElse(Map.empty)
 
     def cleanup(): Unit = storage.clear()
+
+    def cleanupAll(): Unit = storage.clear()
   }
 
   private class MockBroadcaster extends Broadcaster {
