@@ -6,13 +6,15 @@ import play.api.libs.json.Json
 import skatemap.api.json.LocationJson._
 import skatemap.domain.{Location, LocationBatch}
 
+import java.time.Clock
 import javax.inject.{Inject, Singleton}
 
 @Singleton
 class EventStreamService @Inject() (
   store: LocationStore,
   broadcaster: Broadcaster,
-  config: StreamConfig
+  config: StreamConfig,
+  clock: Clock
 ) {
 
   def createEventStream(eventId: String): Source[String, NotUsed] = {
@@ -24,7 +26,7 @@ class EventStreamService @Inject() (
 
     (initial ++ updates)
       .groupedWithin(config.batchSize, config.batchInterval)
-      .map(batch => LocationBatch(batch.toList))
+      .map(batch => LocationBatch(batch.toList, clock.millis()))
       .map(batch => Json.toJson(batch).toString)
   }
 }

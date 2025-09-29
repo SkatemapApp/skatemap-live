@@ -9,6 +9,8 @@ import play.api.test.Helpers.stubControllerComponents
 import skatemap.core.{Broadcaster, EventStreamService, LocationStore, StreamConfig}
 import skatemap.domain.Location
 
+import java.time.{Clock, Instant, ZoneId}
+
 class StreamControllerSpec extends AnyWordSpec with Matchers {
 
   private class MockLocationStore extends LocationStore {
@@ -24,7 +26,12 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
   }
 
   private class MockEventStreamService
-      extends EventStreamService(new MockLocationStore(), new MockBroadcaster(), StreamConfig.default) {
+      extends EventStreamService(
+        new MockLocationStore(),
+        new MockBroadcaster(),
+        StreamConfig.default,
+        Clock.fixed(Instant.ofEpochMilli(1234567890123L), ZoneId.systemDefault())
+      ) {
     override def createEventStream(eventId: String): Source[String, NotUsed] =
       Source.single("test-data")
   }

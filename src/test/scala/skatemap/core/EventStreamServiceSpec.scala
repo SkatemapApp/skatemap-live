@@ -12,6 +12,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import play.api.libs.json.{Format, Json}
 import skatemap.domain.{Location, LocationBatch}
 
+import java.time.{Clock, Instant, ZoneId}
 import java.util.concurrent.ConcurrentHashMap
 
 class EventStreamServiceSpec
@@ -34,6 +35,7 @@ class EventStreamServiceSpec
   private val eventId   = "550e8400-e29b-41d4-a716-446655440000"
   private val location1 = Location("skater-1", 1.0, 2.0, 1000L)
   private val location2 = Location("skater-2", 3.0, 4.0, 2000L)
+  private val fixedTime = 1234567890123L
 
   private class MockLocationStore extends LocationStore {
     private val storage = new ConcurrentHashMap[String, Map[String, Location]]()
@@ -61,7 +63,8 @@ class EventStreamServiceSpec
     "create stream with empty store and empty broadcaster" in {
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
-      val service     = new EventStreamService(store, broadcaster, StreamConfig.default)
+      val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
+      val service     = new EventStreamService(store, broadcaster, StreamConfig.default, clock)
 
       noException should be thrownBy service.createEventStream(eventId)
     }
@@ -69,7 +72,8 @@ class EventStreamServiceSpec
     "create stream with store data and empty broadcaster" in {
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
-      val service     = new EventStreamService(store, broadcaster, StreamConfig.default)
+      val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
+      val service     = new EventStreamService(store, broadcaster, StreamConfig.default, clock)
 
       store.put(eventId, location1)
       store.put(eventId, location2)
@@ -78,6 +82,7 @@ class EventStreamServiceSpec
       val parsed = Json.parse(result).as[LocationBatch]
 
       parsed.locations should contain theSameElementsAs List(location1, location2)
+      parsed.serverTime shouldBe fixedTime
     }
 
     "create stream with empty store and broadcaster data" in {
@@ -86,12 +91,14 @@ class EventStreamServiceSpec
         override def subscribe(eventId: String): Source[Location, NotUsed] =
           Source(List(location1, location2))
       }
-      val service = new EventStreamService(store, broadcaster, StreamConfig.default)
+      val clock   = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
+      val service = new EventStreamService(store, broadcaster, StreamConfig.default, clock)
 
       val result = service.createEventStream(eventId).take(1).runWith(Sink.head).futureValue
       val parsed = Json.parse(result).as[LocationBatch]
 
       parsed.locations should contain theSameElementsAs List(location1, location2)
+      parsed.serverTime shouldBe fixedTime
     }
 
     "create stream combining store and broadcaster data" in {
@@ -101,7 +108,8 @@ class EventStreamServiceSpec
         override def subscribe(eventId: String): Source[Location, NotUsed] =
           Source(List(location3))
       }
-      val service = new EventStreamService(store, broadcaster, StreamConfig.default)
+      val clock   = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
+      val service = new EventStreamService(store, broadcaster, StreamConfig.default, clock)
 
       store.put(eventId, location1)
       store.put(eventId, location2)
@@ -111,12 +119,14 @@ class EventStreamServiceSpec
 
       parsed.locations should have size 3
       parsed.locations should contain theSameElementsAs List(location1, location2, location3)
+      parsed.serverTime shouldBe fixedTime
     }
 
     "serialize LocationBatch correctly" in {
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
-      val service     = new EventStreamService(store, broadcaster, StreamConfig.default)
+      val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
+      val service     = new EventStreamService(store, broadcaster, StreamConfig.default, clock)
 
       store.put(eventId, location1)
 
@@ -124,6 +134,7 @@ class EventStreamServiceSpec
       val json   = Json.parse(result)
 
       (json \ "locations").as[List[Location]] should contain only location1
+      (json \ "serverTime").as[Long] shouldBe fixedTime
     }
   }
 }

@@ -5,6 +5,7 @@ import org.apache.pekko.stream.Materializer
 import org.apache.pekko.stream.testkit.scaladsl.TestSink
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice._
+import play.api.libs.json.Json
 import skatemap.core.{Broadcaster, EventStreamService, LocationStore}
 import skatemap.domain.Location
 
@@ -199,6 +200,10 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
 
       batchedMessage must include("rapid-skater-1")
       batchedMessage must include("rapid-skater-10")
+
+      val json = Json.parse(batchedMessage)
+      (json \ "serverTime").isDefined mustBe true
+      (json \ "serverTime").as[Long] must be > 0L
 
       testSink.cancel()
     }
