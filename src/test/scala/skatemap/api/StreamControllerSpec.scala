@@ -8,6 +8,7 @@ import play.api.test.FakeRequest
 import play.api.test.Helpers.stubControllerComponents
 import skatemap.core.{Broadcaster, EventStreamService, LocationStore, StreamConfig}
 import skatemap.domain.Location
+import skatemap.test.LogCapture
 
 import java.time.{Clock, Instant, ZoneId}
 
@@ -69,6 +70,22 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
 
       webSocket1.getClass.getName should include("WebSocket")
       webSocket2.getClass.getName should include("WebSocket")
+    }
+
+    "log WebSocket connection establishment when callback is invoked" in {
+      val eventId    = "550e8400-e29b-41d4-a716-446655440000"
+      val service    = new MockEventStreamService()
+      val controller = new StreamController(stubControllerComponents(), service)
+
+      val result = LogCapture.withCapture("skatemap.api.StreamController") { capture =>
+        val webSocket = controller.streamEvent(eventId)
+        val flow      = webSocket.apply(FakeRequest())
+
+        capture.hasMessageContaining("WebSocket connection established") should be(true)
+        capture.hasMessageContaining(eventId) should be(true)
+        flow
+      }
+      result should be(defined)
     }
   }
 }
