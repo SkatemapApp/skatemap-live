@@ -11,6 +11,7 @@ import play.api.test.Helpers._
 import play.api.test._
 import skatemap.core.{Broadcaster, LocationStore}
 import skatemap.domain.Location
+import skatemap.test.LogCapture
 
 import java.util.concurrent.ConcurrentHashMap
 
@@ -113,6 +114,53 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
       val result = controller.updateLocation(validSkatingEventId, validSkaterId).apply(request)
 
       status(result) mustBe BAD_REQUEST
+    }
+
+    "log incoming requests with eventId and skaterId" in {
+      val result = LogCapture.withCapture("skatemap.api.LocationController") { capture =>
+        val controller = createController()
+        val request = FakeRequest(PUT, s"/skatingEvents/$validSkatingEventId/skaters/$validSkaterId")
+          .withHeaders("Content-Type" -> "application/json")
+          .withJsonBody(Json.parse("""{"coordinates": [0.0, 50.0]}"""))
+
+        controller.updateLocation(validSkatingEventId, validSkaterId).apply(request)
+
+        capture.hasMessageContaining("Received location update request") mustBe true
+        capture.hasMessageContaining(validSkatingEventId) mustBe true
+        capture.hasMessageContaining(validSkaterId) mustBe true
+      }
+      result mustBe defined
+    }
+
+    "log validation errors with error details" in {
+      val result = LogCapture.withCapture("skatemap.api.LocationController") { capture =>
+        val controller = createController()
+        val request = FakeRequest(PUT, s"/skatingEvents/invalid-uuid/skaters/$validSkaterId")
+          .withHeaders("Content-Type" -> "application/json")
+          .withJsonBody(Json.parse("""{"coordinates": [0.0, 50.0]}"""))
+
+        controller.updateLocation("invalid-uuid", validSkaterId).apply(request)
+
+        capture.hasMessageContaining("Validation failed") mustBe true
+        capture.hasMessageContaining("INVALID_SKATING_EVENT_ID") mustBe true
+      }
+      result mustBe defined
+    }
+
+    "set MDC context for request tracing" in {
+      val result = LogCapture.withCapture("skatemap.api.LocationController") { capture =>
+        val controller = createController()
+        val request = FakeRequest(PUT, s"/skatingEvents/$validSkatingEventId/skaters/$validSkaterId")
+          .withHeaders("Content-Type" -> "application/json")
+          .withJsonBody(Json.parse("""{"coordinates": [0.0, 50.0]}"""))
+
+        controller.updateLocation(validSkatingEventId, validSkaterId).apply(request)
+
+        capture.getMdcValue("eventId") mustBe Some(validSkatingEventId)
+        capture.getMdcValue("skaterId") mustBe Some(validSkaterId)
+        capture.getMdcValue("action") mustBe Some("updateLocation")
+      }
+      result mustBe defined
     }
 
   }
