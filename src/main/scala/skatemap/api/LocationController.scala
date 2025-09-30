@@ -40,10 +40,12 @@ class LocationController @Inject() (
             )
             store.put(skatingEventId, location)
             broadcaster.publish(skatingEventId, location)
-            logger.debug(s"Location updated successfully")
             Accepted
         }
-      } finally
-        MDC.clear()
+      } finally {
+        MDC.remove("eventId")
+        MDC.remove("skaterId")
+        MDC.remove("action")
+      }
     }
 }

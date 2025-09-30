@@ -42,6 +42,11 @@ class LogCapture private (loggerContext: LoggerContext, loggerName: String) {
       Option(event.getMDCPropertyMap.get(key))
     }
 
+  def getMdcValueFromEvent(key: String, messageContaining: String): Option[String] =
+    events
+      .find(_.getFormattedMessage.contains(messageContaining))
+      .flatMap(event => Option(event.getMDCPropertyMap.get(key)))
+
   def getAllMdcValues(key: String): List[String] =
     events.flatMap { event =>
       Option(event.getMDCPropertyMap.get(key))

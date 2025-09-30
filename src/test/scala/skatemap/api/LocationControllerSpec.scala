@@ -156,9 +156,9 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
 
         controller.updateLocation(validSkatingEventId, validSkaterId).apply(request)
 
-        capture.getMdcValue("eventId") mustBe Some(validSkatingEventId)
-        capture.getMdcValue("skaterId") mustBe Some(validSkaterId)
-        capture.getMdcValue("action") mustBe Some("updateLocation")
+        capture.getMdcValueFromEvent("eventId", "Received location update") mustBe Some(validSkatingEventId)
+        capture.getMdcValueFromEvent("skaterId", "Received location update") mustBe Some(validSkaterId)
+        capture.getMdcValueFromEvent("action", "Received location update") mustBe Some("updateLocation")
       }
       result mustBe defined
     }
