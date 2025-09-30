@@ -1,7 +1,9 @@
 package skatemap.api
 
 import org.apache.pekko.NotUsed
-import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.Materializer
+import org.apache.pekko.stream.scaladsl.{Sink, Source}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.test.FakeRequest
@@ -11,6 +13,8 @@ import skatemap.domain.Location
 import skatemap.test.LogCapture
 
 import java.time.{Clock, Instant, ZoneId}
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
 class StreamControllerSpec extends AnyWordSpec with Matchers {
 
@@ -99,14 +103,24 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
       result should be(defined)
     }
 
-    "handle stream errors gracefully without crashing" in {
+    "log stream errors when createErrorHandledStream fails" in {
       val eventId    = "550e8400-e29b-41d4-a716-446655440000"
       val service    = new FailingEventStreamService()
       val controller = new StreamController(stubControllerComponents(), service)
 
-      val webSocket = controller.streamEvent(eventId)
+      LogCapture.withCapture("skatemap.api.StreamController") { capture =>
+        implicit val system: ActorSystem = ActorSystem("test")
+        implicit val mat: Materializer   = Materializer(system)
 
-      noException should be thrownBy webSocket.apply(FakeRequest())
+        try {
+          intercept[RuntimeException] {
+            Await.result(controller.createErrorHandledStream(eventId).runWith(Sink.ignore), 1.second)
+          }
+
+          capture.hasMessageContaining("Stream error") should be(true)
+        } finally
+          system.terminate()
+      }
     }
   }
 }

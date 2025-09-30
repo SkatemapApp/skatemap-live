@@ -1,5 +1,6 @@
 package skatemap.api
 
+import org.apache.pekko.NotUsed
 import org.apache.pekko.stream.scaladsl.{Flow, Sink, Source}
 import org.slf4j.{Logger, LoggerFactory}
 import play.api.mvc.{BaseController, ControllerComponents, WebSocket}
@@ -17,15 +18,15 @@ class StreamController @Inject() (
 
   def streamEvent(eventId: String): WebSocket = WebSocket.accept[String, String] { _ =>
     logger.info(s"WebSocket connection established for event=$eventId")
-    val outgoing = eventStreamService
-      .createEventStream(eventId)
-      .recoverWithRetries(
-        attempts = 0,
-        { case ex: Throwable =>
-          logger.error(s"Stream error for event=$eventId: ${ex.getMessage}", ex)
-          Source.empty
-        }
-      )
+    val outgoing = createErrorHandledStream(eventId)
     Flow.fromSinkAndSource(Sink.ignore, outgoing)
   }
+
+  private[api] def createErrorHandledStream(eventId: String): Source[String, NotUsed] =
+    eventStreamService
+      .createEventStream(eventId)
+      .mapError { case ex: Throwable =>
+        logger.error(s"Stream error for event=$eventId: ${ex.getMessage}", ex)
+        ex
+      }
 }
