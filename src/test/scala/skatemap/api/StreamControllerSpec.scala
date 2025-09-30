@@ -37,6 +37,17 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
       Source.single("test-data")
   }
 
+  private class FailingEventStreamService
+      extends EventStreamService(
+        new MockLocationStore(),
+        new MockBroadcaster(),
+        StreamConfig.default,
+        Clock.fixed(Instant.ofEpochMilli(1234567890123L), ZoneId.systemDefault())
+      ) {
+    override def createEventStream(eventId: String): Source[String, NotUsed] =
+      Source.failed(new RuntimeException("Stream processing error"))
+  }
+
   "StreamController" should {
 
     "create WebSocket for given event ID" in {
@@ -86,6 +97,16 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
         flow
       }
       result should be(defined)
+    }
+
+    "handle stream errors gracefully without crashing" in {
+      val eventId    = "550e8400-e29b-41d4-a716-446655440000"
+      val service    = new FailingEventStreamService()
+      val controller = new StreamController(stubControllerComponents(), service)
+
+      val webSocket = controller.streamEvent(eventId)
+
+      noException should be thrownBy webSocket.apply(FakeRequest())
     }
   }
 }
