@@ -17,7 +17,7 @@ class StreamController @Inject() (
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   def streamEvent(eventId: String): WebSocket = WebSocket.accept[String, String] { _ =>
-    logger.info(s"WebSocket connection established for event=$eventId")
+    logger.info("WebSocket connection established for event={}", eventId)
     val outgoing = createErrorHandledStream(eventId)
     Flow.fromSinkAndSource(Sink.ignore, outgoing)
   }
@@ -26,7 +26,7 @@ class StreamController @Inject() (
     eventStreamService
       .createEventStream(eventId)
       .mapError { case ex: Throwable =>
-        logger.error(s"Stream error for event=$eventId: ${ex.getMessage}", ex)
+        logger.error("Stream error for event={}: {}", eventId, ex.getMessage, ex)
         ex
       }
 }

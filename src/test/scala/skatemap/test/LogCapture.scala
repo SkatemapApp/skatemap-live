@@ -62,10 +62,10 @@ object LogCapture {
 
   def withCapture[T](loggerName: String)(fn: LogCapture => T): Option[T] =
     apply(loggerName).map { capture =>
-      capture.start()
-      try
+      try {
+        capture.start()
         fn(capture)
-      finally
+      } finally
         capture.stop()
     }
 }

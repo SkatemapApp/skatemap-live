@@ -16,20 +16,26 @@ class LocationController @Inject() (
 
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
+  private object MdcKeys {
+    val EventId  = "eventId"
+    val SkaterId = "skaterId"
+    val Action   = "action"
+  }
+
   def updateLocation(skatingEventId: String, skaterId: String): Action[AnyContent] =
     Action { implicit request =>
-      MDC.put("eventId", skatingEventId)
-      MDC.put("skaterId", skaterId)
-      MDC.put("action", "updateLocation")
+      MDC.put(MdcKeys.EventId, skatingEventId)
+      MDC.put(MdcKeys.SkaterId, skaterId)
+      MDC.put(MdcKeys.Action, "updateLocation")
 
       try {
-        logger.info(s"Received location update request for event=$skatingEventId, skater=$skaterId")
+        logger.info("Received location update request for event={}, skater={}", skatingEventId, skaterId)
 
         val coordinates = request.body.asJson.flatMap(json => (json \ "coordinates").asOpt[Array[Double]])
 
         LocationValidator.validate(skatingEventId, skaterId, coordinates, System.currentTimeMillis) match {
           case Left(error) =>
-            logger.warn(s"Validation failed: ${error.code} - ${error.message}")
+            logger.warn("Validation failed: {} - {}", error.code, error.message)
             ValidationErrorAdapter.toJsonResponse(error)
           case Right(locationUpdate) =>
             val location = Location(
@@ -43,9 +49,9 @@ class LocationController @Inject() (
             Accepted
         }
       } finally {
-        MDC.remove("eventId")
-        MDC.remove("skaterId")
-        MDC.remove("action")
+        MDC.remove(MdcKeys.EventId)
+        MDC.remove(MdcKeys.SkaterId)
+        MDC.remove(MdcKeys.Action)
       }
     }
 }
