@@ -34,13 +34,18 @@ class InMemoryLocationStore @Inject() (clock: Clock) extends LocationStore {
     }
   }
 
-  def cleanupAll(): Unit = {
-    val cutoff = clock.instant().minusSeconds(maxAge.toSeconds)
+  def cleanupAll(): Int = {
+    val cutoff       = clock.instant().minusSeconds(maxAge.toSeconds)
+    var removedCount = 0
 
     store.foreachEntry { case (eventId, eventMap) =>
+      val sizeBefore = eventMap.size
       eventMap.filterInPlace { case (_, (_, timestamp)) => timestamp.isAfter(cutoff) }
+      removedCount += sizeBefore - eventMap.size
 
       if (eventMap.isEmpty) { store.remove(eventId) }
     }
+
+    removedCount
   }
 }

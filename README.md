@@ -368,3 +368,58 @@ Quality is enforced at compile time:
 - No null (use `Option`)
 - Pure functions in `core/` domain layer
 - Side effects isolated to `infra/` and controllers
+
+
+### Cleanup Service
+
+The automatic cleanup service removes stale location data from memory. Configuration is **required** in `application.conf`:
+
+```hocon
+skatemap {
+  cleanup {
+    initialDelaySeconds = 10  # Delay before first cleanup run (in seconds)
+    intervalSeconds = 10      # Interval between cleanup runs (in seconds)
+  }
+}
+```
+
+**Required Configuration:**
+- Both `initialDelaySeconds` and `intervalSeconds` **must** be present in `application.conf`
+- Both values must be positive integers (> 0)
+- The application will fail to start if configuration is missing or invalid
+
+**Environment-Specific Examples:**
+
+Development (frequent cleanup for faster testing):
+```hocon
+skatemap.cleanup {
+  initialDelaySeconds = 5
+  intervalSeconds = 5
+}
+```
+
+Production (less frequent to reduce overhead):
+```hocon
+skatemap.cleanup {
+  initialDelaySeconds = 30
+  intervalSeconds = 30
+}
+```
+
+Test (immediate cleanup):
+```hocon
+skatemap.cleanup {
+  initialDelaySeconds = 1
+  intervalSeconds = 1
+}
+```
+
+**Notes:**
+- Configuration is explicit - no hidden defaults in code
+- The cleanup service removes location data older than 30 seconds (configurable via `InMemoryLocationStore.maxAge`)
+
+**Monitoring:**
+- Cleanup operations are logged at `INFO` level with removal counts
+- Errors are logged at `ERROR` level with stack traces
+- Service initialisation and shutdown are logged at `INFO` level
+- Check logs for `CleanupService` to monitor cleanup behaviour
