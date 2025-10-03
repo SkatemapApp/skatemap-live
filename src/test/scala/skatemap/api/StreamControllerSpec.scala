@@ -22,7 +22,7 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
     def put(eventId: String, location: Location): Unit = ()
     def getAll(eventId: String): Map[String, Location] = Map.empty
     def cleanup(): Unit                                = ()
-    def cleanupAll(): Unit                             = ()
+    def cleanupAll(): Int                              = 0
   }
 
   private class MockBroadcaster extends Broadcaster {

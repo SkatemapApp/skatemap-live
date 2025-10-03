@@ -50,7 +50,12 @@ class EventStreamServiceSpec
 
     def cleanup(): Unit = storage.clear()
 
-    def cleanupAll(): Unit = storage.clear()
+    def cleanupAll(): Int = {
+      import scala.jdk.CollectionConverters._
+      val count = storage.values.asScala.map(_.size).sum
+      storage.clear()
+      count
+    }
   }
 
   private class MockBroadcaster extends Broadcaster {
