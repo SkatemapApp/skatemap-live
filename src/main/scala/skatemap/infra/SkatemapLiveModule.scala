@@ -15,7 +15,6 @@ import skatemap.core.{
 import java.time.Clock
 import javax.inject.Singleton
 import scala.concurrent.duration._
-import scala.util.Try
 
 class SkatemapLiveModule extends AbstractModule {
   override def configure(): Unit = {
@@ -35,25 +34,22 @@ class SkatemapLiveModule extends AbstractModule {
   @Provides
   @Singleton
   def provideCleanupConfig(config: Config): CleanupConfig = {
-    val initialDelaySeconds = Try {
-      if (config.hasPath("skatemap.cleanup.initialDelaySeconds")) {
-        config.getInt("skatemap.cleanup.initialDelaySeconds")
-      } else {
-        10
-      }
-    }.filter(_ > 0).getOrElse(10)
-
-    val intervalSeconds = Try {
-      if (config.hasPath("skatemap.cleanup.intervalSeconds")) {
-        config.getInt("skatemap.cleanup.intervalSeconds")
-      } else {
-        10
-      }
-    }.filter(_ > 0).getOrElse(10)
+    def getPositiveInt(path: String): Int = {
+      require(
+        config.hasPath(path),
+        s"Required configuration missing: $path. Add it to application.conf"
+      )
+      val value = config.getInt(path)
+      require(
+        value > 0,
+        s"Invalid configuration: $path=${value.toString} (must be positive)"
+      )
+      value
+    }
 
     CleanupConfig(
-      initialDelay = initialDelaySeconds.seconds,
-      interval = intervalSeconds.seconds
+      initialDelay = getPositiveInt("skatemap.cleanup.initialDelaySeconds").seconds,
+      interval = getPositiveInt("skatemap.cleanup.intervalSeconds").seconds
     )
   }
 }

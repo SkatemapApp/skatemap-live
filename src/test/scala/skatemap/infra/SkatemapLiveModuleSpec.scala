@@ -10,41 +10,101 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
 
   "SkatemapLiveModule.provideCleanupConfig" should {
 
-    "use default values when config paths are not present" in {
+    "fail when initialDelaySeconds config path is missing" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.cleanup.intervalSeconds = 10
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideCleanupConfig(config)
+      }
+      exception.getMessage should include("Required configuration missing: skatemap.cleanup.initialDelaySeconds")
+    }
+
+    "fail when intervalSeconds config path is missing" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.cleanup.initialDelaySeconds = 10
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideCleanupConfig(config)
+      }
+      exception.getMessage should include("Required configuration missing: skatemap.cleanup.intervalSeconds")
+    }
+
+    "fail when both config paths are missing" in {
       val config = ConfigFactory.empty()
       val module = new SkatemapLiveModule
 
-      val cleanupConfig = module.provideCleanupConfig(config)
-
-      cleanupConfig.initialDelay shouldBe 10.seconds
-      cleanupConfig.interval shouldBe 10.seconds
+      val exception = intercept[IllegalArgumentException] {
+        module.provideCleanupConfig(config)
+      }
+      exception.getMessage should include("Required configuration missing")
     }
 
-    "use configured initialDelaySeconds when present" in {
+    "fail when initialDelaySeconds is zero" in {
       val config = ConfigFactory.parseString("""
-        skatemap.cleanup.initialDelaySeconds = 5
+        skatemap.cleanup.initialDelaySeconds = 0
+        skatemap.cleanup.intervalSeconds = 10
       """)
       val module = new SkatemapLiveModule
 
-      val cleanupConfig = module.provideCleanupConfig(config)
-
-      cleanupConfig.initialDelay shouldBe 5.seconds
-      cleanupConfig.interval shouldBe 10.seconds
+      val exception = intercept[IllegalArgumentException] {
+        module.provideCleanupConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.cleanup.initialDelaySeconds=0 (must be positive)"
+      )
     }
 
-    "use configured intervalSeconds when present" in {
+    "fail when initialDelaySeconds is negative" in {
       val config = ConfigFactory.parseString("""
-        skatemap.cleanup.intervalSeconds = 15
+        skatemap.cleanup.initialDelaySeconds = -5
+        skatemap.cleanup.intervalSeconds = 10
       """)
       val module = new SkatemapLiveModule
 
-      val cleanupConfig = module.provideCleanupConfig(config)
-
-      cleanupConfig.initialDelay shouldBe 10.seconds
-      cleanupConfig.interval shouldBe 15.seconds
+      val exception = intercept[IllegalArgumentException] {
+        module.provideCleanupConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.cleanup.initialDelaySeconds=-5 (must be positive)"
+      )
     }
 
-    "use both configured values when both present" in {
+    "fail when intervalSeconds is zero" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.cleanup.initialDelaySeconds = 10
+        skatemap.cleanup.intervalSeconds = 0
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideCleanupConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.cleanup.intervalSeconds=0 (must be positive)"
+      )
+    }
+
+    "fail when intervalSeconds is negative" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.cleanup.initialDelaySeconds = 10
+        skatemap.cleanup.intervalSeconds = -15
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideCleanupConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.cleanup.intervalSeconds=-15 (must be positive)"
+      )
+    }
+
+    "use configured values when both are present and positive" in {
       val config = ConfigFactory.parseString("""
         skatemap.cleanup.initialDelaySeconds = 3
         skatemap.cleanup.intervalSeconds = 7
@@ -55,39 +115,6 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
 
       cleanupConfig.initialDelay shouldBe 3.seconds
       cleanupConfig.interval shouldBe 7.seconds
-    }
-
-    "fall back to default when initialDelaySeconds is negative" in {
-      val config = ConfigFactory.parseString("""
-        skatemap.cleanup.initialDelaySeconds = -5
-      """)
-      val module = new SkatemapLiveModule
-
-      val cleanupConfig = module.provideCleanupConfig(config)
-
-      cleanupConfig.initialDelay shouldBe 10.seconds
-    }
-
-    "fall back to default when intervalSeconds is zero" in {
-      val config = ConfigFactory.parseString("""
-        skatemap.cleanup.intervalSeconds = 0
-      """)
-      val module = new SkatemapLiveModule
-
-      val cleanupConfig = module.provideCleanupConfig(config)
-
-      cleanupConfig.interval shouldBe 10.seconds
-    }
-
-    "fall back to default when config value is not an integer" in {
-      val config = ConfigFactory.parseString("""
-        skatemap.cleanup.initialDelaySeconds = "invalid"
-      """)
-      val module = new SkatemapLiveModule
-
-      val cleanupConfig = module.provideCleanupConfig(config)
-
-      cleanupConfig.initialDelay shouldBe 10.seconds
     }
 
   }

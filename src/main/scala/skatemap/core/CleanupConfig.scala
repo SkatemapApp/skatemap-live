@@ -9,10 +9,3 @@ final case class CleanupConfig(
   require(initialDelay.toMillis > 0, "initialDelay must be positive")
   require(interval.toMillis > 0, "interval must be positive")
 }
-
-object CleanupConfig {
-  def default: CleanupConfig = CleanupConfig(
-    initialDelay = 10.seconds,
-    interval = 10.seconds
-  )
-}

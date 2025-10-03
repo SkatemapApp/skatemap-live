@@ -7,18 +7,6 @@ import scala.concurrent.duration._
 
 class CleanupConfigSpec extends AnyWordSpec with Matchers {
 
-  "CleanupConfig.default" should {
-
-    "provide default initialDelay of 10 seconds" in {
-      CleanupConfig.default.initialDelay shouldBe 10.seconds
-    }
-
-    "provide default interval of 10 seconds" in {
-      CleanupConfig.default.interval shouldBe 10.seconds
-    }
-
-  }
-
   "CleanupConfig validation" should {
 
     "reject zero initialDelay" in {

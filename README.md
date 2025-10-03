@@ -372,7 +372,7 @@ Quality is enforced at compile time:
 
 ### Cleanup Service
 
-The automatic cleanup service removes stale location data from memory. Configure cleanup intervals in `application.conf`:
+The automatic cleanup service removes stale location data from memory. Configuration is **required** in `application.conf`:
 
 ```hocon
 skatemap {
@@ -383,9 +383,10 @@ skatemap {
 }
 ```
 
-**Default Values:**
-- `initialDelaySeconds`: 10 seconds
-- `intervalSeconds`: 10 seconds
+**Required Configuration:**
+- Both `initialDelaySeconds` and `intervalSeconds` **must** be present in `application.conf`
+- Both values must be positive integers (> 0)
+- The application will fail to start if configuration is missing or invalid
 
 **Environment-Specific Examples:**
 
@@ -414,12 +415,11 @@ skatemap.cleanup {
 ```
 
 **Notes:**
-- Both values must be positive integers (> 0)
-- Invalid or negative values automatically fall back to defaults (10 seconds)
+- Configuration is explicit - no hidden defaults in code
 - The cleanup service removes location data older than 30 seconds (configurable via `InMemoryLocationStore.maxAge`)
 
 **Monitoring:**
 - Cleanup operations are logged at `INFO` level with removal counts
 - Errors are logged at `ERROR` level with stack traces
-- Service initialization and shutdown are logged at `INFO` level
+- Service initialisation and shutdown are logged at `INFO` level
 - Check logs for `CleanupService` to monitor cleanup behaviour
