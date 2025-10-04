@@ -8,6 +8,59 @@ import scala.concurrent.duration._
 
 class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
 
+  "SkatemapLiveModule.provideLocationConfig" should {
+
+    "fail when ttlSeconds config path is missing" in {
+      val config = ConfigFactory.empty()
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideLocationConfig(config)
+      }
+      exception.getMessage should include("Required configuration missing: skatemap.location.ttlSeconds")
+    }
+
+    "fail when ttlSeconds is zero" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.location.ttlSeconds = 0
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideLocationConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.location.ttlSeconds=0 (must be positive)"
+      )
+    }
+
+    "fail when ttlSeconds is negative" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.location.ttlSeconds = -30
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideLocationConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.location.ttlSeconds=-30 (must be positive)"
+      )
+    }
+
+    "use configured value when present and positive" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.location.ttlSeconds = 45
+      """)
+      val module = new SkatemapLiveModule
+
+      val locationConfig = module.provideLocationConfig(config)
+
+      locationConfig.ttl shouldBe 45.seconds
+    }
+
+  }
+
   "SkatemapLiveModule.provideCleanupConfig" should {
 
     "fail when initialDelaySeconds config path is missing" in {
