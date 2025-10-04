@@ -334,12 +334,11 @@ Default configuration values:
 | Setting | Value | Location |
 |---------|-------|----------|
 | Port | 9000 | Default Play port |
-| Location TTL | 30 seconds | `InMemoryLocationStore.scala:13` |
-| Cleanup Interval | 10 seconds | `CleanupService.scala:20` |
+| Location TTL | 30 seconds | `application.conf` |
+| Cleanup Initial Delay | 10 seconds | `application.conf` |
+| Cleanup Interval | 10 seconds | `application.conf` |
 | Batch Duration | 500ms | `StreamConfig.scala:11` |
 | Max Batch Size | 100 locations | `StreamConfig.scala:11` |
-
-These are currently hardcoded. Future versions may expose via `application.conf`.
 
 ## Development
 
@@ -370,12 +369,15 @@ Quality is enforced at compile time:
 - Side effects isolated to `infra/` and controllers
 
 
-### Cleanup Service
+### Configuration Reference
 
-The automatic cleanup service removes stale location data from memory. Configuration is **required** in `application.conf`:
+The application requires configuration in `application.conf` for location TTL and cleanup behaviour:
 
 ```hocon
 skatemap {
+  location {
+    ttlSeconds = 30           # Time-to-live for location data (in seconds)
+  }
   cleanup {
     initialDelaySeconds = 10  # Delay before first cleanup run (in seconds)
     intervalSeconds = 10      # Interval between cleanup runs (in seconds)
@@ -384,39 +386,49 @@ skatemap {
 ```
 
 **Required Configuration:**
-- Both `initialDelaySeconds` and `intervalSeconds` **must** be present in `application.conf`
-- Both values must be positive integers (> 0)
+- All three parameters (`ttlSeconds`, `initialDelaySeconds`, `intervalSeconds`) **must** be present in `application.conf`
+- All values must be positive integers (> 0)
 - The application will fail to start if configuration is missing or invalid
 
 **Environment-Specific Examples:**
 
-Development (frequent cleanup for faster testing):
+Development (faster cleanup for testing):
 ```hocon
-skatemap.cleanup {
-  initialDelaySeconds = 5
-  intervalSeconds = 5
+skatemap {
+  location.ttlSeconds = 15
+  cleanup {
+    initialDelaySeconds = 5
+    intervalSeconds = 5
+  }
 }
 ```
 
-Production (less frequent to reduce overhead):
+Production (optimised for performance):
 ```hocon
-skatemap.cleanup {
-  initialDelaySeconds = 30
-  intervalSeconds = 30
+skatemap {
+  location.ttlSeconds = 60
+  cleanup {
+    initialDelaySeconds = 30
+    intervalSeconds = 30
+  }
 }
 ```
 
 Test (immediate cleanup):
 ```hocon
-skatemap.cleanup {
-  initialDelaySeconds = 1
-  intervalSeconds = 1
+skatemap {
+  location.ttlSeconds = 5
+  cleanup {
+    initialDelaySeconds = 1
+    intervalSeconds = 1
+  }
 }
 ```
 
 **Notes:**
 - Configuration is explicit - no hidden defaults in code
-- The cleanup service removes location data older than 30 seconds (configurable via `InMemoryLocationStore.maxAge`)
+- Cleanup service removes locations older than the configured TTL
+- Cleanup interval should be shorter than TTL for timely removal
 
 **Monitoring:**
 - Cleanup operations are logged at `INFO` level with removal counts

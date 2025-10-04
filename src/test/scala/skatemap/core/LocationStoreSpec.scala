@@ -4,15 +4,17 @@ import skatemap.domain.Location
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import java.time.{Clock, Instant, ZoneOffset}
+import scala.concurrent.duration._
 
 class LocationStoreSpec extends AnyWordSpec with Matchers {
 
   private val fixedClock = Clock.fixed(Instant.ofEpochMilli(50000L), ZoneOffset.UTC)
+  private val config     = LocationConfig(ttl = 30.seconds)
 
   "InMemoryLocationStore" should {
 
     "store and retrieve single location" in {
-      val store    = new InMemoryLocationStore(fixedClock)
+      val store    = new InMemoryLocationStore(fixedClock, config)
       val eventId  = "event-1"
       val location = Location("skater-1", 45.0, -122.0, 1000L)
 
@@ -23,7 +25,7 @@ class LocationStoreSpec extends AnyWordSpec with Matchers {
     }
 
     "return empty map for non-existent event" in {
-      val store = new InMemoryLocationStore(fixedClock)
+      val store = new InMemoryLocationStore(fixedClock, config)
 
       val retrieved = store.getAll("non-existent")
 
@@ -31,7 +33,7 @@ class LocationStoreSpec extends AnyWordSpec with Matchers {
     }
 
     "update existing skater location" in {
-      val store     = new InMemoryLocationStore(fixedClock)
+      val store     = new InMemoryLocationStore(fixedClock, config)
       val eventId   = "event-1"
       val skaterId  = "skater-1"
       val location1 = Location(skaterId, 45.0, -122.0, 1000L)
@@ -45,7 +47,7 @@ class LocationStoreSpec extends AnyWordSpec with Matchers {
     }
 
     "isolate locations between different events" in {
-      val store     = new InMemoryLocationStore(fixedClock)
+      val store     = new InMemoryLocationStore(fixedClock, config)
       val location1 = Location("skater-1", 45.0, -122.0, 1000L)
       val location2 = Location("skater-2", 46.0, -123.0, 1000L)
 
@@ -60,7 +62,7 @@ class LocationStoreSpec extends AnyWordSpec with Matchers {
     }
 
     "cleanup locations older than 30 seconds" in {
-      val store           = new InMemoryLocationStore(fixedClock)
+      val store           = new InMemoryLocationStore(fixedClock, config)
       val eventId         = "event-1"
       val oldTimestamp    = 10000L
       val recentTimestamp = 40000L
@@ -78,7 +80,7 @@ class LocationStoreSpec extends AnyWordSpec with Matchers {
     }
 
     "remove empty events after cleanup" in {
-      val store        = new InMemoryLocationStore(fixedClock)
+      val store        = new InMemoryLocationStore(fixedClock, config)
       val eventId      = "event-1"
       val oldTimestamp = 10000L
       val oldLocation  = Location("skater-old", 45.0, -122.0, oldTimestamp)
@@ -91,7 +93,7 @@ class LocationStoreSpec extends AnyWordSpec with Matchers {
     }
 
     "cleanupAll should remove stale locations from all events" in {
-      val store           = new InMemoryLocationStore(fixedClock)
+      val store           = new InMemoryLocationStore(fixedClock, config)
       val event1          = "event-1"
       val event2          = "event-2"
       val oldTimestamp    = 10000L

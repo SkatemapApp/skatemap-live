@@ -8,6 +8,7 @@ import skatemap.core.{
   CleanupService,
   InMemoryBroadcaster,
   InMemoryLocationStore,
+  LocationConfig,
   LocationStore,
   StreamConfig
 }
@@ -50,6 +51,27 @@ class SkatemapLiveModule extends AbstractModule {
     CleanupConfig(
       initialDelay = getPositiveInt("skatemap.cleanup.initialDelaySeconds").seconds,
       interval = getPositiveInt("skatemap.cleanup.intervalSeconds").seconds
+    )
+  }
+
+  @Provides
+  @Singleton
+  def provideLocationConfig(config: Config): LocationConfig = {
+    def getPositiveInt(path: String): Int = {
+      require(
+        config.hasPath(path),
+        s"Required configuration missing: $path. Add it to application.conf"
+      )
+      val value = config.getInt(path)
+      require(
+        value > 0,
+        s"Invalid configuration: $path=${value.toString} (must be positive)"
+      )
+      value
+    }
+
+    LocationConfig(
+      ttl = getPositiveInt("skatemap.location.ttlSeconds").seconds
     )
   }
 }
