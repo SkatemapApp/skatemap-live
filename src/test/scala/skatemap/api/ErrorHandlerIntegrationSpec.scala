@@ -1,0 +1,36 @@
+package skatemap.api
+
+import org.scalatestplus.play.PlaySpec
+import org.scalatestplus.play.guice._
+import play.api.test.Helpers._
+import play.api.test._
+
+class ErrorHandlerIntegrationSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
+
+  "Error handler" should {
+
+    "return JSON error responses for 404 not found" in {
+      val request = FakeRequest(GET, "/nonexistent-endpoint")
+      val result  = route(app, request).fold(fail("Route not found"))(identity)
+
+      status(result) mustBe NOT_FOUND
+      contentType(result) mustBe Some("application/json")
+    }
+
+    "return properly structured error messages" in {
+      val request = FakeRequest(GET, "/nonexistent-endpoint")
+      val result  = route(app, request).fold(fail("Route not found"))(identity)
+
+      status(result) mustBe NOT_FOUND
+      contentType(result) mustBe Some("application/json")
+
+      val json      = contentAsJson(result)
+      val error     = (json \ "error").get
+      val requestId = (error \ "requestId").asOpt[Int]
+      val message   = (error \ "message").asOpt[String]
+
+      requestId.isDefined mustBe true
+      message.isDefined mustBe true
+    }
+  }
+}
