@@ -57,7 +57,8 @@ class SkatemapLiveModule extends AbstractModule {
   def provideHubConfig(config: Config): HubConfig =
     HubConfig(
       ttl = getPositiveInt(config, "skatemap.hub.ttlSeconds").seconds,
-      cleanupInterval = getPositiveInt(config, "skatemap.hub.cleanupIntervalSeconds").seconds
+      cleanupInterval = getPositiveInt(config, "skatemap.hub.cleanupIntervalSeconds").seconds,
+      bufferSize = getPositiveInt(config, "skatemap.hub.bufferSize")
     )
 
   private def getPositiveInt(config: Config, path: String): Int = {

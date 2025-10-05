@@ -28,7 +28,7 @@ class BroadcasterCleanupServiceSpec
       val mockBroadcaster = mock[InMemoryBroadcaster]
       val mockLifecycle   = mock[ApplicationLifecycle]
       val actorSystem     = ActorSystem("test")
-      val config          = HubConfig(ttl = 300.seconds, cleanupInterval = 60.seconds)
+      val config          = HubConfig(ttl = 300.seconds, cleanupInterval = 60.seconds, bufferSize = 128)
 
       when(mockBroadcaster.cleanupUnusedHubs(any[Long])).thenReturn(0)
       doNothing().when(mockLifecycle).addStopHook(any[() => Future[_]])
@@ -51,7 +51,7 @@ class BroadcasterCleanupServiceSpec
       val mockBroadcaster = mock[InMemoryBroadcaster]
       val mockLifecycle   = mock[ApplicationLifecycle]
       val actorSystem     = ActorSystem("test")
-      val config          = HubConfig(ttl = 1.second, cleanupInterval = 100.millis)
+      val config          = HubConfig(ttl = 1.second, cleanupInterval = 100.millis, bufferSize = 128)
 
       when(mockBroadcaster.cleanupUnusedHubs(any[Long])).thenReturn(2)
       doNothing().when(mockLifecycle).addStopHook(any[() => Future[_]])
@@ -75,7 +75,7 @@ class BroadcasterCleanupServiceSpec
       val mockBroadcaster = mock[InMemoryBroadcaster]
       val mockLifecycle   = mock[ApplicationLifecycle]
       val actorSystem     = ActorSystem("test")
-      val config          = HubConfig(ttl = 1.second, cleanupInterval = 100.millis)
+      val config          = HubConfig(ttl = 1.second, cleanupInterval = 100.millis, bufferSize = 128)
 
       when(mockBroadcaster.cleanupUnusedHubs(any[Long])).thenReturn(0)
       doNothing().when(mockLifecycle).addStopHook(any[() => Future[_]])
@@ -99,7 +99,7 @@ class BroadcasterCleanupServiceSpec
       val mockBroadcaster = mock[InMemoryBroadcaster]
       val mockLifecycle   = mock[ApplicationLifecycle]
       val actorSystem     = ActorSystem("test")
-      val config          = HubConfig(ttl = 1.second, cleanupInterval = 100.millis)
+      val config          = HubConfig(ttl = 1.second, cleanupInterval = 100.millis, bufferSize = 128)
 
       when(mockBroadcaster.cleanupUnusedHubs(any[Long])).thenThrow(new RuntimeException("Cleanup error"))
       doNothing().when(mockLifecycle).addStopHook(any[() => Future[_]])
@@ -123,7 +123,7 @@ class BroadcasterCleanupServiceSpec
       val mockBroadcaster = mock[InMemoryBroadcaster]
       val mockLifecycle   = mock[ApplicationLifecycle]
       val actorSystem     = ActorSystem("test")
-      val config          = HubConfig(ttl = 300.seconds, cleanupInterval = 60.seconds)
+      val config          = HubConfig(ttl = 300.seconds, cleanupInterval = 60.seconds, bufferSize = 128)
 
       when(mockBroadcaster.cleanupUnusedHubs(any[Long])).thenReturn(0)
       doNothing().when(mockLifecycle).addStopHook(any[() => Future[_]])

@@ -11,7 +11,7 @@ import javax.inject.{Inject, Singleton}
 import scala.collection.concurrent.TrieMap
 
 @Singleton
-class InMemoryBroadcaster @Inject() (system: ActorSystem, clock: Clock) extends Broadcaster {
+class InMemoryBroadcaster @Inject() (system: ActorSystem, clock: Clock, config: HubConfig) extends Broadcaster {
 
   implicit private val actorSystem: ActorSystem = system
 
@@ -28,7 +28,7 @@ class InMemoryBroadcaster @Inject() (system: ActorSystem, clock: Clock) extends 
       eventId, {
         val (sink, source) = MergeHub
           .source[Location]
-          .toMat(BroadcastHub.sink[Location](bufferSize = 128))(Keep.both)
+          .toMat(BroadcastHub.sink[Location](bufferSize = config.bufferSize))(Keep.both)
           .run()
         HubData(sink, source, new AtomicLong(clock.millis()))
       }

@@ -10,9 +10,8 @@ import play.api.test.FakeRequest
 import play.api.test.Helpers.stubControllerComponents
 import skatemap.core.{Broadcaster, EventStreamService, LocationStore, StreamConfig}
 import skatemap.domain.Location
-import skatemap.test.LogCapture
+import skatemap.test.{LogCapture, TestClock}
 
-import java.time.{Clock, Instant, ZoneId}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -35,7 +34,7 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
         new MockLocationStore(),
         new MockBroadcaster(),
         StreamConfig(100, 500.millis),
-        Clock.fixed(Instant.ofEpochMilli(1234567890123L), ZoneId.systemDefault())
+        TestClock.fixed(1234567890123L)
       ) {
     override def createEventStream(eventId: String): Source[String, NotUsed] =
       Source.single("test-data")
@@ -46,7 +45,7 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
         new MockLocationStore(),
         new MockBroadcaster(),
         StreamConfig(100, 500.millis),
-        Clock.fixed(Instant.ofEpochMilli(1234567890123L), ZoneId.systemDefault())
+        TestClock.fixed(1234567890123L)
       ) {
     override def createEventStream(eventId: String): Source[String, NotUsed] =
       Source.failed(new RuntimeException("Stream processing error"))

@@ -5,9 +5,10 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import skatemap.domain.Location
+import skatemap.test.TestClock
 
-import java.time.{Clock, Instant, ZoneId}
 import java.util.UUID
+import scala.concurrent.duration._
 
 class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
 
@@ -16,12 +17,23 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
   override def afterAll(): Unit =
     system.terminate()
 
+  private def transferHubs(from: InMemoryBroadcaster, to: InMemoryBroadcaster): Unit =
+    from.hubs.foreachEntry { (key, hub) =>
+      to.hubs.put(key, to.HubData(hub.sink, hub.source, hub.lastAccessed))
+    }
+
+  private val defaultConfig = HubConfig(
+    ttl = 300.seconds,
+    cleanupInterval = 60.seconds,
+    bufferSize = 128
+  )
+
   "InMemoryBroadcaster" should {
 
     "track last accessed timestamp when hub is created" in {
       val fixedTime   = 1234567890000L
-      val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
-      val broadcaster = new InMemoryBroadcaster(system, clock)
+      val clock       = TestClock.fixed(fixedTime)
+      val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
       val eventId     = UUID.randomUUID().toString
 
       broadcaster.publish(eventId, Location(UUID.randomUUID().toString, 1.0, 2.0, fixedTime))
@@ -33,8 +45,8 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
     "update last accessed timestamp on publish" in {
       val initialTime = 1000000000000L
       val laterTime   = 2000000000000L
-      val clock       = Clock.fixed(Instant.ofEpochMilli(initialTime), ZoneId.systemDefault())
-      val broadcaster = new InMemoryBroadcaster(system, clock)
+      val clock       = TestClock.fixed(initialTime)
+      val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
       val eventId     = UUID.randomUUID().toString
 
       broadcaster.publish(eventId, Location(UUID.randomUUID().toString, 1.0, 2.0, initialTime))
@@ -42,8 +54,8 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
       broadcaster.hubs(eventId).lastAccessed.set(initialTime)
 
-      val updatedClock = Clock.fixed(Instant.ofEpochMilli(laterTime), ZoneId.systemDefault())
-      val broadcaster2 = new InMemoryBroadcaster(system, updatedClock)
+      val updatedClock = TestClock.fixed(laterTime)
+      val broadcaster2 = new InMemoryBroadcaster(system, updatedClock, defaultConfig)
       val hub          = broadcaster.hubs(eventId)
       broadcaster2.hubs.put(eventId, broadcaster2.HubData(hub.sink, hub.source, hub.lastAccessed))
 
@@ -56,8 +68,8 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
     "update last accessed timestamp on subscribe" in {
       val initialTime = 1000000000000L
       val laterTime   = 2000000000000L
-      val clock       = Clock.fixed(Instant.ofEpochMilli(initialTime), ZoneId.systemDefault())
-      val broadcaster = new InMemoryBroadcaster(system, clock)
+      val clock       = TestClock.fixed(initialTime)
+      val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
       val eventId     = UUID.randomUUID().toString
 
       broadcaster.subscribe(eventId)
@@ -65,8 +77,8 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
       broadcaster.hubs(eventId).lastAccessed.set(initialTime)
 
-      val updatedClock = Clock.fixed(Instant.ofEpochMilli(laterTime), ZoneId.systemDefault())
-      val broadcaster2 = new InMemoryBroadcaster(system, updatedClock)
+      val updatedClock = TestClock.fixed(laterTime)
+      val broadcaster2 = new InMemoryBroadcaster(system, updatedClock, defaultConfig)
       val hub          = broadcaster.hubs(eventId)
       broadcaster2.hubs.put(eventId, broadcaster2.HubData(hub.sink, hub.source, hub.lastAccessed))
 
@@ -78,8 +90,8 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
     "cleanup unused hubs based on TTL" in {
       val fixedTime   = 1000000000000L
-      val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
-      val broadcaster = new InMemoryBroadcaster(system, clock)
+      val clock       = TestClock.fixed(fixedTime)
+      val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
       val eventId1    = UUID.randomUUID().toString
       val eventId2    = UUID.randomUUID().toString
 
@@ -90,12 +102,10 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
       val ttlMillis    = 5000L
       val laterTime    = fixedTime + ttlMillis + 1000L
-      val laterClock   = Clock.fixed(Instant.ofEpochMilli(laterTime), ZoneId.systemDefault())
-      val broadcaster2 = new InMemoryBroadcaster(system, laterClock)
+      val laterClock   = TestClock.fixed(laterTime)
+      val broadcaster2 = new InMemoryBroadcaster(system, laterClock, defaultConfig)
 
-      broadcaster.hubs.foreachEntry { (key, hub) =>
-        broadcaster2.hubs.put(key, broadcaster2.HubData(hub.sink, hub.source, hub.lastAccessed))
-      }
+      transferHubs(broadcaster, broadcaster2)
 
       val removed = broadcaster2.cleanupUnusedHubs(ttlMillis)
 
@@ -105,19 +115,18 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
     "not cleanup recently accessed hubs" in {
       val fixedTime   = 1000000000000L
-      val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
-      val broadcaster = new InMemoryBroadcaster(system, clock)
+      val clock       = TestClock.fixed(fixedTime)
+      val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
       val eventId     = UUID.randomUUID().toString
 
       broadcaster.publish(eventId, Location(UUID.randomUUID().toString, 1.0, 2.0, fixedTime))
 
       val ttlMillis    = 5000L
       val laterTime    = fixedTime + ttlMillis - 1000L
-      val laterClock   = Clock.fixed(Instant.ofEpochMilli(laterTime), ZoneId.systemDefault())
-      val broadcaster2 = new InMemoryBroadcaster(system, laterClock)
+      val laterClock   = TestClock.fixed(laterTime)
+      val broadcaster2 = new InMemoryBroadcaster(system, laterClock, defaultConfig)
 
-      val hub = broadcaster.hubs(eventId)
-      broadcaster2.hubs.put(eventId, broadcaster2.HubData(hub.sink, hub.source, hub.lastAccessed))
+      transferHubs(broadcaster, broadcaster2)
 
       val removed = broadcaster2.cleanupUnusedHubs(ttlMillis)
 
@@ -127,8 +136,8 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
     "return count of removed hubs" in {
       val fixedTime   = 1000000000000L
-      val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
-      val broadcaster = new InMemoryBroadcaster(system, clock)
+      val clock       = TestClock.fixed(fixedTime)
+      val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
 
       val eventIds = (1 to 5).map(_ => UUID.randomUUID().toString)
       eventIds.foreach { eventId =>
@@ -139,12 +148,10 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
       val ttlMillis    = 1000L
       val laterTime    = fixedTime + ttlMillis + 1L
-      val laterClock   = Clock.fixed(Instant.ofEpochMilli(laterTime), ZoneId.systemDefault())
-      val broadcaster2 = new InMemoryBroadcaster(system, laterClock)
+      val laterClock   = TestClock.fixed(laterTime)
+      val broadcaster2 = new InMemoryBroadcaster(system, laterClock, defaultConfig)
 
-      broadcaster.hubs.foreachEntry { (key, hub) =>
-        broadcaster2.hubs.put(key, broadcaster2.HubData(hub.sink, hub.source, hub.lastAccessed))
-      }
+      transferHubs(broadcaster, broadcaster2)
 
       val removed = broadcaster2.cleanupUnusedHubs(ttlMillis)
 

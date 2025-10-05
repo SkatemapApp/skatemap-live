@@ -1,14 +1,14 @@
 package skatemap.core
 
 import skatemap.domain.Location
+import skatemap.test.TestClock
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
-import java.time.{Clock, Instant, ZoneOffset}
 import scala.concurrent.duration._
 
 class LocationStoreSpec extends AnyWordSpec with Matchers {
 
-  private val fixedClock = Clock.fixed(Instant.ofEpochMilli(50000L), ZoneOffset.UTC)
+  private val fixedClock = TestClock.fixed(50000L)
   private val config     = LocationConfig(ttl = 30.seconds)
 
   "InMemoryLocationStore" should {

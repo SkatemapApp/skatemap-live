@@ -11,8 +11,8 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpecLike
 import play.api.libs.json.{Format, Json}
 import skatemap.domain.{Location, LocationBatch}
+import skatemap.test.TestClock
 
-import java.time.{Clock, Instant, ZoneId}
 import java.util.concurrent.ConcurrentHashMap
 import scala.concurrent.duration._
 
@@ -66,7 +66,7 @@ class EventStreamServiceSpec
       val fixedTime   = 1234567890123L
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
-      val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
+      val clock       = TestClock.fixed(fixedTime)
       val service     = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       noException should be thrownBy service.createEventStream(eventId)
@@ -79,7 +79,7 @@ class EventStreamServiceSpec
       val fixedTime   = 1234567890123L
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
-      val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
+      val clock       = TestClock.fixed(fixedTime)
       val service     = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       store.put(eventId, location1)
@@ -102,7 +102,7 @@ class EventStreamServiceSpec
         override def subscribe(eventId: String): Source[Location, NotUsed] =
           Source(List(location1, location2))
       }
-      val clock   = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
+      val clock   = TestClock.fixed(fixedTime)
       val service = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       val result = service.createEventStream(eventId).take(1).runWith(Sink.head).futureValue
@@ -123,7 +123,7 @@ class EventStreamServiceSpec
         override def subscribe(eventId: String): Source[Location, NotUsed] =
           Source(List(location3))
       }
-      val clock   = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
+      val clock   = TestClock.fixed(fixedTime)
       val service = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       store.put(eventId, location1)
@@ -143,7 +143,7 @@ class EventStreamServiceSpec
       val fixedTime   = 1234567890123L
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
-      val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
+      val clock       = TestClock.fixed(fixedTime)
       val service     = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       store.put(eventId, location1)
