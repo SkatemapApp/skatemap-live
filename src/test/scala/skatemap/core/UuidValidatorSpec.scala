@@ -1,11 +1,14 @@
 package skatemap.core
 
+import org.scalacheck.Gen
+import org.scalacheck.Prop.forAll
+import org.scalatestplus.scalacheck.Checkers
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import java.util.UUID
 
-class UuidValidatorSpec extends AnyWordSpec with Matchers {
+class UuidValidatorSpec extends AnyWordSpec with Matchers with Checkers {
 
   "UuidValidator.validateEventId" should {
 
@@ -97,6 +100,70 @@ class UuidValidatorSpec extends AnyWordSpec with Matchers {
       skaterResult shouldBe Left(InvalidSkaterIdError())
 
       eventResult should not equal skaterResult
+    }
+  }
+
+  "UuidValidator (property-based)" should {
+
+    val validUuidGen: Gen[UUID]         = Gen.uuid
+    val validUuidStringGen: Gen[String] = validUuidGen.map(_.toString)
+
+    val invalidUuidGen: Gen[String] = Gen.oneOf(
+      Gen.alphaNumStr.suchThat(s => s.nonEmpty && s.length < 36),
+      Gen.alphaNumStr.suchThat(s => s.length > 36),
+      Gen.const(""),
+      Gen.const("not-a-uuid"),
+      Gen.const("550e8400-e29b-41d4-a716"),
+      Gen.const("550e8400e29b41d4a716446655440000"),
+      Gen.const("550e8400-e29b-41d4-a716-446655440000-extra")
+    )
+
+    "accept all valid UUID strings for validateEventId" in {
+      check(forAll(validUuidStringGen) { uuidString =>
+        UuidValidator.validateEventId(uuidString) match {
+          case Right(uuid) => uuid.toString === uuidString
+          case Left(_)     => false
+        }
+      })
+    }
+
+    "accept all valid UUID strings for validateSkaterId" in {
+      check(forAll(validUuidStringGen) { uuidString =>
+        UuidValidator.validateSkaterId(uuidString) match {
+          case Right(uuid) => uuid.toString === uuidString
+          case Left(_)     => false
+        }
+      })
+    }
+
+    "reject all invalid UUID strings for validateEventId with correct error type" in {
+      check(forAll(invalidUuidGen) { invalidString =>
+        UuidValidator.validateEventId(invalidString) match {
+          case Left(_: InvalidSkatingEventIdError) => true
+          case _                                   => false
+        }
+      })
+    }
+
+    "reject all invalid UUID strings for validateSkaterId with correct error type" in {
+      check(forAll(invalidUuidGen) { invalidString =>
+        UuidValidator.validateSkaterId(invalidString) match {
+          case Left(_: InvalidSkaterIdError) => true
+          case _                             => false
+        }
+      })
+    }
+
+    "return consistent error types for the same invalid input" in {
+      check(forAll(invalidUuidGen) { invalidString =>
+        val eventError  = UuidValidator.validateEventId(invalidString)
+        val skaterError = UuidValidator.validateSkaterId(invalidString)
+
+        (eventError, skaterError) match {
+          case (Left(_: InvalidSkatingEventIdError), Left(_: InvalidSkaterIdError)) => true
+          case _                                                                    => false
+        }
+      })
     }
   }
 }
