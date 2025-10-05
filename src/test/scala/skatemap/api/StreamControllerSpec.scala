@@ -8,31 +8,18 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.test.FakeRequest
 import play.api.test.Helpers.stubControllerComponents
-import skatemap.core.{Broadcaster, EventStreamService, LocationStore, StreamConfig}
-import skatemap.domain.Location
-import skatemap.test.{LogCapture, TestClock}
+import skatemap.core.{EventStreamService, InMemoryLocationStore, LocationConfig, StreamConfig}
+import skatemap.test.{LogCapture, StubBroadcaster, TestClock}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class StreamControllerSpec extends AnyWordSpec with Matchers {
 
-  private class MockLocationStore extends LocationStore {
-    def put(eventId: String, location: Location): Unit = ()
-    def getAll(eventId: String): Map[String, Location] = Map.empty
-    def cleanup(): Unit                                = ()
-    def cleanupAll(): Int                              = 0
-  }
-
-  private class MockBroadcaster extends Broadcaster {
-    def publish(eventId: String, location: Location): Unit    = ()
-    def subscribe(eventId: String): Source[Location, NotUsed] = Source.empty
-  }
-
   private class MockEventStreamService
       extends EventStreamService(
-        new MockLocationStore(),
-        new MockBroadcaster(),
+        new InMemoryLocationStore(TestClock.fixed(1234567890123L), LocationConfig(1.hour)),
+        new StubBroadcaster(),
         StreamConfig(100, 500.millis),
         TestClock.fixed(1234567890123L)
       ) {
@@ -42,8 +29,8 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
 
   private class FailingEventStreamService
       extends EventStreamService(
-        new MockLocationStore(),
-        new MockBroadcaster(),
+        new InMemoryLocationStore(TestClock.fixed(1234567890123L), LocationConfig(1.hour)),
+        new StubBroadcaster(),
         StreamConfig(100, 500.millis),
         TestClock.fixed(1234567890123L)
       ) {

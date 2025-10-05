@@ -11,9 +11,8 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpecLike
 import play.api.libs.json.{Format, Json}
 import skatemap.domain.{Location, LocationBatch}
-import skatemap.test.TestClock
+import skatemap.test.{StubBroadcaster, TestClock}
 
-import java.util.concurrent.ConcurrentHashMap
 import scala.concurrent.duration._
 
 class EventStreamServiceSpec
@@ -33,40 +32,14 @@ class EventStreamServiceSpec
   implicit val locationFormat: Format[Location]           = Json.format[Location]
   implicit val locationBatchFormat: Format[LocationBatch] = Json.format[LocationBatch]
 
-  private class MockLocationStore extends LocationStore {
-    private val storage = new ConcurrentHashMap[String, Map[String, Location]]()
-
-    def put(eventId: String, location: Location): Unit = {
-      val eventMap = Option(storage.get(eventId)).getOrElse(Map.empty)
-      storage.put(eventId, eventMap + (location.skaterId -> location))
-    }
-
-    def getAll(eventId: String): Map[String, Location] =
-      Option(storage.get(eventId)).getOrElse(Map.empty)
-
-    def cleanup(): Unit = storage.clear()
-
-    def cleanupAll(): Int = {
-      import scala.jdk.CollectionConverters._
-      val count = storage.values.asScala.map(_.size).sum
-      storage.clear()
-      count
-    }
-  }
-
-  private class MockBroadcaster extends Broadcaster {
-    def publish(eventId: String, location: Location): Unit    = ()
-    def subscribe(eventId: String): Source[Location, NotUsed] = Source.empty
-  }
-
   "EventStreamService" should {
 
     "create stream with empty store and empty broadcaster" in {
       val eventId     = "550e8400-e29b-41d4-a716-446655440000"
       val fixedTime   = 1234567890123L
-      val store       = new MockLocationStore()
-      val broadcaster = new MockBroadcaster()
       val clock       = TestClock.fixed(fixedTime)
+      val store       = new InMemoryLocationStore(clock, LocationConfig(1.hour))
+      val broadcaster = new StubBroadcaster()
       val service     = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       noException should be thrownBy service.createEventStream(eventId)
@@ -77,9 +50,9 @@ class EventStreamServiceSpec
       val location1   = Location("skater-1", 1.0, 2.0, 1000L)
       val location2   = Location("skater-2", 3.0, 4.0, 2000L)
       val fixedTime   = 1234567890123L
-      val store       = new MockLocationStore()
-      val broadcaster = new MockBroadcaster()
       val clock       = TestClock.fixed(fixedTime)
+      val store       = new InMemoryLocationStore(clock, LocationConfig(1.hour))
+      val broadcaster = new StubBroadcaster()
       val service     = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       store.put(eventId, location1)
@@ -97,12 +70,12 @@ class EventStreamServiceSpec
       val location1 = Location("skater-1", 1.0, 2.0, 1000L)
       val location2 = Location("skater-2", 3.0, 4.0, 2000L)
       val fixedTime = 1234567890123L
-      val store     = new MockLocationStore()
-      val broadcaster = new MockBroadcaster() {
+      val clock     = TestClock.fixed(fixedTime)
+      val store     = new InMemoryLocationStore(clock, LocationConfig(1.hour))
+      val broadcaster = new StubBroadcaster() {
         override def subscribe(eventId: String): Source[Location, NotUsed] =
           Source(List(location1, location2))
       }
-      val clock   = TestClock.fixed(fixedTime)
       val service = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       val result = service.createEventStream(eventId).take(1).runWith(Sink.head).futureValue
@@ -118,12 +91,12 @@ class EventStreamServiceSpec
       val location2 = Location("skater-2", 3.0, 4.0, 2000L)
       val location3 = Location("skater-3", 5.0, 6.0, 3000L)
       val fixedTime = 1234567890123L
-      val store     = new MockLocationStore()
-      val broadcaster = new MockBroadcaster() {
+      val clock     = TestClock.fixed(fixedTime)
+      val store     = new InMemoryLocationStore(clock, LocationConfig(1.hour))
+      val broadcaster = new StubBroadcaster() {
         override def subscribe(eventId: String): Source[Location, NotUsed] =
           Source(List(location3))
       }
-      val clock   = TestClock.fixed(fixedTime)
       val service = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       store.put(eventId, location1)
@@ -141,9 +114,9 @@ class EventStreamServiceSpec
       val eventId     = "550e8400-e29b-41d4-a716-446655440000"
       val location1   = Location("skater-1", 1.0, 2.0, 1000L)
       val fixedTime   = 1234567890123L
-      val store       = new MockLocationStore()
-      val broadcaster = new MockBroadcaster()
       val clock       = TestClock.fixed(fixedTime)
+      val store       = new InMemoryLocationStore(clock, LocationConfig(1.hour))
+      val broadcaster = new StubBroadcaster()
       val service     = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       store.put(eventId, location1)

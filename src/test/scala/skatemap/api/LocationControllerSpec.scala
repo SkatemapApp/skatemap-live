@@ -1,19 +1,16 @@
 package skatemap.api
 
-import org.apache.pekko.NotUsed
 import org.apache.pekko.stream.Materializer
-import org.apache.pekko.stream.scaladsl.Source
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice._
 import play.api.http.Status.{ACCEPTED, BAD_REQUEST}
 import play.api.libs.json.Json
 import play.api.test.Helpers._
 import play.api.test._
-import skatemap.core.{Broadcaster, LocationStore}
-import skatemap.domain.Location
-import skatemap.test.LogCapture
+import skatemap.core.{InMemoryLocationStore, LocationConfig}
+import skatemap.test.{LogCapture, StubBroadcaster, TestClock}
 
-import java.util.concurrent.ConcurrentHashMap
+import scala.concurrent.duration._
 
 class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
 
@@ -22,36 +19,10 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
   private val validSkatingEventId = "550e8400-e29b-41d4-a716-446655440000"
   private val validSkaterId       = "550e8400-e29b-41d4-a716-446655440001"
 
-  private class MockLocationStore extends LocationStore {
-    private val storage = new ConcurrentHashMap[String, Map[String, Location]]()
-
-    def put(eventId: String, location: Location): Unit = {
-      val eventMap = Option(storage.get(eventId)).getOrElse(Map.empty)
-      storage.put(eventId, eventMap + (location.skaterId -> location))
-    }
-
-    def getAll(eventId: String): Map[String, Location] =
-      Option(storage.get(eventId)).getOrElse(Map.empty)
-
-    def cleanup(): Unit = storage.clear()
-
-    def cleanupAll(): Int = {
-      import scala.jdk.CollectionConverters._
-      val count = storage.values.asScala.map(_.size).sum
-      storage.clear()
-      count
-    }
-  }
-
-  private class MockBroadcaster extends Broadcaster {
-    def publish(eventId: String, location: Location): Unit    = ()
-    def subscribe(eventId: String): Source[Location, NotUsed] = Source.empty
-  }
-
   private def createController() = new skatemap.api.LocationController(
     stubControllerComponents(),
-    new MockLocationStore(),
-    new MockBroadcaster()
+    new InMemoryLocationStore(TestClock.fixed(1234567890123L), LocationConfig(1.hour)),
+    new StubBroadcaster()
   )
 
   "LocationController.updateLocation" should {
