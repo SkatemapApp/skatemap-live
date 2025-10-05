@@ -1,7 +1,7 @@
 package skatemap.api.json
 
 import skatemap.domain.{Location, LocationBatch, LocationUpdate}
-import play.api.libs.json._
+import play.api.libs.json.{Format, JsResult, JsValue, Json, Writes}
 
 object LocationJson {
 

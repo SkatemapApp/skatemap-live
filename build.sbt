@@ -1,12 +1,12 @@
 import BuildCommands.{ciBuild, devBuild}
 
-name := """skatemap-live"""
+name         := """skatemap-live"""
 organization := "skatemap.org"
 
 version := "1.0-SNAPSHOT"
 
 coverageMinimumStmtTotal := 100
-coverageFailOnMinimum := true
+coverageFailOnMinimum    := true
 
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
@@ -17,11 +17,20 @@ lazy val root = (project in file("."))
     // WartRemover incorrectly analyzes routes files - exclude warts that routes files trigger
     Compile / compile / wartremoverErrors := Warts.allBut(
       // Core exclusions for legitimate use cases
-      Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable,
+      Wart.Any,
+      Wart.NonUnitStatements,
+      Wart.Nothing,
+      Wart.Serializable,
       // Play Framework routes file exclusions (should be fixed by proper exclusion)
-      Wart.AsInstanceOf, Wart.JavaSerializable, Wart.Overloading, Wart.Var, Wart.Product
+      Wart.AsInstanceOf,
+      Wart.JavaSerializable,
+      Wart.Overloading,
+      Wart.Var,
+      Wart.Product
     ),
-    Test / compile / wartremoverErrors := Warts.allBut(Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable)
+    Test / compile / wartremoverErrors := Warts
+      .allBut(Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable),
+    scalastyleFailOnError := true
   )
 
 scalaVersion := "2.13.16"
@@ -40,16 +49,16 @@ wartremoverExcluded += (Compile / resourceDirectory).value
 
 libraryDependencies ++= Seq(
   guice,
-  "org.apache.pekko" %% "pekko-stream" % "1.1.2",
-  "org.apache.pekko" %% "pekko-slf4j" % "1.1.2",
-  "org.apache.pekko" %% "pekko-serialization-jackson" % "1.1.2",
-  "org.apache.pekko" %% "pekko-actor-typed" % "1.1.2",
-  "org.apache.pekko" %% "pekko-testkit" % "1.1.2" % Test,
-  "org.apache.pekko" %% "pekko-stream-testkit" % "1.1.2" % Test,
-  "org.apache.pekko" %% "pekko-http-testkit" % "1.2.0" % Test,
-  "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test,
-  "org.scalacheck" %% "scalacheck" % "1.18.1" % Test,
-  "org.scalatestplus" %% "scalacheck-1-18" % "3.2.19.0" % Test
+  "org.apache.pekko"       %% "pekko-stream"                % "1.1.2",
+  "org.apache.pekko"       %% "pekko-slf4j"                 % "1.1.2",
+  "org.apache.pekko"       %% "pekko-serialization-jackson" % "1.1.2",
+  "org.apache.pekko"       %% "pekko-actor-typed"           % "1.1.2",
+  "org.apache.pekko"       %% "pekko-testkit"               % "1.1.2"    % Test,
+  "org.apache.pekko"       %% "pekko-stream-testkit"        % "1.1.2"    % Test,
+  "org.apache.pekko"       %% "pekko-http-testkit"          % "1.2.0"    % Test,
+  "org.scalatestplus.play" %% "scalatestplus-play"          % "7.0.1"    % Test,
+  "org.scalacheck"         %% "scalacheck"                  % "1.18.1"   % Test,
+  "org.scalatestplus"      %% "scalacheck-1-18"             % "3.2.19.0" % Test
 )
 
 libraryDependencies := libraryDependencies.value.map {

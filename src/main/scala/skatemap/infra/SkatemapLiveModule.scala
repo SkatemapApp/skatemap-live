@@ -2,11 +2,20 @@ package skatemap.infra
 
 import com.google.inject.{AbstractModule, Provides}
 import com.typesafe.config.Config
-import skatemap.core._
+import skatemap.core.{
+  Broadcaster,
+  CleanupConfig,
+  CleanupService,
+  InMemoryBroadcaster,
+  InMemoryLocationStore,
+  LocationConfig,
+  LocationStore,
+  StreamConfig
+}
 
 import java.time.Clock
 import javax.inject.Singleton
-import scala.concurrent.duration._
+import scala.concurrent.duration.DurationInt
 
 class SkatemapLiveModule extends AbstractModule {
   override def configure(): Unit = {
