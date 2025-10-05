@@ -34,7 +34,7 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
       extends EventStreamService(
         new MockLocationStore(),
         new MockBroadcaster(),
-        StreamConfig.default,
+        StreamConfig(100, 500.millis),
         Clock.fixed(Instant.ofEpochMilli(1234567890123L), ZoneId.systemDefault())
       ) {
     override def createEventStream(eventId: String): Source[String, NotUsed] =
@@ -45,7 +45,7 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
       extends EventStreamService(
         new MockLocationStore(),
         new MockBroadcaster(),
-        StreamConfig.default,
+        StreamConfig(100, 500.millis),
         Clock.fixed(Instant.ofEpochMilli(1234567890123L), ZoneId.systemDefault())
       ) {
     override def createEventStream(eventId: String): Source[String, NotUsed] =
