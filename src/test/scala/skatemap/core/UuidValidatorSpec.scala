@@ -6,7 +6,7 @@ import org.scalatestplus.scalacheck.Checkers
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.util.UUID
+import java.util.{Locale, UUID}
 
 class UuidValidatorSpec extends AnyWordSpec with Matchers with Checkers {
 
@@ -105,17 +105,26 @@ class UuidValidatorSpec extends AnyWordSpec with Matchers with Checkers {
 
   "UuidValidator (property-based)" should {
 
+    def isValidUuid(s: String): Boolean =
+      try {
+        UUID.fromString(s)
+        true
+      } catch {
+        case _: IllegalArgumentException => false
+      }
+
     val validUuidGen: Gen[UUID]         = Gen.uuid
     val validUuidStringGen: Gen[String] = validUuidGen.map(_.toString)
 
     val invalidUuidGen: Gen[String] = Gen.oneOf(
-      Gen.alphaNumStr.suchThat(s => s.nonEmpty && s.length < 36),
-      Gen.alphaNumStr.suchThat(s => s.length > 36),
+      Gen.alphaNumStr.suchThat(s => s.nonEmpty && s.length < 36 && !isValidUuid(s)),
+      Gen.listOfN(40, Gen.alphaNumChar).map(_.mkString),
       Gen.const(""),
       Gen.const("not-a-uuid"),
       Gen.const("550e8400-e29b-41d4-a716"),
       Gen.const("550e8400e29b41d4a716446655440000"),
-      Gen.const("550e8400-e29b-41d4-a716-446655440000-extra")
+      Gen.const("550e8400-e29b-41d4-a716-446655440000-extra"),
+      Gen.listOfN(36, Gen.oneOf('x', '/', '!', ' ', '@')).map(_.mkString)
     )
 
     "accept all valid UUID strings for validateEventId" in {
@@ -163,6 +172,33 @@ class UuidValidatorSpec extends AnyWordSpec with Matchers with Checkers {
           case (Left(_: InvalidSkatingEventIdError), Left(_: InvalidSkaterIdError)) => true
           case _                                                                    => false
         }
+      })
+    }
+
+    "reject UUIDs with leading whitespace" in {
+      check(forAll(validUuidStringGen) { uuidString =>
+        val withWhitespace = " " + uuidString
+        UuidValidator.validateEventId(withWhitespace) match {
+          case Left(_: InvalidSkatingEventIdError) => true
+          case _                                   => false
+        }
+      })
+    }
+
+    "reject UUIDs with trailing whitespace" in {
+      check(forAll(validUuidStringGen) { uuidString =>
+        val withWhitespace = uuidString + " "
+        UuidValidator.validateSkaterId(withWhitespace) match {
+          case Left(_: InvalidSkaterIdError) => true
+          case _                             => false
+        }
+      })
+    }
+
+    "accept uppercase UUIDs" in {
+      check(forAll(validUuidStringGen) { uuidString =>
+        val uppercaseUuid = uuidString.toUpperCase(Locale.ROOT)
+        UuidValidator.validateEventId(uppercaseUuid).isRight
       })
     }
   }
