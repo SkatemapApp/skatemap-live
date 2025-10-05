@@ -4,9 +4,10 @@ import org.apache.pekko.NotUsed
 import org.apache.pekko.stream.scaladsl.{Flow, Sink, Source}
 import org.slf4j.{Logger, LoggerFactory}
 import play.api.mvc.{BaseController, ControllerComponents, WebSocket}
-import skatemap.core.EventStreamService
+import skatemap.core.{EventStreamService, UuidValidator}
 
 import javax.inject.{Inject, Singleton}
+import scala.concurrent.Future
 
 @Singleton
 class StreamController @Inject() (
@@ -16,10 +17,15 @@ class StreamController @Inject() (
 
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  def streamEvent(eventId: String): WebSocket = WebSocket.accept[String, String] { _ =>
-    logger.info("WebSocket connection established for event={}", eventId)
-    val outgoing = createErrorHandledStream(eventId)
-    Flow.fromSinkAndSource(Sink.ignore, outgoing)
+  def streamEvent(eventId: String): WebSocket = WebSocket.acceptOrResult[String, String] { _ =>
+    UuidValidator.validateEventId(eventId) match {
+      case Right(_) =>
+        logger.info("WebSocket connection established for event={}", eventId)
+        val outgoing = createErrorHandledStream(eventId)
+        Future.successful(Right(Flow.fromSinkAndSource(Sink.ignore, outgoing)))
+      case Left(error) =>
+        Future.successful(Left(ValidationErrorAdapter.toJsonResponse(error)))
+    }
   }
 
   private[api] def createErrorHandledStream(eventId: String): Source[String, NotUsed] =
