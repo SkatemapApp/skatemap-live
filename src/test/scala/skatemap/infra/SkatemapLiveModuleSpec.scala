@@ -61,6 +61,117 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
 
   }
 
+  "SkatemapLiveModule.provideStreamConfig" should {
+
+    "fail when batchSize config path is missing" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.stream.batchIntervalMillis = 500
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideStreamConfig(config)
+      }
+      exception.getMessage should include("Required configuration missing: skatemap.stream.batchSize")
+    }
+
+    "fail when batchIntervalMillis config path is missing" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.stream.batchSize = 100
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideStreamConfig(config)
+      }
+      exception.getMessage should include("Required configuration missing: skatemap.stream.batchIntervalMillis")
+    }
+
+    "fail when both config paths are missing" in {
+      val config = ConfigFactory.empty()
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideStreamConfig(config)
+      }
+      exception.getMessage should include("Required configuration missing")
+    }
+
+    "fail when batchSize is zero" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.stream.batchSize = 0
+        skatemap.stream.batchIntervalMillis = 500
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideStreamConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.stream.batchSize=0 (must be positive)"
+      )
+    }
+
+    "fail when batchSize is negative" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.stream.batchSize = -10
+        skatemap.stream.batchIntervalMillis = 500
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideStreamConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.stream.batchSize=-10 (must be positive)"
+      )
+    }
+
+    "fail when batchIntervalMillis is zero" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.stream.batchSize = 100
+        skatemap.stream.batchIntervalMillis = 0
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideStreamConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.stream.batchIntervalMillis=0 (must be positive)"
+      )
+    }
+
+    "fail when batchIntervalMillis is negative" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.stream.batchSize = 100
+        skatemap.stream.batchIntervalMillis = -500
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideStreamConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.stream.batchIntervalMillis=-500 (must be positive)"
+      )
+    }
+
+    "use configured values when both are present and positive" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.stream.batchSize = 50
+        skatemap.stream.batchIntervalMillis = 250
+      """)
+      val module = new SkatemapLiveModule
+
+      val streamConfig = module.provideStreamConfig(config)
+
+      streamConfig.batchSize shouldBe 50
+      streamConfig.batchInterval shouldBe 250.millis
+    }
+
+  }
+
   "SkatemapLiveModule.provideCleanupConfig" should {
 
     "fail when initialDelaySeconds config path is missing" in {

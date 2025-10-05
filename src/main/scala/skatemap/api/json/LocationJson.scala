@@ -41,6 +41,5 @@ object LocationJson {
     )
   }
 
-  implicit val locationWrites: Writes[Location]           = Json.writes[Location]
   implicit val locationBatchWrites: Writes[LocationBatch] = Json.writes[LocationBatch]
 }

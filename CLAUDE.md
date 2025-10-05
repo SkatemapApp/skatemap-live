@@ -54,6 +54,29 @@ The application follows a clean architecture pattern with clear separation of co
 - Pure functions in core domain with no side effects
 - Framework-specific code isolated in adapters
 
+## Configuration
+
+All configuration is in `application.conf` under the `skatemap` section:
+
+### Location Configuration
+- `skatemap.location.ttlSeconds`: Time-to-live for location data (must be positive integer)
+
+### Cleanup Configuration
+- `skatemap.cleanup.initialDelaySeconds`: Delay before first cleanup run (must be positive integer)
+- `skatemap.cleanup.intervalSeconds`: Interval between cleanup runs (must be positive integer)
+
+### Stream Configuration
+- `skatemap.stream.batchSize`: Maximum locations per WebSocket batch (must be positive integer)
+- `skatemap.stream.batchIntervalMillis`: Maximum time between batches in milliseconds (must be positive integer)
+
+**Performance Trade-offs:**
+- Higher `batchSize`: Fewer WebSocket messages, better throughput, higher latency
+- Lower `batchSize`: More frequent updates, lower latency, higher overhead
+- Higher `batchIntervalMillis`: Batches fill before sending, better for high-volume events
+- Lower `batchIntervalMillis`: Messages sent more frequently, better for low-activity events
+
+All values are validated at startup. Missing or non-positive values cause startup failure.
+
 ## Environment Variables
 - `APPLICATION_SECRET`: Generate with `sbt playGenerateSecret`
 - `PORT`: Application listening port

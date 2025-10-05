@@ -14,6 +14,7 @@ import skatemap.domain.{Location, LocationBatch}
 
 import java.time.{Clock, Instant, ZoneId}
 import java.util.concurrent.ConcurrentHashMap
+import scala.concurrent.duration._
 
 class EventStreamServiceSpec
     extends TestKit(ActorSystem("EventStreamServiceSpec"))
@@ -31,11 +32,6 @@ class EventStreamServiceSpec
 
   implicit val locationFormat: Format[Location]           = Json.format[Location]
   implicit val locationBatchFormat: Format[LocationBatch] = Json.format[LocationBatch]
-
-  private val eventId   = "550e8400-e29b-41d4-a716-446655440000"
-  private val location1 = Location("skater-1", 1.0, 2.0, 1000L)
-  private val location2 = Location("skater-2", 3.0, 4.0, 2000L)
-  private val fixedTime = 1234567890123L
 
   private class MockLocationStore extends LocationStore {
     private val storage = new ConcurrentHashMap[String, Map[String, Location]]()
@@ -66,19 +62,25 @@ class EventStreamServiceSpec
   "EventStreamService" should {
 
     "create stream with empty store and empty broadcaster" in {
+      val eventId     = "550e8400-e29b-41d4-a716-446655440000"
+      val fixedTime   = 1234567890123L
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
       val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
-      val service     = new EventStreamService(store, broadcaster, StreamConfig.default, clock)
+      val service     = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       noException should be thrownBy service.createEventStream(eventId)
     }
 
     "create stream with store data and empty broadcaster" in {
+      val eventId     = "550e8400-e29b-41d4-a716-446655440000"
+      val location1   = Location("skater-1", 1.0, 2.0, 1000L)
+      val location2   = Location("skater-2", 3.0, 4.0, 2000L)
+      val fixedTime   = 1234567890123L
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
       val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
-      val service     = new EventStreamService(store, broadcaster, StreamConfig.default, clock)
+      val service     = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       store.put(eventId, location1)
       store.put(eventId, location2)
@@ -91,13 +93,17 @@ class EventStreamServiceSpec
     }
 
     "create stream with empty store and broadcaster data" in {
-      val store = new MockLocationStore()
+      val eventId   = "550e8400-e29b-41d4-a716-446655440000"
+      val location1 = Location("skater-1", 1.0, 2.0, 1000L)
+      val location2 = Location("skater-2", 3.0, 4.0, 2000L)
+      val fixedTime = 1234567890123L
+      val store     = new MockLocationStore()
       val broadcaster = new MockBroadcaster() {
         override def subscribe(eventId: String): Source[Location, NotUsed] =
           Source(List(location1, location2))
       }
       val clock   = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
-      val service = new EventStreamService(store, broadcaster, StreamConfig.default, clock)
+      val service = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       val result = service.createEventStream(eventId).take(1).runWith(Sink.head).futureValue
       val parsed = Json.parse(result).as[LocationBatch]
@@ -107,14 +113,18 @@ class EventStreamServiceSpec
     }
 
     "create stream combining store and broadcaster data" in {
-      val store     = new MockLocationStore()
+      val eventId   = "550e8400-e29b-41d4-a716-446655440000"
+      val location1 = Location("skater-1", 1.0, 2.0, 1000L)
+      val location2 = Location("skater-2", 3.0, 4.0, 2000L)
       val location3 = Location("skater-3", 5.0, 6.0, 3000L)
+      val fixedTime = 1234567890123L
+      val store     = new MockLocationStore()
       val broadcaster = new MockBroadcaster() {
         override def subscribe(eventId: String): Source[Location, NotUsed] =
           Source(List(location3))
       }
       val clock   = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
-      val service = new EventStreamService(store, broadcaster, StreamConfig.default, clock)
+      val service = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       store.put(eventId, location1)
       store.put(eventId, location2)
@@ -128,10 +138,13 @@ class EventStreamServiceSpec
     }
 
     "serialize LocationBatch correctly" in {
+      val eventId     = "550e8400-e29b-41d4-a716-446655440000"
+      val location1   = Location("skater-1", 1.0, 2.0, 1000L)
+      val fixedTime   = 1234567890123L
       val store       = new MockLocationStore()
       val broadcaster = new MockBroadcaster()
       val clock       = Clock.fixed(Instant.ofEpochMilli(fixedTime), ZoneId.systemDefault())
-      val service     = new EventStreamService(store, broadcaster, StreamConfig.default, clock)
+      val service     = new EventStreamService(store, broadcaster, StreamConfig(100, 500.millis), clock)
 
       store.put(eventId, location1)
 

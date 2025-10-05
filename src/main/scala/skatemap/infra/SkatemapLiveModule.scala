@@ -30,7 +30,25 @@ class SkatemapLiveModule extends AbstractModule {
 
   @Provides
   @Singleton
-  def provideStreamConfig(): StreamConfig = StreamConfig.default
+  def provideStreamConfig(config: Config): StreamConfig = {
+    def getPositiveInt(path: String): Int = {
+      require(
+        config.hasPath(path),
+        s"Required configuration missing: $path. Add it to application.conf"
+      )
+      val value = config.getInt(path)
+      require(
+        value > 0,
+        s"Invalid configuration: $path=${value.toString} (must be positive)"
+      )
+      value
+    }
+
+    StreamConfig(
+      batchSize = getPositiveInt("skatemap.stream.batchSize"),
+      batchInterval = getPositiveInt("skatemap.stream.batchIntervalMillis").millis
+    )
+  }
 
   @Provides
   @Singleton

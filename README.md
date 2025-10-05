@@ -337,8 +337,8 @@ Default configuration values:
 | Location TTL | 30 seconds | `application.conf` |
 | Cleanup Initial Delay | 10 seconds | `application.conf` |
 | Cleanup Interval | 10 seconds | `application.conf` |
-| Batch Duration | 500ms | `StreamConfig.scala:11` |
-| Max Batch Size | 100 locations | `StreamConfig.scala:11` |
+| Batch Interval | 500ms | `application.conf` |
+| Batch Size | 100 locations | `application.conf` |
 
 ## Development
 
@@ -371,7 +371,7 @@ Quality is enforced at compile time:
 
 ### Configuration Reference
 
-The application requires configuration in `application.conf` for location TTL and cleanup behaviour:
+The application requires configuration in `application.conf` for location TTL, cleanup behaviour, and stream batching:
 
 ```hocon
 skatemap {
@@ -382,11 +382,15 @@ skatemap {
     initialDelaySeconds = 10  # Delay before first cleanup run (in seconds)
     intervalSeconds = 10      # Interval between cleanup runs (in seconds)
   }
+  stream {
+    batchSize = 100           # Maximum locations per WebSocket batch
+    batchIntervalMillis = 500 # Maximum time between batches (in milliseconds)
+  }
 }
 ```
 
 **Required Configuration:**
-- All three parameters (`ttlSeconds`, `initialDelaySeconds`, `intervalSeconds`) **must** be present in `application.conf`
+- All parameters (`ttlSeconds`, `initialDelaySeconds`, `intervalSeconds`, `batchSize`, `batchIntervalMillis`) **must** be present in `application.conf`
 - All values must be positive integers (> 0)
 - The application will fail to start if configuration is missing or invalid
 
@@ -400,6 +404,10 @@ skatemap {
     initialDelaySeconds = 5
     intervalSeconds = 5
   }
+  stream {
+    batchSize = 50
+    batchIntervalMillis = 250
+  }
 }
 ```
 
@@ -410,6 +418,10 @@ skatemap {
   cleanup {
     initialDelaySeconds = 30
     intervalSeconds = 30
+  }
+  stream {
+    batchSize = 200
+    batchIntervalMillis = 1000
   }
 }
 ```
@@ -422,6 +434,10 @@ skatemap {
     initialDelaySeconds = 1
     intervalSeconds = 1
   }
+  stream {
+    batchSize = 10
+    batchIntervalMillis = 100
+  }
 }
 ```
 
@@ -429,6 +445,11 @@ skatemap {
 - Configuration is explicit - no hidden defaults in code
 - Cleanup service removes locations older than the configured TTL
 - Cleanup interval should be shorter than TTL for timely removal
+- **Stream batching trade-offs:**
+  - Higher `batchSize`: Fewer WebSocket messages, better throughput, but higher latency
+  - Lower `batchSize`: More frequent updates, lower latency, but higher overhead
+  - Higher `batchIntervalMillis`: Batches fill up before sending, better for high-volume events
+  - Lower `batchIntervalMillis`: Messages sent more frequently, better for low-activity events
 
 **Monitoring:**
 - Cleanup operations are logged at `INFO` level with removal counts
