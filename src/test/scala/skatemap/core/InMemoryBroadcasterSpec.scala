@@ -56,8 +56,7 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
       val updatedClock = TestClock.fixed(laterTime)
       val broadcaster2 = new InMemoryBroadcaster(system, updatedClock, defaultConfig)
-      val hub          = broadcaster.hubs(eventId)
-      broadcaster2.hubs.put(eventId, broadcaster2.HubData(hub.sink, hub.source, hub.lastAccessed))
+      transferHubs(broadcaster, broadcaster2)
 
       broadcaster2.publish(eventId, Location(UUID.randomUUID().toString, 3.0, 4.0, laterTime))
       val secondTimestamp = broadcaster2.hubs(eventId).lastAccessed.get()
@@ -79,8 +78,7 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
       val updatedClock = TestClock.fixed(laterTime)
       val broadcaster2 = new InMemoryBroadcaster(system, updatedClock, defaultConfig)
-      val hub          = broadcaster.hubs(eventId)
-      broadcaster2.hubs.put(eventId, broadcaster2.HubData(hub.sink, hub.source, hub.lastAccessed))
+      transferHubs(broadcaster, broadcaster2)
 
       broadcaster2.subscribe(eventId)
       val secondTimestamp = broadcaster2.hubs(eventId).lastAccessed.get()
