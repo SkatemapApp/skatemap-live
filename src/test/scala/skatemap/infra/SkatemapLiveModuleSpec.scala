@@ -283,4 +283,115 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
 
   }
 
+  "SkatemapLiveModule.provideHubConfig" should {
+
+    "fail when ttlSeconds config path is missing" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.hub.cleanupIntervalSeconds = 60
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideHubConfig(config)
+      }
+      exception.getMessage should include("Required configuration missing: skatemap.hub.ttlSeconds")
+    }
+
+    "fail when cleanupIntervalSeconds config path is missing" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.hub.ttlSeconds = 300
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideHubConfig(config)
+      }
+      exception.getMessage should include("Required configuration missing: skatemap.hub.cleanupIntervalSeconds")
+    }
+
+    "fail when both config paths are missing" in {
+      val config = ConfigFactory.empty()
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideHubConfig(config)
+      }
+      exception.getMessage should include("Required configuration missing")
+    }
+
+    "fail when ttlSeconds is zero" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.hub.ttlSeconds = 0
+        skatemap.hub.cleanupIntervalSeconds = 60
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideHubConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.hub.ttlSeconds=0 (must be positive)"
+      )
+    }
+
+    "fail when ttlSeconds is negative" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.hub.ttlSeconds = -300
+        skatemap.hub.cleanupIntervalSeconds = 60
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideHubConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.hub.ttlSeconds=-300 (must be positive)"
+      )
+    }
+
+    "fail when cleanupIntervalSeconds is zero" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.hub.ttlSeconds = 300
+        skatemap.hub.cleanupIntervalSeconds = 0
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideHubConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.hub.cleanupIntervalSeconds=0 (must be positive)"
+      )
+    }
+
+    "fail when cleanupIntervalSeconds is negative" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.hub.ttlSeconds = 300
+        skatemap.hub.cleanupIntervalSeconds = -60
+      """)
+      val module = new SkatemapLiveModule
+
+      val exception = intercept[IllegalArgumentException] {
+        module.provideHubConfig(config)
+      }
+      exception.getMessage should include(
+        "Invalid configuration: skatemap.hub.cleanupIntervalSeconds=-60 (must be positive)"
+      )
+    }
+
+    "use configured values when both are present and positive" in {
+      val config = ConfigFactory.parseString("""
+        skatemap.hub.ttlSeconds = 150
+        skatemap.hub.cleanupIntervalSeconds = 30
+      """)
+      val module = new SkatemapLiveModule
+
+      val hubConfig = module.provideHubConfig(config)
+
+      hubConfig.ttl shouldBe 150.seconds
+      hubConfig.cleanupInterval shouldBe 30.seconds
+    }
+
+  }
+
 }

@@ -77,8 +77,8 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
       val service    = new MockEventStreamService()
       val controller = new StreamController(stubControllerComponents(), service)
 
-      val event1 = "event-1"
-      val event2 = "event-2"
+      val event1 = "550e8400-e29b-41d4-a716-446655440000"
+      val event2 = "660e8400-e29b-41d4-a716-446655440001"
 
       val webSocket1 = controller.streamEvent(event1)
       val webSocket2 = controller.streamEvent(event2)
@@ -121,6 +121,31 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
         } finally
           system.terminate()
       }
+    }
+
+    "reject invalid event ID with validation error" in {
+      val invalidEventId = "not-a-uuid"
+      val service        = new MockEventStreamService()
+      val controller     = new StreamController(stubControllerComponents(), service)
+
+      val webSocket = controller.streamEvent(invalidEventId)
+      val result    = Await.result(webSocket.apply(FakeRequest()), 1.second)
+
+      result.isLeft should be(true)
+      val errorResult = result.left.toOption.fold(fail("Expected Left but got Right"))(identity)
+
+      errorResult.header.status should be(400)
+    }
+
+    "accept valid UUID event ID" in {
+      val validEventId = "550e8400-e29b-41d4-a716-446655440000"
+      val service      = new MockEventStreamService()
+      val controller   = new StreamController(stubControllerComponents(), service)
+
+      val webSocket = controller.streamEvent(validEventId)
+      val result    = Await.result(webSocket.apply(FakeRequest()), 1.second)
+
+      result.isRight should be(true)
     }
   }
 }

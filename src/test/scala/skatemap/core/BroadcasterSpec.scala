@@ -10,6 +10,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpecLike
 import skatemap.domain.Location
 
+import java.time.Clock
 import scala.concurrent.duration._
 
 class BroadcasterSpec
@@ -27,7 +28,7 @@ class BroadcasterSpec
   override def afterAll(): Unit =
     TestKit.shutdownActorSystem(system)
 
-  private def createBroadcaster(): InMemoryBroadcaster = new InMemoryBroadcaster(system)
+  private def createBroadcaster(): InMemoryBroadcaster = new InMemoryBroadcaster(system, Clock.systemUTC())
 
   private val event1    = "event-1"
   private val event2    = "event-2"

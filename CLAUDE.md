@@ -77,6 +77,16 @@ All configuration is in `application.conf` under the `skatemap` section:
 - Higher `batchIntervalMillis`: Batches fill before sending, better for high-volume events
 - Lower `batchIntervalMillis`: Messages sent more frequently, better for low-activity events
 
+### Hub Configuration
+- `skatemap.hub.ttlSeconds`: Time-to-live for unused broadcast hubs (must be positive integer)
+- `skatemap.hub.cleanupIntervalSeconds`: Interval between hub cleanup runs (must be positive integer)
+
+**Design Rationale:**
+- Default TTL: 300 seconds (5 minutes) - Balances memory usage with connection patterns
+- Default cleanup interval: 60 seconds (1 minute) - Provides regular cleanup without excessive overhead
+- Cleanup interval should be less than TTL to ensure timely removal of unused hubs
+- Hubs are created lazily and removed when not accessed (published to or subscribed) within TTL
+
 All values are validated at startup. Missing or non-positive values cause startup failure.
 
 ## Environment Variables
