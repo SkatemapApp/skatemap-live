@@ -1,11 +1,14 @@
 package skatemap.core
 
+import org.scalacheck.Gen
+import org.scalacheck.Prop.forAll
+import org.scalatestplus.scalacheck.Checkers
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import skatemap.domain.Coordinates
 import skatemap.core._
 
-class CoordinateValidatorSpec extends AnyWordSpec with Matchers {
+class CoordinateValidatorSpec extends AnyWordSpec with Matchers with Checkers {
 
   "CoordinateValidator.validateBounds" should {
 
@@ -150,6 +153,104 @@ class CoordinateValidatorSpec extends AnyWordSpec with Matchers {
         val result = CoordinateValidator.validateBounds(coords)
         result.isLeft shouldBe true
       }
+    }
+  }
+
+  "CoordinateValidator.validateBounds (property-based)" should {
+
+    val validLongitudeGen: Gen[Double] = Gen.choose(-180.0, 180.0)
+    val validLatitudeGen: Gen[Double]  = Gen.choose(-90.0, 90.0)
+    val validCoordinatesGen: Gen[Coordinates] = for {
+      lon <- validLongitudeGen
+      lat <- validLatitudeGen
+    } yield Coordinates(lon, lat)
+
+    val invalidLongitudeGen: Gen[Double] = Gen.oneOf(
+      Gen.choose(Double.MinValue, -180.1),
+      Gen.choose(180.1, Double.MaxValue)
+    )
+
+    val invalidLatitudeGen: Gen[Double] = Gen.oneOf(
+      Gen.choose(Double.MinValue, -90.1),
+      Gen.choose(90.1, Double.MaxValue)
+    )
+
+    "accept all coordinates within valid bounds" in {
+      check(forAll(validCoordinatesGen) { coords =>
+        CoordinateValidator.validateBounds(coords).isRight
+      })
+    }
+
+    "reject coordinates with longitude outside valid range" in {
+      check(forAll(invalidLongitudeGen, validLatitudeGen) { (lon, lat) =>
+        val coords = Coordinates(lon, lat)
+        CoordinateValidator.validateBounds(coords) match {
+          case Left(_: InvalidLongitudeError) => true
+          case _                              => false
+        }
+      })
+    }
+
+    "reject coordinates with latitude outside valid range" in {
+      check(forAll(validLongitudeGen, invalidLatitudeGen) { (lon, lat) =>
+        val coords = Coordinates(lon, lat)
+        CoordinateValidator.validateBounds(coords) match {
+          case Left(_: InvalidLatitudeError) => true
+          case _                             => false
+        }
+      })
+    }
+
+    "reject coordinates with both invalid longitude and latitude (longitude checked first)" in {
+      check(forAll(invalidLongitudeGen, invalidLatitudeGen) { (lon, lat) =>
+        val coords = Coordinates(lon, lat)
+        CoordinateValidator.validateBounds(coords) match {
+          case Left(_: InvalidLongitudeError) => true
+          case _                              => false
+        }
+      })
+    }
+
+    "reject coordinates with NaN longitude" in {
+      check(forAll(validLatitudeGen) { lat =>
+        val coords = Coordinates(Double.NaN, lat)
+        CoordinateValidator.validateBounds(coords) match {
+          case Left(_: InvalidLongitudeError) => true
+          case _                              => false
+        }
+      })
+    }
+
+    "reject coordinates with NaN latitude" in {
+      check(forAll(validLongitudeGen) { lon =>
+        val coords = Coordinates(lon, Double.NaN)
+        CoordinateValidator.validateBounds(coords) match {
+          case Left(_: InvalidLatitudeError) => true
+          case _                             => false
+        }
+      })
+    }
+
+    "reject coordinates with infinite longitude" in {
+      val infiniteLongitudeGen = Gen.oneOf(Double.PositiveInfinity, Double.NegativeInfinity)
+      check(forAll(infiniteLongitudeGen, validLatitudeGen) { (lon, lat) =>
+        val coords = Coordinates(lon, lat)
+        CoordinateValidator.validateBounds(coords) match {
+          case Left(_: InvalidLongitudeError) => true
+          case _                              => false
+        }
+      })
+    }
+
+    "reject coordinates with infinite latitude" in {
+      val infiniteLatitudeGen = Gen.oneOf(Double.PositiveInfinity, Double.NegativeInfinity)
+      check(forAll(validLongitudeGen, infiniteLatitudeGen) { (lon, lat) =>
+        val coords = Coordinates(lon, lat)
+        CoordinateValidator.validateBounds(coords) match {
+          case Left(_: InvalidLatitudeError) => true
+          case _                             => false
+        }
+      })
     }
   }
 }

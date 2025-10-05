@@ -47,7 +47,9 @@ libraryDependencies ++= Seq(
   "org.apache.pekko" %% "pekko-testkit" % "1.1.2" % Test,
   "org.apache.pekko" %% "pekko-stream-testkit" % "1.1.2" % Test,
   "org.apache.pekko" %% "pekko-http-testkit" % "1.2.0" % Test,
-  "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test
+  "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.1" % Test,
+  "org.scalacheck" %% "scalacheck" % "1.18.1" % Test,
+  "org.scalatestplus" %% "scalacheck-1-18" % "3.2.19.0" % Test
 )
 
 libraryDependencies := libraryDependencies.value.map {
