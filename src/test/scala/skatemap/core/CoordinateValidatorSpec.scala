@@ -201,6 +201,16 @@ class CoordinateValidatorSpec extends AnyWordSpec with Matchers with Checkers {
       })
     }
 
+    "reject coordinates with both invalid longitude and latitude (longitude checked first)" in {
+      check(forAll(invalidLongitudeGen, invalidLatitudeGen) { (lon, lat) =>
+        val coords = Coordinates(lon, lat)
+        CoordinateValidator.validateBounds(coords) match {
+          case Left(_: InvalidLongitudeError) => true
+          case _                              => false
+        }
+      })
+    }
+
     "reject coordinates with NaN longitude" in {
       check(forAll(validLatitudeGen) { lat =>
         val coords = Coordinates(Double.NaN, lat)
