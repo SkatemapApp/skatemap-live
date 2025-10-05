@@ -9,11 +9,13 @@ Skatemap Live is a Scala Play Framework application that handles location update
 ## Development Commands
 
 ### Build and Test
-- `sbt ciBuild` - Run the full CI pipeline (clean, format check, coverage, test, coverage report)
+- `sbt ciBuild` - Run the full CI pipeline (clean, format check, style check, coverage, test, coverage report)
+- `sbt devBuild` - Run development build (clean, format, style check, test)
 - `sbt test` - Run all tests
 - `sbt coverage test coverageReport` - Run tests with coverage reporting
 - `sbt scalafmtCheckAll` - Check code formatting
 - `sbt scalafmt` - Format code
+- `sbt scalastyle` - Check code style rules
 - `sbt run` - Start the development server
 
 ### Coverage Requirements
@@ -83,6 +85,8 @@ All values are validated at startup. Missing or non-positive values cause startu
 
 ## Code Style
 - Uses Scalafmt with 120 character line limit
+- Scalastyle enabled for style checking (fails build on violations)
+- Wildcard imports prohibited (use explicit imports)
 - Wartremover enabled for compile-time checking
 - No Twirl templates (disabled PlayLayoutPlugin)
 - Follows functional programming idioms

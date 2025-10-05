@@ -1,6 +1,6 @@
 package skatemap.core
 
-import scala.concurrent.duration._
+import scala.concurrent.duration.FiniteDuration
 
 final case class LocationConfig(
   ttl: FiniteDuration

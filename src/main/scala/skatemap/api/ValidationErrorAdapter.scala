@@ -1,7 +1,7 @@
 package skatemap.api
 
 import skatemap.core.ValidationError
-import play.api.libs.json._
+import play.api.libs.json.Json
 import play.api.mvc.Result
 import play.api.mvc.Results.BadRequest
 

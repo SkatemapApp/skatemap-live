@@ -21,7 +21,8 @@ class CleanupService @Inject() (
   private val logger = Logger(this.getClass)
 
   logger.info(
-    s"CleanupService initialised with initialDelay=${config.initialDelay.toString()}, interval=${config.interval.toString()}"
+    s"CleanupService initialised with initialDelay=${config.initialDelay.toString()}, " +
+      s"interval=${config.interval.toString()}"
   )
 
   private val cancellable = actorSystem.scheduler.scheduleWithFixedDelay(

@@ -3,7 +3,7 @@ package skatemap.core
 import org.apache.pekko.NotUsed
 import org.apache.pekko.stream.scaladsl.Source
 import play.api.libs.json.Json
-import skatemap.api.json.LocationJson._
+import skatemap.api.json.LocationJson.locationBatchWrites
 import skatemap.domain.{Location, LocationBatch}
 
 import java.time.Clock
