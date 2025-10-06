@@ -7,8 +7,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import skatemap.domain.Location
 import skatemap.test.TestClock
 
-import java.util.UUID
-import scala.concurrent.duration._
+import scala.concurrent.duration.DurationInt
 
 class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
 
@@ -34,9 +33,9 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
       val fixedTime   = 1234567890000L
       val clock       = TestClock.fixed(fixedTime)
       val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
-      val eventId     = UUID.randomUUID().toString
+      val eventId     = "550e8400-e29b-41d4-a716-446655440000"
 
-      broadcaster.publish(eventId, Location(UUID.randomUUID().toString, 1.0, 2.0, fixedTime))
+      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime))
 
       broadcaster.hubs.contains(eventId) should be(true)
       broadcaster.hubs(eventId).lastAccessed.get() should be(fixedTime)
@@ -47,9 +46,9 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
       val laterTime   = 2000000000000L
       val clock       = TestClock.fixed(initialTime)
       val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
-      val eventId     = UUID.randomUUID().toString
+      val eventId     = "550e8400-e29b-41d4-a716-446655440000"
 
-      broadcaster.publish(eventId, Location(UUID.randomUUID().toString, 1.0, 2.0, initialTime))
+      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, initialTime))
       val firstTimestamp = broadcaster.hubs(eventId).lastAccessed.get()
 
       broadcaster.hubs(eventId).lastAccessed.set(initialTime)
@@ -58,7 +57,7 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
       val broadcaster2 = new InMemoryBroadcaster(system, updatedClock, defaultConfig)
       transferHubs(broadcaster, broadcaster2)
 
-      broadcaster2.publish(eventId, Location(UUID.randomUUID().toString, 3.0, 4.0, laterTime))
+      broadcaster2.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440101", 3.0, 4.0, laterTime))
       val secondTimestamp = broadcaster2.hubs(eventId).lastAccessed.get()
 
       secondTimestamp should be > firstTimestamp
@@ -69,7 +68,7 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
       val laterTime   = 2000000000000L
       val clock       = TestClock.fixed(initialTime)
       val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
-      val eventId     = UUID.randomUUID().toString
+      val eventId     = "550e8400-e29b-41d4-a716-446655440000"
 
       broadcaster.subscribe(eventId)
       val firstTimestamp = broadcaster.hubs(eventId).lastAccessed.get()
@@ -90,11 +89,11 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
       val fixedTime   = 1000000000000L
       val clock       = TestClock.fixed(fixedTime)
       val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
-      val eventId1    = UUID.randomUUID().toString
-      val eventId2    = UUID.randomUUID().toString
+      val eventId1    = "550e8400-e29b-41d4-a716-446655440000"
+      val eventId2    = "550e8400-e29b-41d4-a716-446655440001"
 
-      broadcaster.publish(eventId1, Location(UUID.randomUUID().toString, 1.0, 2.0, fixedTime))
-      broadcaster.publish(eventId2, Location(UUID.randomUUID().toString, 3.0, 4.0, fixedTime))
+      broadcaster.publish(eventId1, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime))
+      broadcaster.publish(eventId2, Location("550e8400-e29b-41d4-a716-446655440101", 3.0, 4.0, fixedTime))
 
       broadcaster.hubs.size should be(2)
 
@@ -115,9 +114,9 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
       val fixedTime   = 1000000000000L
       val clock       = TestClock.fixed(fixedTime)
       val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
-      val eventId     = UUID.randomUUID().toString
+      val eventId     = "550e8400-e29b-41d4-a716-446655440000"
 
-      broadcaster.publish(eventId, Location(UUID.randomUUID().toString, 1.0, 2.0, fixedTime))
+      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime))
 
       val ttlMillis    = 5000L
       val laterTime    = fixedTime + ttlMillis - 1000L
@@ -137,9 +136,10 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
       val clock       = TestClock.fixed(fixedTime)
       val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
 
-      val eventIds = (1 to 5).map(_ => UUID.randomUUID().toString)
-      eventIds.foreach { eventId =>
-        broadcaster.publish(eventId, Location(UUID.randomUUID().toString, 1.0, 2.0, fixedTime))
+      val eventIds = (1 to 5).map(i => s"550e8400-e29b-41d4-a716-44665544000${i.toString}")
+      eventIds.zipWithIndex.foreach { case (eventId, index) =>
+        val skaterId = s"550e8400-e29b-41d4-a716-44665544010${index.toString}"
+        broadcaster.publish(eventId, Location(skaterId, 1.0, 2.0, fixedTime))
       }
 
       broadcaster.hubs.size should be(5)
