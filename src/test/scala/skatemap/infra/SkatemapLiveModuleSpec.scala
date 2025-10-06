@@ -14,48 +14,31 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       val config = ConfigFactory.empty()
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideLocationConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideLocationConfig(config))
       exception.getMessage should include("Required configuration missing: skatemap.location.ttlSeconds")
     }
 
     "fail when ttlSeconds is zero" in {
-      val config = ConfigFactory.parseString("""
-        skatemap.location.ttlSeconds = 0
-      """)
+      val config = ConfigFactory.parseString("""skatemap.location.ttlSeconds = 0""")
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideLocationConfig(config)
-      }
-      exception.getMessage should include(
-        "Invalid configuration: skatemap.location.ttlSeconds=0 (must be positive)"
-      )
+      val exception = intercept[IllegalArgumentException](module.provideLocationConfig(config))
+      exception.getMessage should include("Invalid configuration: skatemap.location.ttlSeconds=0 (must be positive)")
     }
 
     "fail when ttlSeconds is negative" in {
-      val config = ConfigFactory.parseString("""
-        skatemap.location.ttlSeconds = -30
-      """)
+      val config = ConfigFactory.parseString("""skatemap.location.ttlSeconds = -30""")
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideLocationConfig(config)
-      }
-      exception.getMessage should include(
-        "Invalid configuration: skatemap.location.ttlSeconds=-30 (must be positive)"
-      )
+      val exception = intercept[IllegalArgumentException](module.provideLocationConfig(config))
+      exception.getMessage should include("Invalid configuration: skatemap.location.ttlSeconds=-30 (must be positive)")
     }
 
     "use configured value when present and positive" in {
-      val config = ConfigFactory.parseString("""
-        skatemap.location.ttlSeconds = 45
-      """)
+      val config = ConfigFactory.parseString("""skatemap.location.ttlSeconds = 45""")
       val module = new SkatemapLiveModule
 
       val locationConfig = module.provideLocationConfig(config)
-
       locationConfig.ttl shouldBe 45.seconds
     }
 
@@ -64,9 +47,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
   "SkatemapLiveModule.provideStreamConfig" should {
 
     "fail when batchSize config path is missing" in {
-      val config = ConfigFactory.parseString("""
-        skatemap.stream.batchIntervalMillis = 500
-      """)
+      val config = ConfigFactory.parseString("""skatemap.stream.batchIntervalMillis = 500""")
       val module = new SkatemapLiveModule
 
       val exception = intercept[IllegalArgumentException] {
@@ -76,14 +57,10 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
     }
 
     "fail when batchIntervalMillis config path is missing" in {
-      val config = ConfigFactory.parseString("""
-        skatemap.stream.batchSize = 100
-      """)
+      val config = ConfigFactory.parseString("""skatemap.stream.batchSize = 100""")
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideStreamConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideStreamConfig(config))
       exception.getMessage should include("Required configuration missing: skatemap.stream.batchIntervalMillis")
     }
 
@@ -91,9 +68,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       val config = ConfigFactory.empty()
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideStreamConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideStreamConfig(config))
       exception.getMessage should include("Required configuration missing")
     }
 
@@ -119,9 +94,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideStreamConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideStreamConfig(config))
       exception.getMessage should include(
         "Invalid configuration: skatemap.stream.batchSize=-10 (must be positive)"
       )
@@ -149,9 +122,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideStreamConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideStreamConfig(config))
       exception.getMessage should include(
         "Invalid configuration: skatemap.stream.batchIntervalMillis=-500 (must be positive)"
       )
@@ -165,7 +136,6 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       val module = new SkatemapLiveModule
 
       val streamConfig = module.provideStreamConfig(config)
-
       streamConfig.batchSize shouldBe 50
       streamConfig.batchInterval shouldBe 250.millis
     }
@@ -192,9 +162,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideCleanupConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideCleanupConfig(config))
       exception.getMessage should include("Required configuration missing: skatemap.cleanup.intervalSeconds")
     }
 
@@ -202,9 +170,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       val config = ConfigFactory.empty()
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideCleanupConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideCleanupConfig(config))
       exception.getMessage should include("Required configuration missing")
     }
 
@@ -230,9 +196,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideCleanupConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideCleanupConfig(config))
       exception.getMessage should include(
         "Invalid configuration: skatemap.cleanup.initialDelaySeconds=-5 (must be positive)"
       )
@@ -245,9 +209,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideCleanupConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideCleanupConfig(config))
       exception.getMessage should include(
         "Invalid configuration: skatemap.cleanup.intervalSeconds=0 (must be positive)"
       )
@@ -260,9 +222,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideCleanupConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideCleanupConfig(config))
       exception.getMessage should include(
         "Invalid configuration: skatemap.cleanup.intervalSeconds=-15 (must be positive)"
       )
@@ -276,7 +236,6 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       val module = new SkatemapLiveModule
 
       val cleanupConfig = module.provideCleanupConfig(config)
-
       cleanupConfig.initialDelay shouldBe 3.seconds
       cleanupConfig.interval shouldBe 7.seconds
     }
@@ -292,9 +251,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideHubConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideHubConfig(config))
       exception.getMessage should include("Required configuration missing: skatemap.hub.ttlSeconds")
     }
 
@@ -305,9 +262,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideHubConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideHubConfig(config))
       exception.getMessage should include("Required configuration missing: skatemap.hub.cleanupIntervalSeconds")
     }
 
@@ -315,9 +270,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       val config = ConfigFactory.empty()
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideHubConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideHubConfig(config))
       exception.getMessage should include("Required configuration missing")
     }
 
@@ -329,9 +282,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideHubConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideHubConfig(config))
       exception.getMessage should include(
         "Invalid configuration: skatemap.hub.ttlSeconds=0 (must be positive)"
       )
@@ -345,9 +296,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideHubConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideHubConfig(config))
       exception.getMessage should include(
         "Invalid configuration: skatemap.hub.ttlSeconds=-300 (must be positive)"
       )
@@ -361,9 +310,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideHubConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideHubConfig(config))
       exception.getMessage should include(
         "Invalid configuration: skatemap.hub.cleanupIntervalSeconds=0 (must be positive)"
       )
@@ -377,9 +324,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideHubConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideHubConfig(config))
       exception.getMessage should include(
         "Invalid configuration: skatemap.hub.cleanupIntervalSeconds=-60 (must be positive)"
       )
@@ -392,9 +337,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideHubConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideHubConfig(config))
       exception.getMessage should include("Required configuration missing: skatemap.hub.bufferSize")
     }
 
@@ -406,9 +349,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideHubConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideHubConfig(config))
       exception.getMessage should include(
         "Invalid configuration: skatemap.hub.bufferSize=0 (must be positive)"
       )
@@ -422,9 +363,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       """)
       val module = new SkatemapLiveModule
 
-      val exception = intercept[IllegalArgumentException] {
-        module.provideHubConfig(config)
-      }
+      val exception = intercept[IllegalArgumentException](module.provideHubConfig(config))
       exception.getMessage should include(
         "Invalid configuration: skatemap.hub.bufferSize=-128 (must be positive)"
       )
@@ -439,7 +378,6 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       val module = new SkatemapLiveModule
 
       val hubConfig = module.provideHubConfig(config)
-
       hubConfig.ttl shouldBe 150.seconds
       hubConfig.cleanupInterval shouldBe 30.seconds
       hubConfig.bufferSize shouldBe 256

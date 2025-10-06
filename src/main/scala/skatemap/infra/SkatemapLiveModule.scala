@@ -64,7 +64,7 @@ class SkatemapLiveModule extends AbstractModule {
   private def getPositiveInt(config: Config, path: String): Int = {
     require(config.hasPath(path), s"Required configuration missing: $path. Add it to application.conf")
     val value = config.getInt(path)
-    require(value > 0, s"Invalid configuration: $path=${value.toString()} (must be positive)")
+    require(value > 0, s"Invalid configuration: $path=${value.toString} (must be positive)")
     value
   }
 }

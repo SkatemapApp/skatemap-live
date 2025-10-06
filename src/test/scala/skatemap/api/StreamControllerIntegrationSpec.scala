@@ -21,8 +21,8 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
     "establish connection and receive initial data from store" in {
       val store              = app.injector.instanceOf[LocationStore]
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventId            = s"test-event-${System.nanoTime().toString}"
-      val location           = Location("skater-1", -0.1278, 51.5074, System.currentTimeMillis())
+      val eventId            = "test-event-1"
+      val location           = Location("skater-1", -0.1278, 51.5074, 1000L)
       store.put(eventId, location)
 
       val testSink = eventStreamService
@@ -42,7 +42,7 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
       val store              = app.injector.instanceOf[LocationStore]
       val broadcaster        = app.injector.instanceOf[Broadcaster]
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventId            = s"live-event-${System.nanoTime().toString}"
+      val eventId            = "live-event-2"
 
       val testSink = eventStreamService
         .createEventStream(eventId)
@@ -50,7 +50,7 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
 
       testSink.request(1)
 
-      val newLocation = Location("skater-2", -1.1278, 52.5074, System.currentTimeMillis())
+      val newLocation = Location("skater-2", -1.1278, 52.5074, 2000L)
       store.put(eventId, newLocation)
       broadcaster.publish(eventId, newLocation)
 
@@ -66,8 +66,8 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
       val store              = app.injector.instanceOf[LocationStore]
       val broadcaster        = app.injector.instanceOf[Broadcaster]
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventId            = s"multi-event-${System.nanoTime().toString}"
-      val location           = Location("skater-3", -2.2426, 53.4808, System.currentTimeMillis())
+      val eventId            = "multi-event-3"
+      val location           = Location("skater-3", -2.2426, 53.4808, 3000L)
       store.put(eventId, location)
 
       val testSink1 = eventStreamService
@@ -85,7 +85,7 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
       message1 must include("skater-3")
       message2 must include("skater-3")
 
-      val newLocation = Location("skater-4", -1.6178, 54.9783, System.currentTimeMillis())
+      val newLocation = Location("skater-4", -1.6178, 54.9783, 4000L)
       store.put(eventId, newLocation)
       broadcaster.publish(eventId, newLocation)
 
@@ -102,11 +102,11 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
     "isolate events between different event IDs" in {
       val store              = app.injector.instanceOf[LocationStore]
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventIdA           = s"event-a-${System.nanoTime().toString}"
-      val eventIdB           = s"event-b-${System.nanoTime().toString}"
+      val eventIdA           = "event-a-4"
+      val eventIdB           = "event-b-4"
 
-      store.put(eventIdA, Location("skater-a", -1.0, 50.0, System.currentTimeMillis()))
-      store.put(eventIdB, Location("skater-b", -2.0, 51.0, System.currentTimeMillis()))
+      store.put(eventIdA, Location("skater-a", -1.0, 50.0, 5000L))
+      store.put(eventIdB, Location("skater-b", -2.0, 51.0, 6000L))
 
       val testSinkA = eventStreamService
         .createEventStream(eventIdA)
@@ -135,7 +135,7 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
 
     "handle empty events gracefully" in {
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventId            = s"empty-event-${System.nanoTime().toString}"
+      val eventId            = "empty-event-5"
 
       val testSink = eventStreamService
         .createEventStream(eventId)
@@ -149,8 +149,8 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
     "handle stream cancellation properly" in {
       val store              = app.injector.instanceOf[LocationStore]
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventId            = s"disconnect-test-${System.nanoTime().toString}"
-      store.put(eventId, Location("skater-disconnect", -1.0, 50.0, System.currentTimeMillis()))
+      val eventId            = "disconnect-test-6"
+      store.put(eventId, Location("skater-disconnect", -1.0, 50.0, 7000L))
 
       val testSink = eventStreamService
         .createEventStream(eventId)
@@ -167,7 +167,7 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
 
     "handle EventStreamService failures gracefully" in {
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventId            = s"error-test-${System.nanoTime().toString}"
+      val eventId            = "error-test-7"
 
       val testSink = eventStreamService
         .createEventStream(eventId)
@@ -182,10 +182,10 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
     "handle high-frequency updates without overwhelming" in {
       val store              = app.injector.instanceOf[LocationStore]
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventId            = s"backpressure-test-${System.nanoTime().toString}"
+      val eventId            = "backpressure-test-8"
 
       val locations = (1 to 10).map { i =>
-        Location(s"rapid-skater-${i.toString}", i.toDouble, (i + 1).toDouble, System.currentTimeMillis() + i)
+        Location(s"rapid-skater-${i.toString}", i.toDouble, (i + 1).toDouble, 8000L + i)
       }
       locations.foreach(store.put(eventId, _))
 

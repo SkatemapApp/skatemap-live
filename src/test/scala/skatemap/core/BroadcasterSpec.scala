@@ -9,8 +9,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpecLike
 import skatemap.domain.Location
+import skatemap.test.TestClock
 
-import java.time.Clock
 import scala.concurrent.duration._
 
 class BroadcasterSpec
@@ -35,7 +35,7 @@ class BroadcasterSpec
   )
 
   private def createBroadcaster(): InMemoryBroadcaster =
-    new InMemoryBroadcaster(system, Clock.systemUTC(), defaultConfig)
+    new InMemoryBroadcaster(system, TestClock.fixed(1000L), defaultConfig)
 
   private val event1    = "event-1"
   private val event2    = "event-2"

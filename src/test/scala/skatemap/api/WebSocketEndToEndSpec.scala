@@ -20,9 +20,9 @@ class WebSocketEndToEndSpec extends PlaySpec with GuiceOneAppPerSuite {
       val store              = app.injector.instanceOf[LocationStore]
       val broadcaster        = app.injector.instanceOf[Broadcaster]
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventId            = s"pipeline-event-${System.nanoTime().toString}"
-      val location1          = Location("skater-pipeline-1", -0.1278, 51.5074, System.currentTimeMillis())
-      val location2          = Location("skater-pipeline-2", -1.1278, 52.5074, System.currentTimeMillis())
+      val eventId            = "pipeline-event-1"
+      val location1          = Location("skater-pipeline-1", -0.1278, 51.5074, 1000L)
+      val location2          = Location("skater-pipeline-2", -1.1278, 52.5074, 2000L)
 
       store.put(eventId, location1)
 
@@ -51,8 +51,8 @@ class WebSocketEndToEndSpec extends PlaySpec with GuiceOneAppPerSuite {
     "verify LocationBatch JSON serialisation format" in {
       val store              = app.injector.instanceOf[LocationStore]
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventId            = s"json-event-${System.nanoTime().toString}"
-      val location           = Location("json-test-skater", -2.2426, 53.4808, System.currentTimeMillis())
+      val eventId            = "json-event-2"
+      val location           = Location("json-test-skater", -2.2426, 53.4808, 3000L)
       store.put(eventId, location)
 
       val testSink = eventStreamService
@@ -84,9 +84,9 @@ class WebSocketEndToEndSpec extends PlaySpec with GuiceOneAppPerSuite {
     "handle batching of multiple location updates" in {
       val store              = app.injector.instanceOf[LocationStore]
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventId            = s"batch-event-${System.nanoTime().toString}"
+      val eventId            = "batch-event-3"
 
-      val timestamp = System.currentTimeMillis()
+      val timestamp = 4000L
       val locations = List(
         Location("batch-skater-1", -1.0, 50.0, timestamp),
         Location("batch-skater-2", -2.0, 51.0, timestamp),
@@ -118,10 +118,10 @@ class WebSocketEndToEndSpec extends PlaySpec with GuiceOneAppPerSuite {
       val store              = app.injector.instanceOf[LocationStore]
       val broadcaster        = app.injector.instanceOf[Broadcaster]
       val eventStreamService = app.injector.instanceOf[EventStreamService]
-      val eventId1           = s"isolation-event-1-${System.nanoTime().toString}"
-      val eventId2           = s"isolation-event-2-${System.nanoTime().toString}"
+      val eventId1           = "isolation-event-1-4"
+      val eventId2           = "isolation-event-2-4"
 
-      val timestamp = System.currentTimeMillis()
+      val timestamp = 5000L
       store.put(eventId1, Location("skater-iso-1", -1.0, 50.0, timestamp))
       store.put(eventId2, Location("skater-iso-2", -2.0, 51.0, timestamp))
 

@@ -10,16 +10,12 @@ class LocationConfigSpec extends AnyWordSpec with Matchers {
   "LocationConfig validation" should {
 
     "reject zero ttl" in {
-      val exception = intercept[IllegalArgumentException] {
-        LocationConfig(ttl = 0.seconds)
-      }
+      val exception = intercept[IllegalArgumentException](LocationConfig(ttl = 0.seconds))
       exception.getMessage should include("ttl must be positive")
     }
 
     "reject negative ttl" in {
-      val exception = intercept[IllegalArgumentException] {
-        LocationConfig(ttl = (-1).seconds)
-      }
+      val exception = intercept[IllegalArgumentException](LocationConfig(ttl = (-1).seconds))
       exception.getMessage should include("ttl must be positive")
     }
 
