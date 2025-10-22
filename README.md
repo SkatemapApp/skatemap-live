@@ -52,7 +52,13 @@ With Docker installed:
 
 ```bash
 docker build -t skatemap-live .
-docker run -p 9000:9000 -e APPLICATION_SECRET="your-secret-here" skatemap-live
+docker run -p 9000:9000 skatemap-live
+```
+
+For production, generate and provide a secure 256-bit secret:
+```bash
+SECRET=$(openssl rand -hex 32)
+docker run -p 9000:9000 -e APPLICATION_SECRET="$SECRET" skatemap-live
 ```
 
 Verify: `curl http://localhost:9000/health` returns 200 OK.
