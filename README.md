@@ -46,6 +46,17 @@ sbt run
 
 Server starts on `http://localhost:9000`
 
+### Docker (Alternative)
+
+With Docker installed:
+
+```bash
+docker build -t skatemap-live .
+docker run -p 9000:9000 -e APPLICATION_SECRET="your-secret-here" skatemap-live
+```
+
+Verify: `curl http://localhost:9000/health` returns 200 OK.
+
 ### Verify It Works
 
 Open the HTML viewer:
