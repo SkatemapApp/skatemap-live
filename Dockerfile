@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 FROM eclipse-temurin:21-jdk AS builder
 
 WORKDIR /app
@@ -16,7 +17,10 @@ COPY .scalafmt.conf .
 COPY scalastyle-config.xml .
 COPY src src/
 
-RUN sbt stage
+RUN --mount=type=cache,target=/root/.sbt \
+    --mount=type=cache,target=/root/.ivy2 \
+    --mount=type=cache,target=/root/.cache/coursier \
+    sbt stage
 
 FROM eclipse-temurin:21-jre
 
