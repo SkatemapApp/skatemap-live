@@ -58,6 +58,8 @@ docker run -p 9000:9000 -e APPLICATION_SECRET="$SECRET" skatemap-live
 
 Verify: `curl http://localhost:9000/health` returns 200 OK.
 
+**Note:** The Dockerfile uses BuildKit cache mounts to speed up rebuilds by caching sbt dependencies. BuildKit is enabled by default on modern Docker installations.
+
 ### Verify It Works
 
 Open the HTML viewer:
