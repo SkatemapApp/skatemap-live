@@ -13,9 +13,6 @@ RUN apt-get update && apt-get install -y curl && \
 COPY build.sbt .
 COPY .scalafmt.conf .
 COPY scalastyle-config.xml .
-
-RUN sbt update
-
 COPY src src/
 
 RUN sbt stage
