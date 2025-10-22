@@ -26,6 +26,4 @@ COPY --from=builder /app/target/universal/stage .
 
 EXPOSE 9000
 
-ENV APPLICATION_SECRET="b8b7567764ee6289aa81c909e90fbf4b190ee0ba8ec5dfb9fba2f8a3429d9c29"
-
 CMD bin/skatemap-live -Dplay.http.secret.key=${APPLICATION_SECRET}
