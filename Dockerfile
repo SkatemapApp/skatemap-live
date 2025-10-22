@@ -20,10 +20,26 @@ RUN sbt stage
 
 FROM eclipse-temurin:21-jre
 
+RUN apt-get update && \
+    apt-get install -y curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd -r skatemap && \
+    useradd -r -g skatemap skatemap
+
 WORKDIR /app
 
 COPY --from=builder /app/target/universal/stage .
 
+RUN chown -R skatemap:skatemap /app
+
+USER skatemap
+
 EXPOSE 9000
 
-CMD bin/skatemap-live -Dplay.http.secret.key=${APPLICATION_SECRET}
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:9000/health || exit 1
+
+CMD if [ -z "$APPLICATION_SECRET" ]; then \
+      echo "ERROR: APPLICATION_SECRET environment variable is required" && exit 1; \
+    fi && \
+    bin/skatemap-live -Dplay.http.secret.key=${APPLICATION_SECRET}
