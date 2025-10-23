@@ -372,6 +372,11 @@ The Dockerfile uses BuildKit cache mounts for faster rebuilds:
 - First build: ~3-5 minutes (downloads all dependencies)
 - Subsequent builds: ~30-60 seconds (uses cached dependencies)
 
+**Note:** BuildKit is enabled by default on modern Docker. If caching doesn't work:
+```bash
+DOCKER_BUILDKIT=1 docker build -t skatemap-live .
+```
+
 To clear caches if needed:
 ```bash
 docker builder prune --filter type=exec.cachemount
