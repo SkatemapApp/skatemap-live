@@ -1,0 +1,8 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile.railway"
+
+[deploy]
+startCommand = "/app/docker-entrypoint.sh"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
