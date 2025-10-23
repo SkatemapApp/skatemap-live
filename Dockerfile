@@ -33,8 +33,10 @@ RUN apt-get update && \
 WORKDIR /app
 
 COPY --from=builder /app/target/universal/stage .
+COPY docker-entrypoint.sh /app/
 
-RUN chown -R skatemap:skatemap /app
+RUN chown -R skatemap:skatemap /app && \
+    chmod +x /app/docker-entrypoint.sh
 
 USER skatemap
 
@@ -43,7 +45,4 @@ EXPOSE 9000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:9000/health || exit 1
 
-CMD if [ -z "$APPLICATION_SECRET" ]; then \
-      echo "ERROR: APPLICATION_SECRET environment variable is required" && exit 1; \
-    fi && \
-    bin/skatemap-live -Dplay.http.secret.key=${APPLICATION_SECRET}
+CMD ["/app/docker-entrypoint.sh"]
