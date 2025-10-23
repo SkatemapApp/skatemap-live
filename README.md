@@ -366,6 +366,17 @@ sbt clean            # Clean build artifacts
 sbt ciBuild          # Run full CI pipeline (clean, format check, coverage, test)
 ```
 
+### Docker Build Performance
+
+The Dockerfile uses BuildKit cache mounts for faster rebuilds:
+- First build: ~3-5 minutes (downloads all dependencies)
+- Subsequent builds: ~30-60 seconds (uses cached dependencies)
+
+To clear caches if needed:
+```bash
+docker builder prune --filter type=exec.cachemount
+```
+
 ### Code Quality
 
 Quality is enforced at compile time:
