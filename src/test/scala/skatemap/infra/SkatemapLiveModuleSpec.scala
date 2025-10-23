@@ -42,7 +42,7 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
       locationConfig.ttl shouldBe 45.seconds
     }
 
-    "use environment variable when set" in {
+    "use default value when environment variable not set" in {
       val config = ConfigFactory
         .parseString("""skatemap.location.ttlSeconds = ${?LOCATION_TTL_SECONDS}""")
         .withFallback(ConfigFactory.parseString("""skatemap.location.ttlSeconds = 30"""))
@@ -52,6 +52,18 @@ class SkatemapLiveModuleSpec extends AnyWordSpec with Matchers {
 
       val locationConfig = module.provideLocationConfig(config)
       locationConfig.ttl shouldBe 30.seconds
+    }
+
+    "use environment variable value when LOCATION_TTL_SECONDS is set" in {
+      val config = ConfigFactory
+        .parseString("""LOCATION_TTL_SECONDS = 60""")
+        .withFallback(ConfigFactory.parseString("""skatemap.location.ttlSeconds = ${?LOCATION_TTL_SECONDS}"""))
+        .withFallback(ConfigFactory.parseString("""skatemap.location.ttlSeconds = 30"""))
+        .resolve()
+      val module = new SkatemapLiveModule
+
+      val locationConfig = module.provideLocationConfig(config)
+      locationConfig.ttl shouldBe 60.seconds
     }
 
   }
