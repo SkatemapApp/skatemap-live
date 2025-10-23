@@ -17,8 +17,11 @@ COPY .scalafmt.conf .
 COPY scalastyle-config.xml .
 COPY src src/
 
+# Railway requires cache mount IDs in format: id=s/<service-id>-<cache-name>
+# Service ID (3f2cb6e0-c897-4e0a-b01a-b1025950affe) is from Railway Variables section
+# This enables build caching for sbt dependencies, reducing build times on subsequent deploys
 RUN --mount=type=cache,id=s/3f2cb6e0-c897-4e0a-b01a-b1025950affe-sbt,target=/root/.sbt \
-    --mount=type=cache,id=s/3f2cb6e0-c897-4e0a-b01a-b1025950affe-ivy2,target=/root/.ivy2 \
+    --mount=type=cache,id=s/3f2cb6e0-c897-4e0a-b1025950affe-ivy2,target=/root/.ivy2 \
     --mount=type=cache,id=s/3f2cb6e0-c897-4e0a-b01a-b1025950affe-coursier,target=/root/.cache/coursier \
     sbt stage
 
