@@ -17,9 +17,9 @@ COPY .scalafmt.conf .
 COPY scalastyle-config.xml .
 COPY src src/
 
-RUN --mount=type=cache,target=/root/.sbt \
-    --mount=type=cache,target=/root/.ivy2 \
-    --mount=type=cache,target=/root/.cache/coursier \
+RUN --mount=type=cache,id=sbt,target=/root/.sbt \
+    --mount=type=cache,id=ivy2,target=/root/.ivy2 \
+    --mount=type=cache,id=coursier,target=/root/.cache/coursier \
     sbt stage
 
 FROM eclipse-temurin:21-jre
