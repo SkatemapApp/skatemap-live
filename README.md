@@ -46,6 +46,20 @@ sbt run
 
 Server starts on `http://localhost:9000`
 
+### Docker (Alternative)
+
+With Docker installed:
+
+```bash
+docker build -t skatemap-live .
+SECRET=$(openssl rand -hex 32)
+docker run -p 9000:9000 -e APPLICATION_SECRET="$SECRET" skatemap-live
+```
+
+Verify: `curl http://localhost:9000/health` returns 200 OK.
+
+**Note:** The Dockerfile uses BuildKit cache mounts to speed up rebuilds by caching sbt dependencies. BuildKit is enabled by default on modern Docker installations.
+
 ### Verify It Works
 
 Open the HTML viewer:
@@ -350,6 +364,22 @@ sbt run              # Start development server (hot reload enabled)
 sbt test             # Run test suite
 sbt clean            # Clean build artifacts
 sbt ciBuild          # Run full CI pipeline (clean, format check, coverage, test)
+```
+
+### Docker Build Performance
+
+The Dockerfile uses BuildKit cache mounts for faster rebuilds:
+- First build: ~3-5 minutes (downloads all dependencies)
+- Subsequent builds: ~30-60 seconds (uses cached dependencies)
+
+**Note:** BuildKit is enabled by default on modern Docker. If caching doesn't work:
+```bash
+DOCKER_BUILDKIT=1 docker build -t skatemap-live .
+```
+
+To clear caches if needed:
+```bash
+docker builder prune --filter type=exec.cachemount
 ```
 
 ### Code Quality
