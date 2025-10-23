@@ -144,6 +144,7 @@ Deploy to **Railway PaaS** as the initial deployment platform.
 | **Operational Overhead** | Minimal | Minimal | Moderate | High | Very High |
 | **Scaling Limits** | Moderate | Moderate | High | Very High | Very High |
 | **Vendor Lock-in** | Low (Docker) | Low (Docker) | Medium (AWS) | Medium (AWS) | Low (portable) |
+| **Migration Effort** | Low (Docker portable) | Low (Docker portable) | Medium (AWS-specific config) | Medium (infrastructure rebuild) | Low (K8s portable) |
 | **Cost (Demo)** | $0 | $0 | $15-30/month | $10-20/month | $50-100/month |
 | **Best For** | Prototypes, demos | Prototypes, demos | Production apps | Custom infrastructure | Microservices |
 
