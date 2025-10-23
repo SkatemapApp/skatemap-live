@@ -343,16 +343,36 @@ Coverage report generated at: `target/scala-2.13/scoverage-report/index.html`
 
 ## Configuration
 
-Default configuration values:
+### Environment Variables
 
-| Setting | Value | Location |
-|---------|-------|----------|
-| Port | 9000 | Default Play port |
-| Location TTL | 30 seconds | `application.conf` |
-| Cleanup Initial Delay | 10 seconds | `application.conf` |
-| Cleanup Interval | 10 seconds | `application.conf` |
-| Batch Interval | 500ms | `application.conf` |
-| Batch Size | 100 locations | `application.conf` |
+All configuration can be overridden via environment variables:
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `PORT` | 9000 | Application listening port |
+| `LOCATION_TTL_SECONDS` | 30 | Time-to-live for location data |
+| `CLEANUP_INITIAL_DELAY_SECONDS` | 10 | Delay before first cleanup run |
+| `CLEANUP_INTERVAL_SECONDS` | 10 | Interval between cleanup runs |
+| `STREAM_BATCH_SIZE` | 100 | Maximum locations per WebSocket batch |
+| `STREAM_BATCH_INTERVAL_MILLIS` | 500 | Maximum time between batches in milliseconds |
+| `HUB_TTL_SECONDS` | 300 | Time-to-live for unused broadcast hubs |
+| `HUB_CLEANUP_INTERVAL_SECONDS` | 60 | Interval between hub cleanup runs |
+| `HUB_BUFFER_SIZE` | 128 | Number of messages to buffer per hub |
+
+**Example:**
+```bash
+PORT=8080 LOCATION_TTL_SECONDS=60 CLEANUP_INTERVAL_SECONDS=20 sbt run
+```
+
+**Docker Example:**
+```bash
+docker run -p 8080:8080 \
+  -e APPLICATION_SECRET="your-secret-here" \
+  -e PORT=8080 \
+  -e LOCATION_TTL_SECONDS=60 \
+  -e CLEANUP_INTERVAL_SECONDS=20 \
+  skatemap-live
+```
 
 ## Development
 

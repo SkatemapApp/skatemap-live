@@ -90,8 +90,20 @@ All configuration is in `application.conf` under the `skatemap` section:
 All values are validated at startup. Missing or non-positive values cause startup failure.
 
 ## Environment Variables
+
+### Required
 - `APPLICATION_SECRET`: Generate with `sbt playGenerateSecret`
-- `PORT`: Application listening port
+
+### Optional (with defaults)
+- `PORT`: Application listening port (default: 9000)
+- `LOCATION_TTL_SECONDS`: Time-to-live for location data (default: 30)
+- `CLEANUP_INITIAL_DELAY_SECONDS`: Delay before first cleanup run (default: 10)
+- `CLEANUP_INTERVAL_SECONDS`: Interval between cleanup runs (default: 10)
+- `STREAM_BATCH_SIZE`: Maximum locations per WebSocket batch (default: 100)
+- `STREAM_BATCH_INTERVAL_MILLIS`: Maximum time between batches in milliseconds (default: 500)
+- `HUB_TTL_SECONDS`: Time-to-live for unused broadcast hubs (default: 300)
+- `HUB_CLEANUP_INTERVAL_SECONDS`: Interval between hub cleanup runs (default: 60)
+- `HUB_BUFFER_SIZE`: Number of messages to buffer per hub (default: 128)
 
 ## Code Style
 - Uses Scalafmt with 120 character line limit
