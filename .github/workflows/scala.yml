@@ -27,6 +27,7 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
         cache: 'sbt'
+        cache-dependency-path: 'services/api/project/build.properties'
     - name: Set up SBT
       uses: coursier/setup-action@v1.3.9
       with:

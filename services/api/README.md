@@ -378,9 +378,9 @@ docker run -p 8080:8080 \
 
 ### Architecture Decision Records
 
-Key architectural decisions are documented in [docs/adr/](docs/adr/):
+Key architectural decisions are documented in [docs/adr/](../../docs/adr/):
 
-- [ADR 0001: Railway PaaS for Deployment Platform](docs/adr/0001-railway-platform-choice.md)
+- [ADR 0001: Railway PaaS for Deployment Platform](../../docs/adr/0001-railway-platform-choice.md)
 
 ADRs document the context, decision, consequences, and alternatives considered for significant architectural choices.
 
