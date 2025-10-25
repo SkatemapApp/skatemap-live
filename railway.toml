@@ -1,6 +1,6 @@
 [build]
 builder = "dockerfile"
-dockerfilePath = "Dockerfile.railway"
+dockerfilePath = "services/api/Dockerfile.railway"
 
 [deploy]
 startCommand = "/app/docker-entrypoint.sh"
