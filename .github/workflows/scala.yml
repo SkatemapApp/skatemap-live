@@ -1,12 +1,18 @@
-name: Scala CI
+name: Scala API CI
 permissions:
   contents: read
 
 on:
   push:
     branches: [ master ]
+    paths:
+      - 'services/api/**'
+      - '.github/workflows/scala.yml'
   pull_request:
     branches: [ master ]
+    paths:
+      - 'services/api/**'
+      - '.github/workflows/scala.yml'
 
 jobs:
   build:
@@ -21,10 +27,12 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
         cache: 'sbt'
+        cache-dependency-path: 'services/api/project/build.properties'
     - name: Set up SBT
       uses: coursier/setup-action@v1.3.9
       with:
         jvm: temurin:21
         apps: sbt
     - name: Run tests
+      working-directory: services/api
       run: sbt ciBuild

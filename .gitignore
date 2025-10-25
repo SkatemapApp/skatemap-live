@@ -188,6 +188,7 @@ project/boot/
 project/plugins/project/
 .history
 .lib/
+services/api/target/
 
 ### SBT Patch ###
 .bsp/
@@ -241,3 +242,7 @@ tags
 .ionide
 
 # End of https://www.toptal.com/developers/gitignore/api/git,vim,linux,macos,scala,intellij+all,playframework,visualstudiocode,sbt
+
+### Load Testing ###
+tools/load-testing/bin/
+tools/load-testing/*.csv
