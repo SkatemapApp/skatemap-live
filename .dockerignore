@@ -1,11 +1,31 @@
+# Build artifacts
 target/
-.git/
-.idea/
-*.log
 .bsp/
 project/target/
 project/project/
+services/api/target/
+services/api/project/target/
+
+# IDE files
+.idea/
 .metals/
 .vscode/
+
+# VCS
+.git/
+
+# Logs
+*.log
+
+# Monorepo directories not needed for API builds
+tools/
+docs/
+.github/
+
+# Documentation (exclude root README, service READMEs are included)
+README.md
 *.md
+!services/api/*.md
+
+# Scripts not needed in container
 scripts/
