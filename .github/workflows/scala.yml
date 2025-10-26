@@ -36,3 +36,5 @@ jobs:
     - name: Run tests
       working-directory: services/api
       run: sbt ciBuild
+    - name: Validate Docker build
+      run: docker build -f services/api/Dockerfile.railway -t skatemap-api:test .

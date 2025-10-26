@@ -3,19 +3,21 @@ FROM eclipse-temurin:21-jdk AS builder
 
 WORKDIR /app
 
-COPY project/build.properties project/
-COPY project/plugins.sbt project/
-COPY project/build.sbt project/
-COPY project/BuildCommands.scala project/
+# Note: All COPY paths include services/api/ prefix due to monorepo structure
+# where Docker builds run from repository root, not service directory
+COPY services/api/project/build.properties project/
+COPY services/api/project/plugins.sbt project/
+COPY services/api/project/build.sbt project/
+COPY services/api/project/BuildCommands.scala project/
 
 RUN apt-get update && apt-get install -y curl && \
     curl -L https://github.com/sbt/sbt/releases/download/v1.11.5/sbt-1.11.5.tgz | tar xz -C /usr/local && \
     ln -s /usr/local/sbt/bin/sbt /usr/local/bin/sbt
 
-COPY build.sbt .
-COPY .scalafmt.conf .
-COPY scalastyle-config.xml .
-COPY src src/
+COPY services/api/build.sbt .
+COPY services/api/.scalafmt.conf .
+COPY services/api/scalastyle-config.xml .
+COPY services/api/src src/
 
 RUN --mount=type=cache,target=/root/.sbt \
     --mount=type=cache,target=/root/.ivy2 \
@@ -33,7 +35,7 @@ RUN apt-get update && \
 WORKDIR /app
 
 COPY --from=builder /app/target/universal/stage .
-COPY docker-entrypoint.sh /app/
+COPY services/api/docker-entrypoint.sh /app/
 
 RUN chown -R skatemap:skatemap /app && \
     chmod +x /app/docker-entrypoint.sh
