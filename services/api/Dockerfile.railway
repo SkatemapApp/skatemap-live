@@ -3,6 +3,8 @@ FROM eclipse-temurin:21-jdk AS builder
 
 WORKDIR /app
 
+# Note: All COPY paths include services/api/ prefix due to monorepo structure
+# where Docker builds run from repository root, not service directory
 COPY services/api/project/build.properties project/
 COPY services/api/project/plugins.sbt project/
 COPY services/api/project/build.sbt project/
