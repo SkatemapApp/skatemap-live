@@ -16,6 +16,10 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	maxResultsBufferSize = 1000
+)
+
 type Config struct {
 	NumEvents       int
 	SkatersPerEvent int
@@ -83,20 +87,24 @@ func run(config Config) error {
 	}
 	defer metricsWriter.Close()
 
-	results := make(chan skater.UpdateResult, config.NumEvents*config.SkatersPerEvent*10)
-	var wg sync.WaitGroup
+	results := make(chan skater.UpdateResult, maxResultsBufferSize)
+	var skatersWg sync.WaitGroup
+	var metricsWg sync.WaitGroup
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	stopChan := make(chan struct{})
 
-	wg.Add(1)
+	metricsWg.Add(1)
 	go func() {
-		defer wg.Done()
+		defer metricsWg.Done()
 		for {
 			select {
-			case result := <-results:
+			case result, ok := <-results:
+				if !ok {
+					return
+				}
 				if err := metricsWriter.WriteResult(result); err != nil {
 					log.Printf("Error writing metric: %v", err)
 				}
@@ -107,7 +115,10 @@ func run(config Config) error {
 			case <-stopChan:
 				for {
 					select {
-					case result := <-results:
+					case result, ok := <-results:
+						if !ok {
+							return
+						}
 						if err := metricsWriter.WriteResult(result); err != nil {
 							log.Printf("Error writing metric during shutdown: %v", err)
 						}
@@ -136,9 +147,9 @@ func run(config Config) error {
 
 	log.Printf("Starting %d skaters...", len(skaters))
 	for _, s := range skaters {
-		wg.Add(1)
+		skatersWg.Add(1)
 		go func(sk *skater.Skater) {
-			defer wg.Done()
+			defer skatersWg.Done()
 			ticker := time.NewTicker(config.UpdateInterval)
 			defer ticker.Stop()
 
@@ -162,8 +173,9 @@ func run(config Config) error {
 	log.Println("Shutting down...")
 	close(stopChan)
 
-	wg.Wait()
+	skatersWg.Wait()
 	close(results)
+	metricsWg.Wait()
 
 	log.Println("Simulation stopped")
 	return nil
