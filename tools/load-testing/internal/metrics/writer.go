@@ -10,12 +10,16 @@ import (
 	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/skater"
 )
 
+// Writer provides thread-safe CSV writing of load test metrics.
+// It outputs timestamp, event_id, skater_id, response_time_ms, and error columns.
 type Writer struct {
 	file   *os.File
 	writer *csv.Writer
 	mu     sync.Mutex
 }
 
+// NewWriter creates a new metrics Writer that outputs to the specified file.
+// The file is created (or truncated) and the CSV header is written immediately.
 func NewWriter(filename string) (*Writer, error) {
 	file, err := os.Create(filename)
 	if err != nil {
@@ -37,6 +41,9 @@ func NewWriter(filename string) (*Writer, error) {
 	}, nil
 }
 
+// WriteResult writes a single UpdateResult to the CSV file.
+// This method is thread-safe and can be called concurrently from multiple goroutines.
+// Response times are converted from duration to milliseconds with 2 decimal places.
 func (w *Writer) WriteResult(result skater.UpdateResult) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -62,6 +69,8 @@ func (w *Writer) WriteResult(result skater.UpdateResult) error {
 	return w.writer.Error()
 }
 
+// Close flushes any buffered data and closes the underlying file.
+// It should be called when all metrics have been written.
 func (w *Writer) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()

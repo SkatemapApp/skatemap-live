@@ -17,11 +17,14 @@ const (
 	httpClientTimeout = 10 * time.Second
 )
 
+// Location represents a geographic coordinate with latitude and longitude.
 type Location struct {
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
 }
 
+// Skater represents a simulated skater that sends location updates to the API.
+// Each skater maintains its own HTTP client and current location.
 type Skater struct {
 	ID       string
 	EventID  string
@@ -30,6 +33,8 @@ type Skater struct {
 	baseURL  string
 }
 
+// UpdateResult contains the result of a location update request,
+// including timing information and any errors encountered.
 type UpdateResult struct {
 	EventID      string
 	SkaterID     string
@@ -38,6 +43,8 @@ type UpdateResult struct {
 	Error        error
 }
 
+// New creates a new Skater with a random starting location near London.
+// The skater is initialised with its own HTTP client configured with a timeout.
 func New(eventID, skaterID, baseURL string) *Skater {
 	return &Skater{
 		ID:      skaterID,
@@ -53,11 +60,16 @@ func New(eventID, skaterID, baseURL string) *Skater {
 	}
 }
 
+// Move updates the skater's location by a small random amount,
+// simulating realistic GPS movement of approximately 10 metres.
 func (s *Skater) Move() {
 	s.Location.Latitude += (rand.Float64() - 0.5) * movementDelta
 	s.Location.Longitude += (rand.Float64() - 0.5) * movementDelta
 }
 
+// UpdateLocation sends the current location to the API via HTTP PUT.
+// Returns an UpdateResult containing response time and any errors.
+// The API expects a 202 Accepted response for successful updates.
 func (s *Skater) UpdateLocation() UpdateResult {
 	start := time.Now()
 
