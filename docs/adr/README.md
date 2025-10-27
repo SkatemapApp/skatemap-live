@@ -20,6 +20,7 @@ Each ADR follows this structure:
 ## Records
 
 - [ADR 0001: Railway PaaS for Deployment Platform](0001-railway-platform-choice.md)
+- [ADR 0002: Go for Load Testing Tools](0002-go-for-load-testing.md)
 
 ## Further Reading
 
