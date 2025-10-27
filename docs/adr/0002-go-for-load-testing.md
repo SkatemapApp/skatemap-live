@@ -132,8 +132,8 @@ Tools will be located in `tools/load-testing/` directory, separate from the Scal
 - No WebSocket support without additional tools
 
 **When it would make sense:**
-- Quick one-off manual tests (already have scripts/realtime_updates.sh for this)
-- Very simple linear scenarios
+- If only quick one-off manual tests needed (already have scripts/realtime_updates.sh for this)
+- If scenarios are very simple and linear
 - If no programming language experience existed
 
 ## Implementation Notes
@@ -141,6 +141,7 @@ Tools will be located in `tools/load-testing/` directory, separate from the Scal
 - Go tools located in `tools/load-testing/` following monorepo structure
 - Standard Go project layout: `cmd/` for binaries, `internal/` for shared code
 - Minimal external dependencies: primarily standard library + gorilla/websocket
+- Minimum Go version: 1.21
 - Future Bazel compatibility: flat directory structure supports build system migration
 
 ## References
