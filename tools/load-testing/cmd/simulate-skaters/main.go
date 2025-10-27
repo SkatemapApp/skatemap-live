@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync"
@@ -51,6 +52,18 @@ func parseFlags() Config {
 		os.Exit(1)
 	}
 
+	if _, err := url.Parse(config.TargetURL); err != nil {
+		log.Fatalf("Invalid target URL: %v", err)
+	}
+
+	if config.NumEvents <= 0 {
+		log.Fatalf("Number of events must be positive, got: %d", config.NumEvents)
+	}
+
+	if config.SkatersPerEvent <= 0 {
+		log.Fatalf("Number of skaters per event must be positive, got: %d", config.SkatersPerEvent)
+	}
+
 	interval, err := time.ParseDuration(intervalStr)
 	if err != nil {
 		log.Fatalf("Invalid update interval: %v", err)
@@ -92,11 +105,16 @@ func run(config Config) error {
 						result.SkaterID, result.EventID, result.Error)
 				}
 			case <-stopChan:
-				for len(results) > 0 {
-					result := <-results
-					metricsWriter.WriteResult(result)
+				for {
+					select {
+					case result := <-results:
+						if err := metricsWriter.WriteResult(result); err != nil {
+							log.Printf("Error writing metric during shutdown: %v", err)
+						}
+					default:
+						return
+					}
 				}
-				return
 			}
 		}
 	}()

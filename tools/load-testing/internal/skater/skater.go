@@ -9,6 +9,14 @@ import (
 	"time"
 )
 
+const (
+	londonLatBase     = 51.5074
+	londonLonBase     = -0.1278
+	locationSpread    = 0.1
+	movementDelta     = 0.0001
+	httpClientTimeout = 10 * time.Second
+)
+
 type Location struct {
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
@@ -35,19 +43,19 @@ func New(eventID, skaterID, baseURL string) *Skater {
 		ID:      skaterID,
 		EventID: eventID,
 		Location: Location{
-			Latitude:  51.5074 + rand.Float64()*0.1,
-			Longitude: -0.1278 + rand.Float64()*0.1,
+			Latitude:  londonLatBase + rand.Float64()*locationSpread,
+			Longitude: londonLonBase + rand.Float64()*locationSpread,
 		},
 		client: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: httpClientTimeout,
 		},
 		baseURL: baseURL,
 	}
 }
 
 func (s *Skater) Move() {
-	s.Location.Latitude += (rand.Float64() - 0.5) * 0.0001
-	s.Location.Longitude += (rand.Float64() - 0.5) * 0.0001
+	s.Location.Latitude += (rand.Float64() - 0.5) * movementDelta
+	s.Location.Longitude += (rand.Float64() - 0.5) * movementDelta
 }
 
 func (s *Skater) UpdateLocation() UpdateResult {
@@ -115,13 +123,3 @@ func (s *Skater) UpdateLocation() UpdateResult {
 	}
 }
 
-func (s *Skater) Run(interval time.Duration, results chan<- UpdateResult) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		s.Move()
-		result := s.UpdateLocation()
-		results <- result
-	}
-}
