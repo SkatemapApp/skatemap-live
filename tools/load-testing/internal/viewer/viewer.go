@@ -1,6 +1,7 @@
 package viewer
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -18,6 +19,7 @@ const (
 	pingPeriod         = 54 * time.Second
 )
 
+// Location represents a geographic coordinate with latitude and longitude.
 type Location struct {
 	SkaterID  string  `json:"skaterId"`
 	Latitude  float64 `json:"latitude"`
@@ -25,11 +27,14 @@ type Location struct {
 	Timestamp int64   `json:"timestamp"`
 }
 
+// LocationBatch represents a batch of location updates from the server.
 type LocationBatch struct {
 	Locations  []Location `json:"locations"`
 	ServerTime int64      `json:"serverTime"`
 }
 
+// ViewerResult contains the result of receiving a WebSocket message,
+// including timing information and any errors encountered.
 type ViewerResult struct {
 	EventID      string
 	ViewerNumber int
@@ -39,39 +44,43 @@ type ViewerResult struct {
 	Error        error
 }
 
+// Viewer represents a simulated viewer that receives location updates via WebSocket.
 type Viewer struct {
 	eventID      string
 	viewerNumber int
 	baseURL      string
 	results      chan<- ViewerResult
-	stopChan     <-chan struct{}
+	ctx          context.Context
 	wg           *sync.WaitGroup
 }
 
-func New(eventID string, viewerNumber int, baseURL string, results chan<- ViewerResult, stopChan <-chan struct{}, wg *sync.WaitGroup) *Viewer {
+// New creates a new Viewer instance configured to connect to the specified event.
+func New(ctx context.Context, eventID string, viewerNumber int, baseURL string, results chan<- ViewerResult, wg *sync.WaitGroup) *Viewer {
 	return &Viewer{
+		ctx:          ctx,
 		eventID:      eventID,
 		viewerNumber: viewerNumber,
 		baseURL:      baseURL,
 		results:      results,
-		stopChan:     stopChan,
 		wg:           wg,
 	}
 }
 
+// Start initiates the WebSocket connection and begins receiving messages.
+// It runs until the context is cancelled or an error occurs.
 func (v *Viewer) Start() {
 	defer v.wg.Done()
 
 	wsURL, err := v.buildWebSocketURL()
 	if err != nil {
-		v.results <- ViewerResult{
+		v.sendResult(ViewerResult{
 			EventID:      v.eventID,
 			ViewerNumber: v.viewerNumber,
 			Timestamp:    time.Now(),
 			MessageCount: 0,
 			Latency:      0,
 			Error:        fmt.Errorf("invalid URL: %w", err),
-		}
+		})
 		return
 	}
 
@@ -81,27 +90,27 @@ func (v *Viewer) Start() {
 
 	conn, _, err := dialer.Dial(wsURL, nil)
 	if err != nil {
-		v.results <- ViewerResult{
+		v.sendResult(ViewerResult{
 			EventID:      v.eventID,
 			ViewerNumber: v.viewerNumber,
 			Timestamp:    time.Now(),
 			MessageCount: 0,
 			Latency:      0,
 			Error:        fmt.Errorf("connection failed: %w", err),
-		}
+		})
 		return
 	}
 	defer conn.Close()
 
 	if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		v.results <- ViewerResult{
+		v.sendResult(ViewerResult{
 			EventID:      v.eventID,
 			ViewerNumber: v.viewerNumber,
 			Timestamp:    time.Now(),
 			MessageCount: 0,
 			Latency:      0,
 			Error:        fmt.Errorf("failed to set read deadline: %w", err),
-		}
+		})
 		return
 	}
 
@@ -109,10 +118,10 @@ func (v *Viewer) Start() {
 		return conn.SetReadDeadline(time.Now().Add(pongWait))
 	})
 
-	doneChan := make(chan struct{})
-	defer close(doneChan)
+	pingCtx, cancelPing := context.WithCancel(v.ctx)
+	defer cancelPing()
 
-	go v.pingLoop(conn, doneChan)
+	go v.pingLoop(pingCtx, conn)
 
 	v.receiveLoop(conn)
 }
@@ -121,6 +130,10 @@ func (v *Viewer) buildWebSocketURL() (string, error) {
 	parsedURL, err := url.Parse(v.baseURL)
 	if err != nil {
 		return "", err
+	}
+
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return "", fmt.Errorf("invalid URL scheme: %s (must be http or https)", parsedURL.Scheme)
 	}
 
 	scheme := "ws"
@@ -132,7 +145,7 @@ func (v *Viewer) buildWebSocketURL() (string, error) {
 	return wsURL, nil
 }
 
-func (v *Viewer) pingLoop(conn *websocket.Conn, done <-chan struct{}) {
+func (v *Viewer) pingLoop(ctx context.Context, conn *websocket.Conn) {
 	ticker := time.NewTicker(pingPeriod)
 	defer ticker.Stop()
 
@@ -145,9 +158,7 @@ func (v *Viewer) pingLoop(conn *websocket.Conn, done <-chan struct{}) {
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
-		case <-v.stopChan:
-			return
-		case <-done:
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -158,62 +169,69 @@ func (v *Viewer) receiveLoop(conn *websocket.Conn) {
 
 	for {
 		select {
-		case <-v.stopChan:
+		case <-v.ctx.Done():
 			return
 		default:
 			receiveTime := time.Now()
 
 			if err := conn.SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-				v.results <- ViewerResult{
+				v.sendResult(ViewerResult{
 					EventID:      v.eventID,
 					ViewerNumber: v.viewerNumber,
 					Timestamp:    receiveTime,
 					MessageCount: messageCount,
 					Latency:      0,
 					Error:        fmt.Errorf("failed to set read deadline: %w", err),
-				}
+				})
 				return
 			}
 
 			_, message, err := conn.ReadMessage()
 			if err != nil {
 				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					v.results <- ViewerResult{
+					v.sendResult(ViewerResult{
 						EventID:      v.eventID,
 						ViewerNumber: v.viewerNumber,
 						Timestamp:    receiveTime,
 						MessageCount: messageCount,
 						Latency:      0,
 						Error:        fmt.Errorf("unexpected close: %w", err),
-					}
+					})
 				}
 				return
 			}
 
 			var batch LocationBatch
 			if err := json.Unmarshal(message, &batch); err != nil {
-				v.results <- ViewerResult{
+				v.sendResult(ViewerResult{
 					EventID:      v.eventID,
 					ViewerNumber: v.viewerNumber,
 					Timestamp:    receiveTime,
 					MessageCount: messageCount,
 					Latency:      0,
 					Error:        fmt.Errorf("failed to parse message: %w", err),
-				}
+				})
 				continue
 			}
 
 			messageCount++
 			latency := receiveTime.UnixMilli() - batch.ServerTime
 
-			v.results <- ViewerResult{
+			v.sendResult(ViewerResult{
 				EventID:      v.eventID,
 				ViewerNumber: v.viewerNumber,
 				Timestamp:    receiveTime,
 				MessageCount: messageCount,
 				Latency:      time.Duration(latency) * time.Millisecond,
 				Error:        nil,
-			}
+			})
 		}
+	}
+}
+
+func (v *Viewer) sendResult(result ViewerResult) {
+	select {
+	case v.results <- result:
+	case <-v.ctx.Done():
 	}
 }

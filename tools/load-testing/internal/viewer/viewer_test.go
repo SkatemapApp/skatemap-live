@@ -1,6 +1,7 @@
 package viewer
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -74,6 +75,21 @@ func TestBuildWebSocketURLInvalidURL(t *testing.T) {
 	}
 }
 
+func TestBuildWebSocketURLInvalidScheme(t *testing.T) {
+	v := &Viewer{
+		eventID: "test-event",
+		baseURL: "ftp://example.com",
+	}
+
+	_, err := v.buildWebSocketURL()
+	if err == nil {
+		t.Error("buildWebSocketURL() expected error for invalid scheme, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid URL scheme") {
+		t.Errorf("Expected 'invalid URL scheme' error, got: %v", err)
+	}
+}
+
 func TestViewerReceivesMessages(t *testing.T) {
 	batch := LocationBatch{
 		Locations: []Location{
@@ -114,11 +130,13 @@ func TestViewerReceivesMessages(t *testing.T) {
 
 	baseURL := "http://" + server.Listener.Addr().String()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	results := make(chan ViewerResult, 10)
-	stopChan := make(chan struct{})
 	var wg sync.WaitGroup
 
-	v := New("test-event", 1, baseURL, results, stopChan, &wg)
+	v := New(ctx, "test-event", 1, baseURL, results, &wg)
 	wg.Add(1)
 
 	go v.Start()
@@ -141,17 +159,19 @@ func TestViewerReceivesMessages(t *testing.T) {
 		t.Fatal("Timeout waiting for result")
 	}
 
-	close(stopChan)
+	cancel()
 	wg.Wait()
 	close(results)
 }
 
 func TestViewerConnectionFailure(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	results := make(chan ViewerResult, 10)
-	stopChan := make(chan struct{})
 	var wg sync.WaitGroup
 
-	v := New("test-event", 1, "http://localhost:0", results, stopChan, &wg)
+	v := New(ctx, "test-event", 1, "http://localhost:0", results, &wg)
 	wg.Add(1)
 
 	go v.Start()
@@ -168,7 +188,7 @@ func TestViewerConnectionFailure(t *testing.T) {
 		t.Fatal("Timeout waiting for error result")
 	}
 
-	close(stopChan)
+	cancel()
 	wg.Wait()
 	close(results)
 }
@@ -195,11 +215,13 @@ func TestViewerInvalidJSON(t *testing.T) {
 
 	baseURL := "http://" + server.Listener.Addr().String()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	results := make(chan ViewerResult, 10)
-	stopChan := make(chan struct{})
 	var wg sync.WaitGroup
 
-	v := New("test-event", 1, baseURL, results, stopChan, &wg)
+	v := New(ctx, "test-event", 1, baseURL, results, &wg)
 	wg.Add(1)
 
 	go v.Start()
@@ -216,7 +238,7 @@ func TestViewerInvalidJSON(t *testing.T) {
 		t.Fatal("Timeout waiting for error result")
 	}
 
-	close(stopChan)
+	cancel()
 	wg.Wait()
 	close(results)
 }

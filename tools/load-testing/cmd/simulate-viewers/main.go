@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -16,7 +17,7 @@ import (
 )
 
 const (
-	maxResultsBufferSize = 1000
+	defaultBufferSize = 1000
 )
 
 type Config struct {
@@ -24,6 +25,7 @@ type Config struct {
 	EventIDs        []string
 	TargetURL       string
 	MetricsFile     string
+	BufferSize      int
 }
 
 func main() {
@@ -42,6 +44,7 @@ func parseFlags() Config {
 	flag.StringVar(&eventsStr, "events", "", "Comma-separated list of event IDs (required)")
 	flag.StringVar(&config.TargetURL, "target-url", "", "Target URL for the API (required)")
 	flag.StringVar(&config.MetricsFile, "metrics-file", "viewer-metrics.csv", "Output file for metrics")
+	flag.IntVar(&config.BufferSize, "buffer-size", defaultBufferSize, "Size of results buffer")
 
 	flag.Parse()
 
@@ -63,6 +66,10 @@ func parseFlags() Config {
 
 	if config.ViewersPerEvent <= 0 {
 		log.Fatalf("Number of viewers per event must be positive, got: %d", config.ViewersPerEvent)
+	}
+
+	if config.BufferSize <= 0 {
+		log.Fatalf("Buffer size must be positive, got: %d", config.BufferSize)
 	}
 
 	config.EventIDs = parseEventIDs(eventsStr)
@@ -99,49 +106,30 @@ func run(config Config) error {
 	}
 	defer metricsWriter.Close()
 
-	results := make(chan viewer.ViewerResult, maxResultsBufferSize)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	results := make(chan viewer.ViewerResult, config.BufferSize)
 	var viewersWg sync.WaitGroup
 	var metricsWg sync.WaitGroup
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	stopChan := make(chan struct{})
-
 	metricsWg.Add(1)
 	go func() {
 		defer metricsWg.Done()
-		for {
-			select {
-			case result, ok := <-results:
-				if !ok {
-					return
-				}
-				if err := metricsWriter.WriteResult(result); err != nil {
-					log.Printf("Error writing metric: %v", err)
-				}
-				if result.Error != nil {
-					log.Printf("Error for viewer %d in event %s: %v",
-						result.ViewerNumber, result.EventID, result.Error)
-				} else {
-					log.Printf("Viewer %d (event %s): received %d messages, latency %.2fms",
-						result.ViewerNumber, result.EventID, result.MessageCount,
-						float64(result.Latency.Microseconds())/1000.0)
-				}
-			case <-stopChan:
-				for {
-					select {
-					case result, ok := <-results:
-						if !ok {
-							return
-						}
-						if err := metricsWriter.WriteResult(result); err != nil {
-							log.Printf("Error writing metric during shutdown: %v", err)
-						}
-					default:
-						return
-					}
-				}
+		for result := range results {
+			if err := metricsWriter.WriteResult(result); err != nil {
+				log.Printf("Error writing metric: %v", err)
+			}
+			if result.Error != nil {
+				log.Printf("Error for viewer %d in event %s: %v",
+					result.ViewerNumber, result.EventID, result.Error)
+			} else {
+				log.Printf("Viewer %d (event %s): received %d messages, latency %.2fms",
+					result.ViewerNumber, result.EventID, result.MessageCount,
+					float64(result.Latency.Microseconds())/1000.0)
 			}
 		}
 	}()
@@ -150,7 +138,7 @@ func run(config Config) error {
 	for _, eventID := range config.EventIDs {
 		for j := 0; j < config.ViewersPerEvent; j++ {
 			viewerNumber++
-			v := viewer.New(eventID, viewerNumber, config.TargetURL, results, stopChan, &viewersWg)
+			v := viewer.New(ctx, eventID, viewerNumber, config.TargetURL, results, &viewersWg)
 			viewersWg.Add(1)
 			go v.Start()
 		}
@@ -161,7 +149,7 @@ func run(config Config) error {
 
 	<-sigChan
 	log.Println("Shutting down...")
-	close(stopChan)
+	cancel()
 
 	viewersWg.Wait()
 	close(results)
