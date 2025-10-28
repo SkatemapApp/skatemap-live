@@ -17,6 +17,7 @@ const (
 	writeTimeout       = 10 * time.Second
 	pongWait           = 60 * time.Second
 	pingPeriod         = 54 * time.Second
+	streamPathTemplate = "/skatingEvents/%s/stream"
 )
 
 // Location represents a geographic coordinate with latitude and longitude.
@@ -141,7 +142,7 @@ func (v *Viewer) buildWebSocketURL() (string, error) {
 		scheme = "wss"
 	}
 
-	wsURL := fmt.Sprintf("%s://%s/skatingEvents/%s/stream", scheme, parsedURL.Host, v.eventID)
+	wsURL := fmt.Sprintf("%s://%s%s", scheme, parsedURL.Host, fmt.Sprintf(streamPathTemplate, v.eventID))
 	return wsURL, nil
 }
 
@@ -172,60 +173,69 @@ func (v *Viewer) receiveLoop(conn *websocket.Conn) {
 		case <-v.ctx.Done():
 			return
 		default:
-			receiveTime := time.Now()
+		}
 
-			if err := conn.SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-				v.sendResult(ViewerResult{
-					EventID:      v.eventID,
-					ViewerNumber: v.viewerNumber,
-					Timestamp:    receiveTime,
-					MessageCount: messageCount,
-					Latency:      0,
-					Error:        fmt.Errorf("failed to set read deadline: %w", err),
-				})
+		receiveTime := time.Now()
+
+		if err := conn.SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
+			v.sendResult(ViewerResult{
+				EventID:      v.eventID,
+				ViewerNumber: v.viewerNumber,
+				Timestamp:    receiveTime,
+				MessageCount: messageCount,
+				Latency:      0,
+				Error:        fmt.Errorf("failed to set read deadline: %w", err),
+			})
+			return
+		}
+
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			select {
+			case <-v.ctx.Done():
+				return
+			default:
+			}
+
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				return
 			}
-
-			_, message, err := conn.ReadMessage()
-			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					v.sendResult(ViewerResult{
-						EventID:      v.eventID,
-						ViewerNumber: v.viewerNumber,
-						Timestamp:    receiveTime,
-						MessageCount: messageCount,
-						Latency:      0,
-						Error:        fmt.Errorf("unexpected close: %w", err),
-					})
-				}
-				return
-			}
-
-			var batch LocationBatch
-			if err := json.Unmarshal(message, &batch); err != nil {
-				v.sendResult(ViewerResult{
-					EventID:      v.eventID,
-					ViewerNumber: v.viewerNumber,
-					Timestamp:    receiveTime,
-					MessageCount: messageCount,
-					Latency:      0,
-					Error:        fmt.Errorf("failed to parse message: %w", err),
-				})
-				continue
-			}
-
-			messageCount++
-			latency := receiveTime.UnixMilli() - batch.ServerTime
 
 			v.sendResult(ViewerResult{
 				EventID:      v.eventID,
 				ViewerNumber: v.viewerNumber,
 				Timestamp:    receiveTime,
 				MessageCount: messageCount,
-				Latency:      time.Duration(latency) * time.Millisecond,
-				Error:        nil,
+				Latency:      0,
+				Error:        fmt.Errorf("connection error: %w", err),
 			})
+			return
 		}
+
+		var batch LocationBatch
+		if err := json.Unmarshal(message, &batch); err != nil {
+			v.sendResult(ViewerResult{
+				EventID:      v.eventID,
+				ViewerNumber: v.viewerNumber,
+				Timestamp:    receiveTime,
+				MessageCount: messageCount,
+				Latency:      0,
+				Error:        fmt.Errorf("failed to parse message: %w", err),
+			})
+			continue
+		}
+
+		messageCount++
+		latency := receiveTime.UnixMilli() - batch.ServerTime
+
+		v.sendResult(ViewerResult{
+			EventID:      v.eventID,
+			ViewerNumber: v.viewerNumber,
+			Timestamp:    receiveTime,
+			MessageCount: messageCount,
+			Latency:      time.Duration(latency) * time.Millisecond,
+			Error:        nil,
+		})
 	}
 }
 

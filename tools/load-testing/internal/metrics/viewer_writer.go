@@ -10,10 +10,15 @@ import (
 	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/viewer"
 )
 
+const (
+	flushBatchSize = 10
+)
+
 type ViewerWriter struct {
-	file   *os.File
-	writer *csv.Writer
-	mu     sync.Mutex
+	file        *os.File
+	writer      *csv.Writer
+	mu          sync.Mutex
+	recordCount int
 }
 
 func NewViewerWriter(filename string) (*ViewerWriter, error) {
@@ -59,8 +64,15 @@ func (w *ViewerWriter) WriteResult(result viewer.ViewerResult) error {
 		return fmt.Errorf("failed to write CSV record: %w", err)
 	}
 
-	w.writer.Flush()
-	return w.writer.Error()
+	w.recordCount++
+	if w.recordCount%flushBatchSize == 0 {
+		w.writer.Flush()
+		if err := w.writer.Error(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (w *ViewerWriter) Close() error {
