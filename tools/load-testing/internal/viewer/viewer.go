@@ -56,6 +56,8 @@ type Viewer struct {
 }
 
 // New creates a new Viewer instance configured to connect to the specified event.
+// The viewer will run until the context is cancelled or a fatal error occurs.
+// Results are sent to the results channel as messages are received.
 func New(ctx context.Context, eventID string, viewerNumber int, baseURL string, results chan<- ViewerResult, wg *sync.WaitGroup) *Viewer {
 	return &Viewer{
 		ctx:          ctx,
@@ -176,18 +178,6 @@ func (v *Viewer) receiveLoop(conn *websocket.Conn) {
 		}
 
 		receiveTime := time.Now()
-
-		if err := conn.SetReadDeadline(time.Now().Add(readTimeout)); err != nil {
-			v.sendResult(ViewerResult{
-				EventID:      v.eventID,
-				ViewerNumber: v.viewerNumber,
-				Timestamp:    receiveTime,
-				MessageCount: messageCount,
-				Latency:      0,
-				Error:        fmt.Errorf("failed to set read deadline: %w", err),
-			})
-			return
-		}
 
 		_, message, err := conn.ReadMessage()
 		if err != nil {
