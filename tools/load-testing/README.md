@@ -12,12 +12,14 @@ From the repository root:
 
 ```bash
 go build -o bin/simulate-skaters ./tools/load-testing/cmd/simulate-skaters
+go build -o bin/simulate-viewers ./tools/load-testing/cmd/simulate-viewers
 ```
 
 Or from the `tools/load-testing` directory:
 
 ```bash
 go build -o bin/simulate-skaters ./cmd/simulate-skaters
+go build -o bin/simulate-viewers ./cmd/simulate-viewers
 ```
 
 ## simulate-skaters
@@ -95,18 +97,95 @@ Typical resource usage (50 skaters, 3s interval):
 - CPU: Negligible when idle between updates
 - Network: ~2KB per update
 
+## simulate-viewers
+
+Simulates multiple concurrent viewers receiving location updates via WebSocket connections.
+
+### Usage
+
+```bash
+./bin/simulate-viewers \
+  --viewers-per-event=3 \
+  --events=event-1,event-2 \
+  --target-url=https://skatemap-live-production.up.railway.app \
+  --metrics-file=viewer-metrics.csv
+```
+
+### Options
+
+- `--viewers-per-event`: Number of viewers per event (default: 1)
+- `--events`: Comma-separated list of event IDs (required)
+- `--target-url`: Target URL for the API (required)
+- `--metrics-file`: Output file for metrics (default: viewer-metrics.csv)
+
+### Examples
+
+Basic test with 3 viewers on 2 events:
+
+```bash
+./bin/simulate-viewers \
+  --viewers-per-event=3 \
+  --events=123e4567-e89b-12d3-a456-426614174000,123e4567-e89b-12d3-a456-426614174001 \
+  --target-url=https://skatemap-live-production.up.railway.app
+```
+
+Load test with 10 viewers per event across 5 events:
+
+```bash
+./bin/simulate-viewers \
+  --viewers-per-event=10 \
+  --events=event-1,event-2,event-3,event-4,event-5 \
+  --target-url=https://skatemap-live-production.up.railway.app \
+  --metrics-file=viewer-load-test.csv
+```
+
+### Output
+
+The tool generates a CSV file with the following columns:
+
+- `timestamp`: ISO 8601 timestamp of the message receipt
+- `event_id`: Event ID being monitored
+- `viewer_number`: Viewer number (sequential across all events)
+- `message_count`: Cumulative count of messages received by this viewer
+- `latency_ms`: Latency in milliseconds (receive time - server time)
+- `error`: Error message (empty if successful)
+
+### Behaviour
+
+- Opens WebSocket connections to specified event streams
+- Receives batched location updates as JSON
+- Each viewer:
+  - Maintains a persistent WebSocket connection
+  - Receives only updates for their specific event
+  - Tracks message count and latency for each batch
+  - Records metrics for every received message
+- Runs until interrupted with Ctrl+C
+- Gracefully closes all connections and flushes metrics
+
+### Performance
+
+Typical resource usage (50 viewers):
+- Memory: ~30MB
+- CPU: Negligible
+- Network: ~2KB per message batch
+
 ## Architecture
 
 ```
 tools/load-testing/
 ├── cmd/
-│   └── simulate-skaters/    # CLI binary
+│   ├── simulate-skaters/    # Skater simulation CLI
+│   │   └── main.go
+│   └── simulate-viewers/    # Viewer simulation CLI
 │       └── main.go
 ├── internal/
 │   ├── skater/              # Skater simulation logic
 │   │   └── skater.go        # Location updates, GPS movement
+│   ├── viewer/              # Viewer simulation logic
+│   │   └── viewer.go        # WebSocket connections, message receiving
 │   └── metrics/             # CSV metrics output
-│       └── writer.go
+│       ├── writer.go        # Skater metrics
+│       └── viewer_writer.go # Viewer metrics
 ├── bin/                     # Compiled binaries (gitignored)
 ├── go.mod
 └── README.md
@@ -128,7 +207,6 @@ go fmt ./...
 
 ## Future Enhancements
 
-- WebSocket viewer simulation for long-lived connections
 - Configurable GPS movement patterns (linear routes, circular paths)
 - Real-time metrics dashboard
 - Support for multiple concurrent events with different scenarios
