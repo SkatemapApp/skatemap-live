@@ -69,6 +69,8 @@ Most events will have a small number of viewers relative to participants. Organi
 
 ## Example Simulation Commands
 
+**Note**: Replace `<target-url>` with your deployment URL (e.g., `http://localhost:9000` for local testing, or your production URL).
+
 ### Small Event (20 skaters, 45 minutes)
 
 ```bash
@@ -76,7 +78,7 @@ Most events will have a small number of viewers relative to participants. Organi
   --events=1 \
   --skaters-per-event=20 \
   --update-interval=4s \
-  --target-url=https://skatemap-live-production.up.railway.app \
+  --target-url=<target-url> \
   --metrics-file=small-event.csv
 ```
 
@@ -89,7 +91,7 @@ Stop after 45 minutes with Ctrl+C.
   --events=1 \
   --skaters-per-event=100 \
   --update-interval=4s \
-  --target-url=https://skatemap-live-production.up.railway.app \
+  --target-url=<target-url> \
   --metrics-file=typical-event.csv
 ```
 
@@ -104,7 +106,7 @@ Simulate a realistic evening with multiple concurrent events:
   --events=10 \
   --skaters-per-event=50 \
   --update-interval=4s \
-  --target-url=https://skatemap-live-production.up.railway.app \
+  --target-url=<target-url> \
   --metrics-file=concurrent-events.csv
 ```
 
@@ -118,16 +120,16 @@ Start skaters:
   --events=1 \
   --skaters-per-event=200 \
   --update-interval=3s \
-  --target-url=https://skatemap-live-production.up.railway.app \
+  --target-url=<target-url> \
   --metrics-file=large-event-skaters.csv
 ```
 
-In a separate terminal, start viewers (using event ID from skater output):
+In a separate terminal, start viewers (using event ID from skater simulator output):
 ```bash
 ./bin/simulate-viewers \
   --viewers-per-event=5 \
-  --events=<event-id> \
-  --target-url=https://skatemap-live-production.up.railway.app \
+  --events=<event-id-from-skater-output> \
+  --target-url=<target-url> \
   --metrics-file=large-event-viewers.csv
 ```
 
@@ -138,7 +140,7 @@ In a separate terminal, start viewers (using event ID from skater output):
   --events=5 \
   --skaters-per-event=100 \
   --update-interval=5s \
-  --target-url=https://skatemap-live-production.up.railway.app \
+  --target-url=<target-url> \
   --metrics-file=extended-load-test.csv
 ```
 
@@ -158,9 +160,3 @@ A large 3-hour event with 500 skaters would generate approximately 2.7 GB of loc
 ## Acknowledgement
 
 These parameters are plausible approximations based on direct participation in organised skating events and research into GPS tracking applications. They are not scientific measurements but represent realistic usage patterns for load testing purposes.
-
-## Sources
-
-- Direct participation in London organised skating events (Halloween skate, Good Friday skate, Santa skate)
-- GPS tracking app battery research: location update frequency recommendations for real-time tracking applications
-- Bandwidth measurements from existing location update implementation (2KB per update)
