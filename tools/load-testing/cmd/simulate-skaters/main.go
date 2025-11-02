@@ -80,6 +80,33 @@ func parseFlags() Config {
 	return config
 }
 
+func parseEventIDs(eventIDsStr string, numEvents int) ([]string, error) {
+	if eventIDsStr == "" {
+		eventIDs := make([]string, numEvents)
+		for i := 0; i < numEvents; i++ {
+			eventIDs[i] = uuid.New().String()
+		}
+		return eventIDs, nil
+	}
+
+	eventIDs := strings.Split(eventIDsStr, ",")
+	for i := range eventIDs {
+		eventIDs[i] = strings.TrimSpace(eventIDs[i])
+	}
+
+	if len(eventIDs) != numEvents {
+		return nil, fmt.Errorf("number of provided event IDs (%d) does not match --events (%d)", len(eventIDs), numEvents)
+	}
+
+	for i, id := range eventIDs {
+		if _, err := uuid.Parse(id); err != nil {
+			return nil, fmt.Errorf("invalid UUID format for event ID %d: %s", i+1, id)
+		}
+	}
+
+	return eventIDs, nil
+}
+
 func run(config Config) error {
 	log.Printf("Starting simulation with %d events, %d skaters per event, update interval: %s",
 		config.NumEvents, config.SkatersPerEvent, config.UpdateInterval)
@@ -133,26 +160,14 @@ func run(config Config) error {
 		}
 	}()
 
-	var eventIDs []string
+	eventIDs, err := parseEventIDs(config.EventIDs, config.NumEvents)
+	if err != nil {
+		return err
+	}
+
 	if config.EventIDs != "" {
-		eventIDs = strings.Split(config.EventIDs, ",")
-		for i := range eventIDs {
-			eventIDs[i] = strings.TrimSpace(eventIDs[i])
-		}
-		if len(eventIDs) != config.NumEvents {
-			return fmt.Errorf("number of provided event IDs (%d) does not match --events (%d)", len(eventIDs), config.NumEvents)
-		}
-		for i, id := range eventIDs {
-			if _, err := uuid.Parse(id); err != nil {
-				return fmt.Errorf("invalid UUID format for event ID %d: %s", i+1, id)
-			}
-		}
 		log.Printf("Using provided event IDs: %v", eventIDs)
 	} else {
-		eventIDs = make([]string, config.NumEvents)
-		for i := 0; i < config.NumEvents; i++ {
-			eventIDs[i] = uuid.New().String()
-		}
 		log.Printf("Generated event IDs: %v", eventIDs)
 	}
 
