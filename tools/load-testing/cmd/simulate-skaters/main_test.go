@@ -138,7 +138,7 @@ func TestParseEventIDs_EmptyUUID(t *testing.T) {
 		t.Fatal("Expected error for empty UUID, got nil")
 	}
 
-	expectedMsg := "invalid UUID format"
+	expectedMsg := "empty event ID at position 2"
 	if !strings.Contains(err.Error(), expectedMsg) {
 		t.Errorf("Expected error message to contain %q, got: %s", expectedMsg, err.Error())
 	}

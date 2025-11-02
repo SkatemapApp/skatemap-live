@@ -99,8 +99,11 @@ func parseEventIDs(eventIDsStr string, numEvents int) ([]string, error) {
 	}
 
 	for i, id := range eventIDs {
+		if id == "" {
+			return nil, fmt.Errorf("empty event ID at position %d", i+1)
+		}
 		if _, err := uuid.Parse(id); err != nil {
-			return nil, fmt.Errorf("invalid UUID format for event ID %d: %s", i+1, id)
+			return nil, fmt.Errorf("invalid UUID format for event ID %d (%s): %w", i+1, id, err)
 		}
 	}
 
