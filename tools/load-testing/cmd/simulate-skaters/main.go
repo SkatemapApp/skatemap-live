@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -26,6 +27,7 @@ type Config struct {
 	UpdateInterval  time.Duration
 	TargetURL       string
 	MetricsFile     string
+	EventIDs        string
 }
 
 func main() {
@@ -47,6 +49,7 @@ func parseFlags() Config {
 
 	flag.StringVar(&config.TargetURL, "target-url", "", "Target URL for the API (required)")
 	flag.StringVar(&config.MetricsFile, "metrics-file", "metrics.csv", "Output file for metrics")
+	flag.StringVar(&config.EventIDs, "event-id", "", "Comma-separated list of event IDs to use (optional, generates random if not provided)")
 
 	flag.Parse()
 
@@ -75,6 +78,36 @@ func parseFlags() Config {
 	config.UpdateInterval = interval
 
 	return config
+}
+
+func parseEventIDs(eventIDsStr string, numEvents int) ([]string, error) {
+	if eventIDsStr == "" {
+		eventIDs := make([]string, numEvents)
+		for i := 0; i < numEvents; i++ {
+			eventIDs[i] = uuid.New().String()
+		}
+		return eventIDs, nil
+	}
+
+	eventIDs := strings.Split(eventIDsStr, ",")
+	for i := range eventIDs {
+		eventIDs[i] = strings.TrimSpace(eventIDs[i])
+	}
+
+	if len(eventIDs) != numEvents {
+		return nil, fmt.Errorf("number of provided event IDs (%d) does not match --events (%d)", len(eventIDs), numEvents)
+	}
+
+	for i, id := range eventIDs {
+		if id == "" {
+			return nil, fmt.Errorf("empty event ID at position %d", i+1)
+		}
+		if _, err := uuid.Parse(id); err != nil {
+			return nil, fmt.Errorf("invalid UUID format for event ID %d (%s): %w", i+1, id, err)
+		}
+	}
+
+	return eventIDs, nil
 }
 
 func run(config Config) error {
@@ -130,11 +163,16 @@ func run(config Config) error {
 		}
 	}()
 
-	eventIDs := make([]string, config.NumEvents)
-	for i := 0; i < config.NumEvents; i++ {
-		eventIDs[i] = uuid.New().String()
+	eventIDs, err := parseEventIDs(config.EventIDs, config.NumEvents)
+	if err != nil {
+		return err
 	}
-	log.Printf("Generated event IDs: %v", eventIDs)
+
+	if config.EventIDs != "" {
+		log.Printf("Using provided event IDs: %v", eventIDs)
+	} else {
+		log.Printf("Generated event IDs: %v", eventIDs)
+	}
 
 	skaters := make([]*skater.Skater, 0, config.NumEvents*config.SkatersPerEvent)
 	for _, eventID := range eventIDs {
