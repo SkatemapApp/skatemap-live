@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -26,6 +27,7 @@ type Config struct {
 	UpdateInterval  time.Duration
 	TargetURL       string
 	MetricsFile     string
+	EventIDs        string
 }
 
 func main() {
@@ -47,6 +49,7 @@ func parseFlags() Config {
 
 	flag.StringVar(&config.TargetURL, "target-url", "", "Target URL for the API (required)")
 	flag.StringVar(&config.MetricsFile, "metrics-file", "metrics.csv", "Output file for metrics")
+	flag.StringVar(&config.EventIDs, "event-id", "", "Comma-separated list of event IDs to use (optional, generates random if not provided)")
 
 	flag.Parse()
 
@@ -130,11 +133,28 @@ func run(config Config) error {
 		}
 	}()
 
-	eventIDs := make([]string, config.NumEvents)
-	for i := 0; i < config.NumEvents; i++ {
-		eventIDs[i] = uuid.New().String()
+	var eventIDs []string
+	if config.EventIDs != "" {
+		eventIDs = strings.Split(config.EventIDs, ",")
+		for i := range eventIDs {
+			eventIDs[i] = strings.TrimSpace(eventIDs[i])
+		}
+		if len(eventIDs) != config.NumEvents {
+			return fmt.Errorf("number of provided event IDs (%d) does not match --events (%d)", len(eventIDs), config.NumEvents)
+		}
+		for i, id := range eventIDs {
+			if _, err := uuid.Parse(id); err != nil {
+				return fmt.Errorf("invalid UUID format for event ID %d: %s", i+1, id)
+			}
+		}
+		log.Printf("Using provided event IDs: %v", eventIDs)
+	} else {
+		eventIDs = make([]string, config.NumEvents)
+		for i := 0; i < config.NumEvents; i++ {
+			eventIDs[i] = uuid.New().String()
+		}
+		log.Printf("Generated event IDs: %v", eventIDs)
 	}
-	log.Printf("Generated event IDs: %v", eventIDs)
 
 	skaters := make([]*skater.Skater, 0, config.NumEvents*config.SkatersPerEvent)
 	for _, eventID := range eventIDs {
