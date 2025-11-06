@@ -166,6 +166,7 @@ bin/
 /lib/
 /logs/
 /modules
+/project/
 /project/project
 /project/target
 /target
@@ -246,3 +247,4 @@ tags
 ### Load Testing ###
 tools/load-testing/bin/
 tools/load-testing/*.csv
+*.csv
