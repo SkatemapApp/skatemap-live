@@ -14,6 +14,11 @@ lazy val root = (project in file("."))
   .settings(
     commands ++= Seq(ciBuild, devBuild),
     coverageExcludedPackages := "<empty>;Reverse.*;router\\.*",
+    run / javaOptions ++= Seq(
+      "-Xlog:gc*=debug:file=gc-%t.log:time,level,tags",
+      "-XX:+HeapDumpOnOutOfMemoryError",
+      "-XX:HeapDumpPath=./heap-dumps/"
+    ),
     // WartRemover incorrectly analyzes routes files - exclude warts that routes files trigger
     Compile / compile / wartremoverErrors := Warts.allBut(
       // Core exclusions for legitimate use cases

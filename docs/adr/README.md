@@ -21,6 +21,7 @@ Each ADR follows this structure:
 
 - [ADR 0001: Railway PaaS for Deployment Platform](0001-railway-platform-choice.md)
 - [ADR 0002: Go for Load Testing Tools](0002-go-for-load-testing.md)
+- [ADR 0003: async-profiler and Eclipse MAT for JVM Profiling](0003-jvm-profiling-tooling.md)
 
 ## Further Reading
 

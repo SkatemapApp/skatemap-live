@@ -248,3 +248,8 @@ tags
 tools/load-testing/bin/
 tools/load-testing/*.csv
 *.csv
+
+### JVM Profiling ###
+heap-dumps/
+*.hprof
+gc-*.log
