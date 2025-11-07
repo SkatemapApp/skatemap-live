@@ -140,18 +140,19 @@ GC logs are automatically generated with timestamps in current directory (format
 
 Download async-profiler:
 ```bash
-wget https://github.com/async-profiler/async-profiler/releases/latest/download/async-profiler-3.0-macos.tar.gz
-tar xzf async-profiler-3.0-macos.tar.gz
+ASYNC_PROFILER_VERSION=3.0
+wget https://github.com/async-profiler/async-profiler/releases/download/v${ASYNC_PROFILER_VERSION}/async-profiler-${ASYNC_PROFILER_VERSION}-macos.tar.gz
+tar xzf async-profiler-${ASYNC_PROFILER_VERSION}-macos.tar.gz
 ```
 
 Generate allocation flame graph (60 second sample):
 ```bash
-./async-profiler-3.0-macos/bin/asprof -d 60 -e alloc -f flamegraph-alloc.html $(jps | grep PlayRun | awk '{print $1}')
+./async-profiler-${ASYNC_PROFILER_VERSION}-macos/bin/asprof -d 60 -e alloc -f flamegraph-alloc.html $(jps | grep PlayRun | awk '{print $1}')
 ```
 
 Generate CPU flame graph (60 second sample):
 ```bash
-./async-profiler-3.0-macos/bin/asprof -d 60 -e cpu -f flamegraph-cpu.html $(jps | grep PlayRun | awk '{print $1}')
+./async-profiler-${ASYNC_PROFILER_VERSION}-macos/bin/asprof -d 60 -e cpu -f flamegraph-cpu.html $(jps | grep PlayRun | awk '{print $1}')
 ```
 
 ### Memory Leak Investigation Workflow

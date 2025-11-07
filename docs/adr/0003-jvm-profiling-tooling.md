@@ -201,9 +201,10 @@ open -a "Memory Analyzer" heap-dumps/snapshot.hprof
 
 Use async-profiler for CPU/allocation profiling:
 ```bash
-wget https://github.com/async-profiler/async-profiler/releases/latest/download/async-profiler-3.0-macos.tar.gz
-tar xzf async-profiler-3.0-macos.tar.gz
-./async-profiler-3.0-macos/bin/asprof -d 60 -e alloc -f flamegraph.html $(jps | grep PlayRun | awk '{print $1}')
+ASYNC_PROFILER_VERSION=3.0
+wget https://github.com/async-profiler/async-profiler/releases/download/v${ASYNC_PROFILER_VERSION}/async-profiler-${ASYNC_PROFILER_VERSION}-macos.tar.gz
+tar xzf async-profiler-${ASYNC_PROFILER_VERSION}-macos.tar.gz
+./async-profiler-${ASYNC_PROFILER_VERSION}-macos/bin/asprof -d 60 -e alloc -f flamegraph.html $(jps | grep PlayRun | awk '{print $1}')
 ```
 
 ### Documentation
