@@ -2,6 +2,7 @@ package skatemap.core
 
 import org.apache.pekko.NotUsed
 import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.{KillSwitches, UniqueKillSwitch}
 import org.apache.pekko.stream.scaladsl.{BroadcastHub, Keep, MergeHub, Sink, Source}
 import skatemap.domain.Location
 
@@ -18,6 +19,7 @@ class InMemoryBroadcaster @Inject() (system: ActorSystem, clock: Clock, config: 
   private[core] case class HubData(
     sink: Sink[Location, NotUsed],
     source: Source[Location, NotUsed],
+    killSwitch: UniqueKillSwitch,
     lastAccessed: AtomicLong
   )
 
@@ -26,11 +28,12 @@ class InMemoryBroadcaster @Inject() (system: ActorSystem, clock: Clock, config: 
   private def getOrCreateHub(eventId: String): HubData = {
     val hubData = hubs.getOrElseUpdate(
       eventId, {
-        val (sink, source) = MergeHub
+        val ((sink, killSwitch), source) = MergeHub
           .source[Location]
+          .viaMat(KillSwitches.single)(Keep.both)
           .toMat(BroadcastHub.sink[Location](bufferSize = config.bufferSize))(Keep.both)
           .run()
-        HubData(sink, source, new AtomicLong(clock.millis()))
+        HubData(sink, source, killSwitch, new AtomicLong(clock.millis()))
       }
     )
     hubData.lastAccessed.set(clock.millis())
@@ -51,7 +54,10 @@ class InMemoryBroadcaster @Inject() (system: ActorSystem, clock: Clock, config: 
     val now       = clock.millis()
     val threshold = now - ttlMillis
     val toRemove  = hubs.filter { case (_, hubData) => hubData.lastAccessed.get() < threshold }.keys.toList
-    toRemove.foreach(hubs.remove)
+    toRemove.foreach { key =>
+      hubs.get(key).foreach(_.killSwitch.shutdown())
+      hubs.remove(key)
+    }
     toRemove.size
   }
 }

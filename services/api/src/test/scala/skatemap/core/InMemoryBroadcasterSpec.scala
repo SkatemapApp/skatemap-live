@@ -18,7 +18,7 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
   private def transferHubs(from: InMemoryBroadcaster, to: InMemoryBroadcaster): Unit =
     from.hubs.foreachEntry { (key, hub) =>
-      to.hubs.put(key, to.HubData(hub.sink, hub.source, hub.lastAccessed))
+      to.hubs.put(key, to.HubData(hub.sink, hub.source, hub.killSwitch, hub.lastAccessed))
     }
 
   private val defaultConfig = HubConfig(
@@ -155,6 +155,28 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
       removed should be(5)
       broadcaster2.hubs.size should be(0)
+    }
+
+    "shutdown KillSwitch when cleaning up hubs" in {
+      val fixedTime   = 1000000000000L
+      val clock       = TestClock.fixed(fixedTime)
+      val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
+      val eventId     = "550e8400-e29b-41d4-a716-446655440000"
+
+      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime))
+
+      broadcaster.hubs.contains(eventId) should be(true)
+
+      val ttlMillis    = 1000L
+      val laterTime    = fixedTime + ttlMillis + 1L
+      val laterClock   = TestClock.fixed(laterTime)
+      val broadcaster2 = new InMemoryBroadcaster(system, laterClock, defaultConfig)
+
+      transferHubs(broadcaster, broadcaster2)
+
+      broadcaster2.cleanupUnusedHubs(ttlMillis)
+
+      broadcaster2.hubs.contains(eventId) should be(false)
     }
   }
 }
