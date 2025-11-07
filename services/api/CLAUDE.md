@@ -157,12 +157,109 @@ Generate CPU flame graph (60 second sample):
 
 ### Memory Leak Investigation Workflow
 
-1. Start application: `sbt run`
-2. Run load test for extended period (e.g., 30 minutes)
-3. Take heap dump: `jcmd <pid> GC.heap_dump heap-dumps/after-test.hprof`
-4. Open in Eclipse MAT and run "Leak Suspects Report"
-5. Search for specific classes (e.g., BroadcastHub) using OQL queries
-6. Examine reference chains to identify what's holding objects in memory
+This workflow helps diagnose memory leaks by profiling the application under load and comparing heap state before/after fixes.
+
+#### Setup
+
+Ensure heap-dumps directory exists:
+```bash
+mkdir -p heap-dumps
+```
+
+#### Step 1: Start Application
+
+From `services/api` directory:
+```bash
+sbt run
+```
+
+Wait ~30 seconds for application to start. Verify it's running:
+```bash
+curl http://localhost:9000/health
+```
+
+#### Step 2: Identify JVM Process
+
+Find the PID of the running application:
+```bash
+jps
+```
+
+Look for `sbt-launch.jar` in the output. Note the PID (first column).
+
+Alternatively, find which process is listening on port 9000:
+```bash
+lsof -ti :9000
+```
+
+#### Step 3: Run Load Test
+
+From repository root, in a separate terminal:
+```bash
+cd tools/load-testing
+EVENT_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
+go run ./cmd/simulate-skaters \
+  --target-url http://localhost:9000 \
+  --event-id $EVENT_ID \
+  --skaters-per-event 10 \
+  --update-interval 3s
+```
+
+Let this run for 30 minutes. Stop with Ctrl+C when complete.
+
+#### Step 4: Take Heap Dump After Load
+
+Replace `<PID>` with the PID from Step 2:
+```bash
+jcmd <PID> GC.heap_dump $(pwd)/heap-dumps/after-30min-load.hprof
+```
+
+Example with PID 12345:
+```bash
+jcmd 12345 GC.heap_dump $(pwd)/heap-dumps/after-30min-load.hprof
+```
+
+#### Step 5: Idle Period (Optional)
+
+Wait 20 minutes without load to observe if memory is released by GC. Then take another heap dump:
+```bash
+jcmd <PID> GC.heap_dump $(pwd)/heap-dumps/after-20min-idle.hprof
+```
+
+#### Step 6: Analyse Heap Dumps with Eclipse MAT
+
+Open heap dump in MAT:
+```bash
+open -a "Memory Analyzer" heap-dumps/after-30min-load.hprof
+```
+
+In MAT:
+1. Run "Leak Suspects Report" (automatic on file open)
+2. Use OQL to search for specific classes:
+   ```sql
+   SELECT * FROM org.apache.pekko.stream.impl.* WHERE @instanceof(o)
+   ```
+3. Look for BroadcastHub, MergeHub, Source materializations
+4. Check "List objects → with incoming references" to see what holds them
+5. Examine dominator tree for memory-heavy objects
+
+#### Step 7: Compare Before/After
+
+To verify a fix:
+1. Profile baseline (without fix) using steps above
+2. Switch branches to version with fix
+3. Profile again with identical load test parameters
+4. Compare heap dumps:
+   - Object counts for leaked classes (should decrease)
+   - Total heap size after idle period (should release memory)
+   - Dominator tree (leaked objects should be absent)
+
+#### Tips
+
+- Heap dump files are large (~160MB+). Git ignores them automatically.
+- Use `$(pwd)` for absolute paths to avoid "No such file or directory" errors
+- The JVM interprets relative paths from its working directory, not your shell
+- GC logs are written to current directory as `gc-<timestamp>.log`
 
 ## Commit Messages
 - Use conventional commit format: `type: description`
