@@ -176,7 +176,7 @@ Use **async-profiler** for CPU and allocation profiling, and **Eclipse Memory An
 
 Add to `services/api/build.sbt`:
 ```scala
-javaOptions in run ++= Seq(
+run / javaOptions ++= Seq(
   "-Xlog:gc*=debug:file=gc-%t.log:time,level,tags",
   "-XX:+HeapDumpOnOutOfMemoryError",
   "-XX:HeapDumpPath=./heap-dumps/"
