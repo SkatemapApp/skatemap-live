@@ -159,14 +159,39 @@ Generate CPU flame graph (60 second sample):
 
 This workflow helps diagnose memory leaks by profiling the application under load and comparing heap state before/after fixes.
 
-#### Setup
+#### Automated Profiling (Recommended)
+
+From repository root:
+```bash
+./tools/profiling/profile-memory-leak.sh
+```
+
+This script automates the entire profiling workflow (default: 30 min load + 20 min idle). Customise with environment variables:
+```bash
+LOAD_DURATION_MINUTES=45 IDLE_DURATION_MINUTES=30 SKATERS_PER_EVENT=20 ./tools/profiling/profile-memory-leak.sh
+```
+
+The script will:
+1. Start the application
+2. Run load test for specified duration
+3. Take heap dump after load
+4. Stop load test and wait (idle period)
+5. Take heap dump after idle
+6. Stop application
+7. Report heap dump locations for analysis in Eclipse MAT
+
+#### Manual Profiling
+
+For manual step-by-step profiling:
+
+##### Setup
 
 Ensure heap-dumps directory exists:
 ```bash
 mkdir -p heap-dumps
 ```
 
-#### Step 1: Start Application
+##### Step 1: Start Application
 
 From `services/api` directory:
 ```bash
@@ -178,7 +203,7 @@ Wait ~30 seconds for application to start. Verify it's running:
 curl http://localhost:9000/health
 ```
 
-#### Step 2: Identify JVM Process
+##### Step 2: Identify JVM Process
 
 Find the PID of the running application:
 ```bash
@@ -192,7 +217,7 @@ Alternatively, find which process is listening on port 9000:
 lsof -ti :9000
 ```
 
-#### Step 3: Run Load Test
+##### Step 3: Run Load Test
 
 From repository root, in a separate terminal:
 ```bash
@@ -207,7 +232,7 @@ go run ./cmd/simulate-skaters \
 
 Let this run for 30 minutes. Stop with Ctrl+C when complete.
 
-#### Step 4: Take Heap Dump After Load
+##### Step 4: Take Heap Dump After Load
 
 Replace `<PID>` with the PID from Step 2:
 ```bash
@@ -219,14 +244,14 @@ Example with PID 12345:
 jcmd 12345 GC.heap_dump $(pwd)/heap-dumps/after-30min-load.hprof
 ```
 
-#### Step 5: Idle Period (Optional)
+##### Step 5: Idle Period (Optional)
 
 Wait 20 minutes without load to observe if memory is released by GC. Then take another heap dump:
 ```bash
 jcmd <PID> GC.heap_dump $(pwd)/heap-dumps/after-20min-idle.hprof
 ```
 
-#### Step 6: Analyse Heap Dumps with Eclipse MAT
+##### Step 6: Analyse Heap Dumps with Eclipse MAT
 
 Open heap dump in MAT:
 ```bash
@@ -243,7 +268,7 @@ In MAT:
 4. Check "List objects → with incoming references" to see what holds them
 5. Examine dominator tree for memory-heavy objects
 
-#### Step 7: Compare Before/After
+##### Step 7: Compare Before/After
 
 To verify a fix:
 1. Profile baseline (without fix) using steps above
@@ -254,7 +279,7 @@ To verify a fix:
    - Total heap size after idle period (should release memory)
    - Dominator tree (leaked objects should be absent)
 
-#### Tips
+##### Tips
 
 - Heap dump files are large (~160MB+). Git ignores them automatically.
 - Use `$(pwd)` for absolute paths to avoid "No such file or directory" errors
