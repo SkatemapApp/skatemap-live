@@ -113,6 +113,56 @@ All values are validated at startup. Missing or non-positive values cause startu
 - No Twirl templates (disabled PlayLayoutPlugin)
 - Follows functional programming idioms
 
+## Profiling and Performance Analysis
+
+The application is configured with JVM profiling flags to support memory leak diagnosis and performance analysis. See [ADR 0003](../../docs/adr/0003-jvm-profiling-tooling.md) for tooling decisions.
+
+### Heap Dump Analysis
+
+Heap dumps are automatically generated on OutOfMemoryError and saved to `heap-dumps/` directory.
+
+Generate heap dump on-demand:
+```bash
+jcmd $(jps | grep PlayRun | awk '{print $1}') GC.heap_dump heap-dumps/snapshot.hprof
+```
+
+Analyse with Eclipse MAT:
+```bash
+brew install --cask mat
+open -a "Memory Analyzer" heap-dumps/snapshot.hprof
+```
+
+### GC Logging
+
+GC logs are automatically generated with timestamps in current directory (format: `gc-<timestamp>.log`).
+
+### CPU/Allocation Profiling with async-profiler
+
+Download async-profiler:
+```bash
+wget https://github.com/async-profiler/async-profiler/releases/latest/download/async-profiler-3.0-macos.tar.gz
+tar xzf async-profiler-3.0-macos.tar.gz
+```
+
+Generate allocation flame graph (60 second sample):
+```bash
+./async-profiler-3.0-macos/bin/asprof -d 60 -e alloc -f flamegraph-alloc.html $(jps | grep PlayRun | awk '{print $1}')
+```
+
+Generate CPU flame graph (60 second sample):
+```bash
+./async-profiler-3.0-macos/bin/asprof -d 60 -e cpu -f flamegraph-cpu.html $(jps | grep PlayRun | awk '{print $1}')
+```
+
+### Memory Leak Investigation Workflow
+
+1. Start application: `sbt run`
+2. Run load test for extended period (e.g., 30 minutes)
+3. Take heap dump: `jcmd <pid> GC.heap_dump heap-dumps/after-test.hprof`
+4. Open in Eclipse MAT and run "Leak Suspects Report"
+5. Search for specific classes (e.g., BroadcastHub) using OQL queries
+6. Examine reference chains to identify what's holding objects in memory
+
 ## Commit Messages
 - Use conventional commit format: `type: description`
 - Common types: `chore:`, `fix:`, `feat:`, `refactor:`
