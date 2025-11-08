@@ -69,7 +69,7 @@ if [ $WAITED -ge $MAX_WAIT ]; then
     exit 1
 fi
 
-APP_PID=$(lsof -ti :9000)
+APP_PID=$(lsof -ti :9000 | head -1)
 if [ -z "$APP_PID" ]; then
     echo "ERROR: Could not identify application PID"
     exit 1
