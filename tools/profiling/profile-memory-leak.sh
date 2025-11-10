@@ -88,17 +88,37 @@ LOAD_PID=$!
 echo "Load test started (PID: $LOAD_PID)"
 
 LOAD_DURATION_SECONDS=$((LOAD_DURATION_MINUTES * 60))
-echo "Waiting $LOAD_DURATION_MINUTES minutes for load to run..."
+HEAP_DUMP_INTERVAL=${HEAP_DUMP_INTERVAL_MINUTES:-10}
+echo "Waiting $LOAD_DURATION_MINUTES minutes for load to run (heap dumps every $HEAP_DUMP_INTERVAL minutes)..."
 for i in $(seq 1 $LOAD_DURATION_MINUTES); do
     sleep 60
     echo "  $i / $LOAD_DURATION_MINUTES minutes elapsed..."
+
+    if [ $((i % HEAP_DUMP_INTERVAL)) -eq 0 ] && [ $i -lt $LOAD_DURATION_MINUTES ]; then
+        echo "  Taking periodic heap dump at $i minutes..."
+        PERIODIC_DUMP="$HEAP_DUMP_DIR/at-${i}min-$TIMESTAMP.hprof"
+        if jcmd "$APP_PID" GC.heap_dump "$PERIODIC_DUMP" 2>&1 | grep -q "Heap dump file created"; then
+            echo "  Heap dump saved: $PERIODIC_DUMP"
+        else
+            echo "  WARNING: Heap dump failed - process may have died"
+        fi
+    fi
 done
 
 echo ""
-echo "Step 3: Taking heap dump after load..."
+echo "Step 3: Taking final heap dump after load..."
 HEAP_DUMP_1="$HEAP_DUMP_DIR/after-${LOAD_DURATION_MINUTES}min-load-$TIMESTAMP.hprof"
-jcmd "$APP_PID" GC.heap_dump "$HEAP_DUMP_1"
-echo "Heap dump saved: $HEAP_DUMP_1"
+if jcmd "$APP_PID" GC.heap_dump "$HEAP_DUMP_1" 2>&1 | grep -q "Heap dump file created"; then
+    echo "Heap dump saved: $HEAP_DUMP_1"
+else
+    echo "WARNING: Final heap dump failed - using most recent periodic dump"
+    HEAP_DUMP_1=$(ls -t "$HEAP_DUMP_DIR"/at-*min-$TIMESTAMP.hprof 2>/dev/null | head -1)
+    if [ -n "$HEAP_DUMP_1" ]; then
+        echo "Most recent heap dump: $HEAP_DUMP_1"
+    else
+        echo "ERROR: No heap dumps available"
+    fi
+fi
 
 echo ""
 echo "Step 4: Stopping load test..."
@@ -118,8 +138,12 @@ done
 echo ""
 echo "Step 6: Taking heap dump after idle period..."
 HEAP_DUMP_2="$HEAP_DUMP_DIR/after-${IDLE_DURATION_MINUTES}min-idle-$TIMESTAMP.hprof"
-jcmd "$APP_PID" GC.heap_dump "$HEAP_DUMP_2"
-echo "Heap dump saved: $HEAP_DUMP_2"
+if jcmd "$APP_PID" GC.heap_dump "$HEAP_DUMP_2" 2>&1 | grep -q "Heap dump file created"; then
+    echo "Heap dump saved: $HEAP_DUMP_2"
+else
+    echo "WARNING: Idle heap dump failed - process likely died during load test"
+    HEAP_DUMP_2=""
+fi
 
 echo ""
 echo "Step 7: Stopping application..."
@@ -134,17 +158,32 @@ echo "=========================================="
 echo "Profiling Complete"
 echo "=========================================="
 echo "Heap dumps:"
-echo "  After load: $HEAP_DUMP_1"
-echo "  After idle: $HEAP_DUMP_2"
+PERIODIC_DUMPS=$(ls -t "$HEAP_DUMP_DIR"/at-*min-$TIMESTAMP.hprof 2>/dev/null)
+if [ -n "$PERIODIC_DUMPS" ]; then
+    echo "  Periodic dumps (during load):"
+    for dump in $PERIODIC_DUMPS; do
+        echo "    $(basename $dump)"
+    done
+fi
+if [ -n "$HEAP_DUMP_1" ] && [ -f "$HEAP_DUMP_1" ]; then
+    echo "  After load: $(basename $HEAP_DUMP_1)"
+fi
+if [ -n "$HEAP_DUMP_2" ] && [ -f "$HEAP_DUMP_2" ]; then
+    echo "  After idle: $(basename $HEAP_DUMP_2)"
+fi
+echo ""
+echo "All dumps location: $HEAP_DUMP_DIR"
 echo ""
 echo "Logs:"
 echo "  Application: /tmp/sbt-run-$TIMESTAMP.log"
 echo "  Load test:   /tmp/load-test-$TIMESTAMP.log"
 echo ""
 echo "Next steps:"
-echo "  1. Open heap dumps in Eclipse MAT:"
-echo "     open -a \"Memory Analyzer\" \"$HEAP_DUMP_1\""
+echo "  1. Open most recent heap dump in Eclipse MAT:"
+LATEST_DUMP=$(ls -t "$HEAP_DUMP_DIR"/*-$TIMESTAMP.hprof 2>/dev/null | head -1)
+if [ -n "$LATEST_DUMP" ]; then
+    echo "     open -a \"Memory Analyzer\" \"$LATEST_DUMP\""
+fi
 echo "  2. Run Leak Suspects Report"
-echo "  3. Compare with second heap dump:"
-echo "     open -a \"Memory Analyzer\" \"$HEAP_DUMP_2\""
+echo "  3. Compare with earlier dumps to see memory growth"
 echo "=========================================="
