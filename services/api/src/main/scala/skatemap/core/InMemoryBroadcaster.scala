@@ -53,10 +53,11 @@ class InMemoryBroadcaster @Inject() (system: ActorSystem, clock: Clock, config: 
   def cleanupUnusedHubs(ttlMillis: Long): Int = {
     val now       = clock.millis()
     val threshold = now - ttlMillis
-    val toRemove  = hubs.filter { case (_, hubData) => hubData.lastAccessed.get() < threshold }.keys.toList
-    toRemove.foreach { key =>
-      hubs.get(key).foreach(_.killSwitch.shutdown())
-      hubs.remove(key)
+    val toRemove  = hubs.filter { case (_, hubData) => hubData.lastAccessed.get() < threshold }.toList
+    toRemove.foreach { case (key, hubData) =>
+      if (hubs.remove(key, hubData)) {
+        hubData.killSwitch.shutdown()
+      }
     }
     toRemove.size
   }
