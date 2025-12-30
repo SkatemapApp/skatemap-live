@@ -213,5 +213,22 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
 
       result shouldBe Some(true)
     }
+
+    "log warning when publishing to closed queue" in {
+      import skatemap.test.LogCapture
+      val broadcaster = new InMemoryBroadcaster(system, TestClock.fixed(1000L), defaultConfig)
+      val eventId     = "550e8400-e29b-41d4-a716-446655440000"
+
+      broadcaster.subscribe(eventId)
+      val hubData = broadcaster.hubs(eventId)
+      hubData.queue.complete()
+
+      val result = LogCapture.withCapture("skatemap.core.InMemoryBroadcaster") { capture =>
+        broadcaster.publish(eventId, Location("skater-1", 1.0, 2.0, 1000L))
+        capture.hasMessageContaining("queue closed") || capture.hasMessageContaining("QueueClosed")
+      }
+
+      result shouldBe Some(true)
+    }
   }
 }
