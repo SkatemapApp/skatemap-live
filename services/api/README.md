@@ -253,6 +253,8 @@ graph TB
     style CS fill:#ffe1e1
 ```
 
+For detailed Pekko Streams topology, see [Stream Topology Documentation](/docs/architecture/stream-topology.md).
+
 ### Key Architectural Decisions
 
 **Event-Scoped Streams:**
