@@ -66,7 +66,7 @@ These values are stored in `HubData` and kept in a `TrieMap[String, HubData]` re
 
 ### Code Reference
 
-Implementation: `skatemap/core/InMemoryBroadcaster.scala:31-35`
+Implementation: `/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:31-35`
 
 ```scala
 val ((sink, killSwitch), source) = MergeHub
@@ -144,7 +144,7 @@ graph LR
 
 ### Code Reference
 
-Implementation: `skatemap/core/EventStreamService.scala:20-31`
+Implementation: `/services/api/src/main/scala/skatemap/core/EventStreamService.scala:20-31`
 
 ```scala
 val initial: Source[Location, NotUsed] =
