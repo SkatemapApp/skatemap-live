@@ -111,10 +111,8 @@ fabric.properties
 !.idea/codeStyles
 !.idea/runConfigurations
 
-# Ignore .idea directories in subdirectories (not at root)
-services/**/.idea/
-tools/**/.idea/
-docs/**/.idea/
+# Ignore .idea directories at any nested level (but not at root)
+*/**/.idea/
 
 ### Linux ###
 *~
