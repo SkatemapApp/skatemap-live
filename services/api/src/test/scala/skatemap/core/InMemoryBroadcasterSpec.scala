@@ -3,7 +3,7 @@ package skatemap.core
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.scaladsl.Sink
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import skatemap.domain.Location
@@ -11,7 +11,12 @@ import skatemap.test.TestClock
 
 import scala.concurrent.duration.DurationInt
 
-class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll with ScalaFutures {
+class InMemoryBroadcasterSpec
+    extends AnyWordSpec
+    with Matchers
+    with BeforeAndAfterAll
+    with ScalaFutures
+    with Eventually {
 
   implicit val system: ActorSystem = ActorSystem("test")
 
@@ -229,6 +234,26 @@ class InMemoryBroadcasterSpec extends AnyWordSpec with Matchers with BeforeAndAf
       }
 
       result shouldBe Some(true)
+    }
+
+    "log error when queue offer fails due to stream failure" in {
+      import ch.qos.logback.classic.Level
+      import skatemap.test.LogCapture
+
+      val broadcaster = new InMemoryBroadcaster(system, TestClock.fixed(1000L), defaultConfig)
+      val eventId     = "550e8400-e29b-41d4-a716-446655440000"
+
+      broadcaster.subscribe(eventId)
+      val hubData = broadcaster.hubs(eventId)
+      hubData.killSwitch.shutdown()
+
+      eventually {
+        val result = LogCapture.withCapture("skatemap.core.InMemoryBroadcaster") { capture =>
+          broadcaster.publish(eventId, Location("skater-1", 1.0, 2.0, 1000L))
+          capture.hasMessageAtLevel("Failed to offer location", Level.ERROR)
+        }
+        result shouldBe Some(true)
+      }
     }
   }
 }

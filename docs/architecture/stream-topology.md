@@ -72,7 +72,7 @@ These values are stored in `HubData` and kept in a `TrieMap[String, HubData]` re
 - `Enqueued`: Location successfully queued
 - `Dropped`: Queue full (buffer overflow) - location discarded, warning logged
 - `QueueClosed`: Hub shut down - location discarded, warning logged
-- `Failure`: Queue failure - should not occur with bounded queue
+- `Failure(cause)`: Stream stage failure - location discarded, error logged with cause exception
 
 ### Code Reference
 
@@ -86,13 +86,14 @@ val ((queue, killSwitch), source) = Source
   .run()
 ```
 
-Publishing to the hub (`/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:46-51`):
+Publishing to the hub (`/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:47-52`):
 
 ```scala
 hubData.queue.offer(location) match {
+  case QueueOfferResult.Enqueued    => ()
   case QueueOfferResult.Dropped     => logger.warn("Location dropped for event {} due to queue overflow", eventId)
   case QueueOfferResult.QueueClosed => logger.warn("Location dropped for event {} because queue closed", eventId)
-  case _                            => ()
+  case QueueOfferResult.Failure(cause) => logger.error("Failed to offer location for event {}", eventId, cause)
 }
 ```
 

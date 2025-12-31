@@ -45,9 +45,10 @@ class InMemoryBroadcaster @Inject() (system: ActorSystem, clock: Clock, config: 
   def publish(eventId: String, location: Location): Unit = {
     val hubData = getOrCreateHub(eventId)
     hubData.queue.offer(location) match {
+      case QueueOfferResult.Enqueued    => ()
       case QueueOfferResult.Dropped     => logger.warn("Location dropped for event {} due to queue overflow", eventId)
       case QueueOfferResult.QueueClosed => logger.warn("Location dropped for event {} because queue closed", eventId)
-      case _                            => ()
+      case QueueOfferResult.Failure(cause) => logger.error("Failed to offer location for event {}", eventId, cause)
     }
   }
 

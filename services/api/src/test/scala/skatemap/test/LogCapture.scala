@@ -1,8 +1,9 @@
 package skatemap.test
 
 import ch.qos.logback.classic.spi.ILoggingEvent
-import ch.qos.logback.classic.LoggerContext
+import ch.qos.logback.classic.{Level, LoggerContext}
 import ch.qos.logback.core.read.ListAppender
+import org.scalactic.TripleEquals._
 import org.slf4j.LoggerFactory
 
 import scala.jdk.CollectionConverters._
@@ -36,6 +37,9 @@ class LogCapture private (loggerContext: LoggerContext, loggerName: String) {
 
   def hasMessageContaining(text: String): Boolean =
     messages.exists(_.contains(text))
+
+  def hasMessageAtLevel(text: String, level: Level): Boolean =
+    events.exists(e => e.getFormattedMessage.contains(text) && e.getLevel === level)
 
   def getMdcValue(key: String): Option[String] =
     events.reverse.headOption.flatMap { event =>
