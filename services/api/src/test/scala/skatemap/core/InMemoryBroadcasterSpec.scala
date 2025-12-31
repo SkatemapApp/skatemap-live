@@ -201,15 +201,17 @@ class InMemoryBroadcasterSpec
       transferHubs(broadcaster, broadcaster2)
 
       val threshold = laterTime - ttlMillis
-      val toRemove  = broadcaster2.hubs.filter { case (_, hubData) => hubData.lastAccessed.get() < threshold }.toList
+      val staleHubsToCleanup = broadcaster2.hubs.filter { case (_, hubData) =>
+        hubData.lastAccessed.get() < threshold
+      }.toList
 
-      toRemove should not be empty
+      staleHubsToCleanup should not be empty
 
       broadcaster2.hubs.remove(eventId)
       broadcaster2.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440101", 3.0, 4.0, laterTime))
-      val newHub = broadcaster2.hubs(eventId)
+      val recreatedHub = broadcaster2.hubs(eventId)
 
-      toRemove.foreach { case (key, hubData) =>
+      staleHubsToCleanup.foreach { case (key, hubData) =>
         broadcaster2.hubs.remove(key, hubData)
         hubData.killSwitch.shutdown()
       }
@@ -218,7 +220,7 @@ class InMemoryBroadcasterSpec
       broadcaster2.publish(eventId, testLocation)
 
       broadcaster2.hubs.contains(eventId) should be(true)
-      broadcaster2.hubs(eventId) should be(newHub)
+      broadcaster2.hubs(eventId) should be(recreatedHub)
     }
 
     "handle queue overflow by dropping new elements without error" in {
