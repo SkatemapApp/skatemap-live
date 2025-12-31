@@ -102,3 +102,15 @@ The fix is correct defensive programming and should be kept, but it doesn't addr
 1. **Issue #142**: Merge BroadcastHub KillSwitch fix as defensive programming (prevents subscriber-side leaks)
 2. **Issue #143**: Fix per-publish stream materialisation in `InMemoryBroadcaster.scala:45` (actual production blocker fix)
 3. **Issue #138**: Remains open until #143 is implemented and verified
+
+## Fix Verification
+
+**Date:** 2025-12-28
+
+Issue #143 was resolved by replacing MergeHub with SourceQueue. Profiling verification confirmed the fix eliminated the memory leak.
+
+See [SourceQueue Fix Profiling Results](sourcequeue-fix-results-20251228.md) for complete analysis:
+- GraphInterpreterShell instances: 5,873 → 0 (no stream materialisation accumulation)
+- Heap growth during load: 6.4 MB increase → 3.2 MB decrease (stable)
+- Heap during idle: 132 MB → 144 MB (baseline grew) vs 63.8 MB → 63.2 MB (fix released memory)
+- Per-publish streams: ~6,000 → 1 (single SourceQueue)

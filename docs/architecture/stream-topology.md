@@ -9,19 +9,21 @@ The system uses two primary stream graphs:
 1. **InMemoryBroadcaster Hub** - Publish/subscribe pattern with graceful shutdown
 2. **EventStreamService Pipeline** - WebSocket streaming with initial snapshot and batching
 
-Both streams leverage Pekko Streams' built-in hub operators (MergeHub and BroadcastHub) to enable dynamic publishers and subscribers without materialising new streams for each client.
+Both streams leverage Pekko Streams' built-in hub operators (Source.queue and BroadcastHub) to enable dynamic publishers and subscribers without materialising new streams for each client.
 
 ## InMemoryBroadcaster Hub (Publish/Subscribe)
 
-The broadcaster uses a MergeHub → KillSwitch → BroadcastHub pattern to create a reusable pub/sub hub per event.
+The broadcaster uses a Source.queue → KillSwitch → BroadcastHub pattern to create a reusable pub/sub hub per event.
+
+The broadcaster materialises a single stream graph per event, with a bounded queue that accepts location updates via `offer()`. This eliminates the memory leak from the previous MergeHub approach where each `publish()` call materialised a new `Source.single(location)` stream.
 
 ```mermaid
 graph LR
-    P1[Publisher 1<br/>Source.single] --> MH[MergeHub.source]
-    P2[Publisher 2<br/>Source.single] --> MH
-    PN[Publisher N<br/>Source.single] --> MH
+    P1[Publisher 1<br/>queue.offer] -.-> Q[Source.queue<br/>bounded: 128]
+    P2[Publisher 2<br/>queue.offer] -.-> Q
+    PN[Publisher N<br/>queue.offer] -.-> Q
 
-    MH --> KS[KillSwitch<br/>viaMat]
+    Q --> KS[KillSwitch<br/>viaMat]
     KS --> BH[BroadcastHub.sink<br/>buffer: 128]
 
     BH --> S1[Subscriber 1]
@@ -36,17 +38,19 @@ graph LR
 
 ### Stream Operators
 
-**MergeHub.source**
-- Accepts multiple publishers dynamically
-- Each `publish()` call creates a `Source.single(location)` and runs it to the hub's sink
-- Merges all incoming locations into a single stream
-- No need to rematerialise the graph when publishers come and go
+**Source.queue**
+- Creates a bounded source queue with buffer size 128 (configurable via `skatemap.hub.bufferSize`)
+- Publishers call `queue.offer(location)` to enqueue locations
+- Returns `QueueOfferResult` indicating success (`Enqueued`), drop (`Dropped` for overflow), or queue closed (`QueueClosed`)
+- Single materialisation - the queue persists for the lifetime of the hub
+- Eliminates memory leak from the previous MergeHub approach where each `publish()` materialised a new stream
 
 **viaMat(KillSwitch)**
 - Enables graceful shutdown of the entire hub
 - `BroadcasterCleanupService` calls `killSwitch.shutdown()` after TTL expires
-- Prevents Pekko Streams BroadcastHub memory leak (see [issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142))
+- Prevents Pekko Streams BroadcastHub memory leak by enabling graceful shutdown (see [issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142))
 - Critical for cleanup - without it, materialised streams persist in ActorSystem even after removal from registry
+- On shutdown, `queue.complete()` is called automatically by KillSwitch, preventing further offers
 
 **BroadcastHub.sink**
 - Broadcasts incoming locations to all subscribers
@@ -56,24 +60,41 @@ graph LR
 
 ### Materialised Values
 
-The stream materialises to `((Sink[Location, NotUsed], UniqueKillSwitch), Source[Location, NotUsed])`:
+The stream materialises to `((BoundedSourceQueue[Location], UniqueKillSwitch), Source[Location, NotUsed])`:
 
-- **Sink**: Used by `publish()` to send locations into the hub
+- **BoundedSourceQueue**: Used by `publish()` to offer locations into the hub via `queue.offer(location)`
 - **KillSwitch**: Used by cleanup service to shut down the hub
 - **Source**: Used by `subscribe()` to receive locations from the hub
 
 These values are stored in `HubData` and kept in a `TrieMap[String, HubData]` registry indexed by event ID.
 
+**Error Handling**: The `offer()` method returns `QueueOfferResult`:
+- `Enqueued`: Location successfully queued
+- `Dropped`: Queue full (buffer overflow) - location discarded, warning logged
+- `QueueClosed`: Hub shut down - location discarded, warning logged
+- `Failure(cause)`: Stream stage failure - location discarded, error logged with cause exception
+
 ### Code Reference
 
-Implementation: `/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:31-35`
+Implementation: `/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:33-37`
 
 ```scala
-val ((sink, killSwitch), source) = MergeHub
-  .source[Location]
+val ((queue, killSwitch), source) = Source
+  .queue[Location](config.bufferSize)
   .viaMat(KillSwitches.single)(Keep.both)
   .toMat(BroadcastHub.sink[Location](bufferSize = config.bufferSize))(Keep.both)
   .run()
+```
+
+Publishing to the hub (`/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:47-52`):
+
+```scala
+hubData.queue.offer(location) match {
+  case QueueOfferResult.Enqueued    => ()
+  case QueueOfferResult.Dropped     => logger.warn("Location dropped for event {} due to queue overflow", eventId)
+  case QueueOfferResult.QueueClosed => logger.warn("Location dropped for event {} because queue closed", eventId)
+  case QueueOfferResult.Failure(cause) => logger.error("Failed to offer location for event {}", eventId, cause)
+}
 ```
 
 ## EventStreamService Pipeline (WebSocket Streaming)
@@ -166,8 +187,8 @@ val updates: Source[Location, NotUsed] =
 Hubs are created lazily on first access (publish or subscribe):
 
 1. Client publishes location → `getOrCreateHub(eventId)` called
-2. Hub doesn't exist → Create MergeHub → KillSwitch → BroadcastHub graph
-3. Materialise and store `(sink, source, killSwitch)` in registry
+2. Hub doesn't exist → Create Source.queue → KillSwitch → BroadcastHub graph
+3. Materialise and store `(queue, source, killSwitch)` in registry
 4. Update `lastAccessed` timestamp
 
 Subsequent publishes and subscribes reuse the existing hub.
@@ -211,9 +232,10 @@ See [issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) for th
 ### Hub Configuration
 
 **`skatemap.hub.bufferSize`** (default: 128)
-- BroadcastHub buffer size for each event hub
-- If subscribers can't keep up, buffer prevents backpressure to publishers
-- When buffer full, oldest messages are dropped
+- Configures buffer size for BOTH the source queue AND the BroadcastHub
+- Source.queue buffer: If full, `queue.offer()` returns `Dropped` and the location is discarded
+- BroadcastHub buffer: If subscribers lag and buffer fills, oldest messages are dropped
+- This dual-buffer design provides backpressure protection at both the publish and subscribe boundaries
 
 **`skatemap.hub.ttlSeconds`** (default: 300)
 - How long unused hubs are kept before cleanup
@@ -229,5 +251,6 @@ See [issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) for th
 
 - [API README](/services/api/README.md) - High-level architecture diagram
 - [Issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) - Why KillSwitch is needed for BroadcastHub cleanup
+- [Pull Request #148](https://github.com/SkatemapApp/skatemap-live/pull/148) - Migration from MergeHub to Source.queue to fix publish memory leak
 - [ADR 0003](/docs/adr/0003-jvm-profiling-tooling.md) - Profiling tools used to diagnose memory leaks
 - [Pekko Streams Documentation](https://pekko.apache.org/docs/pekko/current/stream/) - General stream concepts
