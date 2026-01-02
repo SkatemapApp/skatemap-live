@@ -3,7 +3,6 @@ package testutil
 import (
 	"encoding/csv"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -41,43 +40,6 @@ func AssertNoErrors(t *testing.T, csvPath string) {
 	}
 
 	assert.Equal(t, 0, errorCount, "Expected zero errors in metrics file")
-}
-
-func AssertAverageLatency(t *testing.T, csvPath string, maxMs int) {
-	t.Helper()
-
-	file, err := os.Open(csvPath)
-	require.NoError(t, err, "Failed to open metrics file")
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	records, err := reader.ReadAll()
-	require.NoError(t, err, "Failed to read CSV")
-
-	require.Greater(t, len(records), 1, "CSV should have header + data rows")
-
-	latencyColumnIndex := len(records[0]) - 2
-
-	var totalLatency float64
-	count := 0
-
-	for i, record := range records {
-		if i == 0 {
-			continue
-		}
-		if len(record) != len(records[0]) {
-			t.Fatalf("Invalid CSV row %d: expected %d columns, got %d", i, len(records[0]), len(record))
-		}
-
-		latency, err := strconv.ParseFloat(record[latencyColumnIndex], 64)
-		require.NoError(t, err, "Failed to parse latency in row %d", i)
-
-		totalLatency += latency
-		count++
-	}
-
-	avgLatency := totalLatency / float64(count)
-	assert.LessOrEqual(t, avgLatency, float64(maxMs), "Average latency should be <= %dms", maxMs)
 }
 
 func CountRecords(t *testing.T, csvPath string) int {

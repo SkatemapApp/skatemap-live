@@ -78,8 +78,8 @@ All tests extend `SmokeTestSuite` which:
 
 **csv.go:**
 - `AssertNoErrors(t, csvPath)`
-- `AssertAverageLatency(t, csvPath, maxMs)`
 - `CountRecords(t, csvPath) int`
+- `ExtractSkaterIDs(t, viewerCSVPath) map[string]bool`
 
 ### Constants
 
