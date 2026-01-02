@@ -163,11 +163,19 @@ func parseEventIDs(t *testing.T, scanner *bufio.Scanner) []string {
 	t.Helper()
 
 	timeout := time.After(10 * time.Second)
-	done := make(chan []string)
+	done := make(chan []string, 1)
+	quit := make(chan struct{})
 
 	go func() {
+		defer close(done)
 		var foundEventIDs []string
 		for scanner.Scan() {
+			select {
+			case <-quit:
+				return
+			default:
+			}
+
 			line := scanner.Text()
 			t.Logf("simulate-skaters: %s", line)
 
@@ -197,6 +205,7 @@ func parseEventIDs(t *testing.T, scanner *bufio.Scanner) []string {
 		}
 		return eventIDs
 	case <-timeout:
+		close(quit)
 		t.Fatal("Timeout waiting for Event IDs from simulate-skaters")
 		return nil
 	}
