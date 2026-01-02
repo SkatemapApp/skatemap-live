@@ -37,7 +37,7 @@ jobs:
         working-directory: tools/load-testing
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_URL: ${{ inputs.target_url }}
+          RAILWAY_URL: ${{ inputs.target_url || secrets.RAILWAY_PRODUCTION_URL }}
         run: go test ./test/... -v -timeout 2h -json > smoke-test-results.json
 
       - name: Upload test results
