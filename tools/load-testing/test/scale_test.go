@@ -27,11 +27,14 @@ func (s *SmokeTestSuite) TestScale() {
 	time.Sleep(scaleTestInitialRunTime)
 
 	eventAMore := testutil.StartSkatersWithEventID(t, s.railwayURL, eventA.EventIDs[0], additionalSkaters, "3s")
-	defer eventAMore.Stop(t)
 
 	t.Logf("Added %d more skaters to Event A (now %d total)", additionalSkaters, totalSkaters)
 
 	time.Sleep(scaleTestFinalRunTime)
+
+	eventA.Stop(t)
+	eventB.Stop(t)
+	eventAMore.Stop(t)
 
 	testutil.AssertNoErrors(t, eventA.MetricsFile)
 	testutil.AssertNoErrors(t, eventB.MetricsFile)

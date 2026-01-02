@@ -24,6 +24,8 @@ func (s *SmokeTestSuite) TestEventIsolation() {
 
 	time.Sleep(eventIsolationTestDuration)
 
+	eventA.Stop(t)
+	eventB.Stop(t)
 	viewerA.Stop(t)
 	viewerB.Stop(t)
 

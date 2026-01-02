@@ -45,6 +45,9 @@ func (s *SmokeTestSuite) TestStability() {
 		s.Assert().False(testutil.DetectCrash(t), "No crashes should occur at %v checkpoint", elapsed)
 	}
 
+	eventA.Stop(t)
+	eventB.Stop(t)
+
 	recordsA := testutil.CountRecords(t, eventA.MetricsFile)
 	recordsB := testutil.CountRecords(t, eventB.MetricsFile)
 
