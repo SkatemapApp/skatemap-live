@@ -3,6 +3,7 @@ package testutil
 import (
 	"bufio"
 	"fmt"
+	"net/url"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -19,8 +20,26 @@ type Process struct {
 
 var eventIDPattern = regexp.MustCompile(`Generated event IDs: \[(.*?)\]`)
 
+func validateURL(t *testing.T, targetURL string) {
+	t.Helper()
+
+	parsed, err := url.Parse(targetURL)
+	if err != nil {
+		t.Fatalf("Invalid target URL %q: %v", targetURL, err)
+	}
+
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		t.Fatalf("Invalid URL scheme %q: must be http or https", parsed.Scheme)
+	}
+
+	if parsed.Host == "" {
+		t.Fatalf("Invalid target URL %q: missing host", targetURL)
+	}
+}
+
 func StartSkaters(t *testing.T, targetURL string, events, skatersPerEvent int, interval string) *Process {
 	t.Helper()
+	validateURL(t, targetURL)
 
 	tempDir := t.TempDir()
 	metricsFile := filepath.Join(tempDir, "skaters.csv")
@@ -61,6 +80,7 @@ func StartSkaters(t *testing.T, targetURL string, events, skatersPerEvent int, i
 
 func StartSkatersWithEventID(t *testing.T, targetURL, eventID string, skatersPerEvent int, interval string) *Process {
 	t.Helper()
+	validateURL(t, targetURL)
 
 	tempDir := t.TempDir()
 	metricsFile := filepath.Join(tempDir, "skaters.csv")
@@ -93,6 +113,7 @@ func StartSkatersWithEventID(t *testing.T, targetURL, eventID string, skatersPer
 
 func StartViewers(t *testing.T, targetURL string, eventIDs []string) *Process {
 	t.Helper()
+	validateURL(t, targetURL)
 
 	tempDir := t.TempDir()
 	metricsFile := filepath.Join(tempDir, "viewers.csv")
