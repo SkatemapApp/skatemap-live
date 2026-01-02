@@ -25,8 +25,5 @@ func (s *SmokeTestSuite) SetupSuite() {
 }
 
 func TestSmokeTestSuite(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping smoke tests in short mode")
-	}
 	suite.Run(t, new(SmokeTestSuite))
 }

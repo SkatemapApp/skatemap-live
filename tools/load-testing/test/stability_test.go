@@ -1,6 +1,7 @@
 package test
 
 import (
+	"testing"
 	"time"
 
 	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/testutil"
@@ -15,6 +16,10 @@ const (
 
 func (s *SmokeTestSuite) TestStability() {
 	t := s.T()
+
+	if testing.Short() {
+		t.Skip("Skipping stability test in short mode")
+	}
 
 	skatersPerEvent := 5
 	durationMinutes := int(stabilityTestDuration.Minutes())
