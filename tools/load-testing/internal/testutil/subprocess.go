@@ -61,15 +61,15 @@ func StartSkaters(t *testing.T, targetURL string, events, skatersPerEvent int, i
 		t.Fatalf("Failed to start simulate-skaters: %v", err)
 	}
 
-	scanner := bufio.NewScanner(stderr)
-	eventIDs := parseEventIDs(t, scanner)
-
 	t.Cleanup(func() {
 		if cmd.Process != nil {
 			cmd.Process.Signal(syscall.SIGTERM)
 			cmd.Wait()
 		}
 	})
+
+	scanner := bufio.NewScanner(stderr)
+	eventIDs := parseEventIDs(t, scanner)
 
 	return &Process{
 		cmd:         cmd,
