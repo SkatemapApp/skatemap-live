@@ -9,7 +9,7 @@ import (
 const (
 	websocketIdleTime           = 95 * time.Second
 	initialMessageCollectionTime = 30 * time.Second
-	resumeVerificationTime      = 10 * time.Second
+	resumeVerificationTime      = 15 * time.Second
 )
 
 func (s *SmokeTestSuite) TestWebSocketTimeout() {
@@ -27,7 +27,7 @@ func (s *SmokeTestSuite) TestWebSocketTimeout() {
 	skaters.Stop(t)
 	t.Logf("Stopped skaters, WebSocket now idle")
 
-	beforeIdleCount := testutil.CountRecords(t, viewer.MetricsFile)
+	beforeIdleCount := testutil.CountRecordsLive(t, viewer.MetricsFile)
 	t.Logf("Message count before idle period: %d", beforeIdleCount)
 
 	time.Sleep(websocketIdleTime)
@@ -40,11 +40,12 @@ func (s *SmokeTestSuite) TestWebSocketTimeout() {
 
 	time.Sleep(resumeVerificationTime)
 
-	afterResumeCount := testutil.CountRecords(t, viewer.MetricsFile)
+	afterResumeCount := testutil.CountRecordsLive(t, viewer.MetricsFile)
 	t.Logf("Message count after resume: %d", afterResumeCount)
 
 	s.Assert().Greater(afterResumeCount, beforeIdleCount, "Viewer should receive new messages through existing connection")
 
+	viewer.Stop(t)
 	testutil.AssertNoErrors(t, viewer.MetricsFile)
 
 	s.Assert().False(testutil.DetectCrash(t), "No crashes should occur during websocket timeout test")

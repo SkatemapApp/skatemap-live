@@ -2,6 +2,8 @@ package testutil
 
 import (
 	"encoding/csv"
+	"fmt"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -42,6 +44,24 @@ func AssertNoErrors(t *testing.T, csvPath string) {
 	assert.Equal(t, 0, errorCount, "Expected zero errors in metrics file")
 }
 
+func snapshotCSV(t *testing.T, csvPath string) string {
+	t.Helper()
+
+	sourceFile, err := os.Open(csvPath)
+	require.NoError(t, err, "Failed to open CSV file for snapshot")
+	defer sourceFile.Close()
+
+	snapshotPath := fmt.Sprintf("%s.snapshot.%d", csvPath, os.Getpid())
+	destFile, err := os.Create(snapshotPath)
+	require.NoError(t, err, "Failed to create snapshot file")
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	require.NoError(t, err, "Failed to copy CSV to snapshot")
+
+	return snapshotPath
+}
+
 func CountRecords(t *testing.T, csvPath string) int {
 	t.Helper()
 
@@ -58,6 +78,15 @@ func CountRecords(t *testing.T, csvPath string) int {
 	}
 
 	return len(records) - 1
+}
+
+func CountRecordsLive(t *testing.T, csvPath string) int {
+	t.Helper()
+
+	snapshotPath := snapshotCSV(t, csvPath)
+	defer os.Remove(snapshotPath)
+
+	return CountRecords(t, snapshotPath)
 }
 
 func ExtractSkaterIDs(t *testing.T, viewerCSVPath string) map[string]bool {
