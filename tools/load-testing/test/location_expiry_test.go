@@ -3,7 +3,7 @@ package test
 import (
 	"time"
 
-	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/testutil"
+	"load-testing/internal/testutil"
 )
 
 const (

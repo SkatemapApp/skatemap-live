@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/viewer"
+	"load-testing/internal/viewer"
 )
 
 const (

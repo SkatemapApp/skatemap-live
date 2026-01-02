@@ -12,8 +12,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/metrics"
-	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/viewer"
+	"load-testing/internal/metrics"
+	"load-testing/internal/viewer"
 )
 
 const (

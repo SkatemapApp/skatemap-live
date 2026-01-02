@@ -1,4 +1,4 @@
-module github.com/SkatemapApp/skatemap-live/tools/load-testing
+module load-testing
 
 go 1.23.3
 
