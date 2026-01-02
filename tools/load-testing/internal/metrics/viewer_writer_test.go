@@ -36,7 +36,7 @@ func TestNewViewerWriter(t *testing.T) {
 		t.Fatalf("Failed to read header: %v", err)
 	}
 
-	expectedHeader := []string{"timestamp", "event_id", "viewer_number", "message_count", "latency_ms", "error"}
+	expectedHeader := []string{"timestamp", "event_id", "viewer_number", "message_count", "latency_ms", "skater_ids", "error"}
 	if len(header) != len(expectedHeader) {
 		t.Fatalf("Expected %d columns, got %d", len(expectedHeader), len(header))
 	}
@@ -64,6 +64,7 @@ func TestViewerWriterWriteResult(t *testing.T) {
 		Timestamp:    timestamp,
 		MessageCount: 10,
 		Latency:      150 * time.Millisecond,
+		SkaterIDs:    []string{"skater1", "skater2"},
 		Error:        nil,
 	}
 
@@ -105,8 +106,11 @@ func TestViewerWriterWriteResult(t *testing.T) {
 	if record[4] != "150.00" {
 		t.Errorf("Expected latency_ms '150.00', got '%s'", record[4])
 	}
-	if record[5] != "" {
-		t.Errorf("Expected empty error, got '%s'", record[5])
+	if record[5] != "skater1|skater2" {
+		t.Errorf("Expected skater_ids 'skater1|skater2', got '%s'", record[5])
+	}
+	if record[6] != "" {
+		t.Errorf("Expected empty error, got '%s'", record[6])
 	}
 }
 
@@ -125,6 +129,7 @@ func TestViewerWriterWriteResultWithError(t *testing.T) {
 		Timestamp:    time.Now(),
 		MessageCount: 5,
 		Latency:      0,
+		SkaterIDs:    []string{},
 		Error:        &testError{"connection failed"},
 	}
 
@@ -150,7 +155,7 @@ func TestViewerWriterWriteResultWithError(t *testing.T) {
 		t.Fatalf("Expected 2 records (header + data), got %d", len(records))
 	}
 
-	errorStr := records[1][5]
+	errorStr := records[1][6]
 	if errorStr != "connection failed" {
 		t.Errorf("Expected error 'connection failed', got '%s'", errorStr)
 	}
