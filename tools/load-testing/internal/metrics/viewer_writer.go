@@ -29,7 +29,7 @@ func NewViewerWriter(filename string) (*ViewerWriter, error) {
 
 	writer := csv.NewWriter(file)
 
-	header := []string{"timestamp", "event_id", "viewer_number", "message_count", "latency_ms", "error"}
+	header := []string{"timestamp", "event_id", "viewer_number", "message_count", "latency_ms", "skater_ids", "error"}
 	if err := writer.Write(header); err != nil {
 		file.Close()
 		return nil, fmt.Errorf("failed to write CSV header: %w", err)
@@ -51,12 +51,21 @@ func (w *ViewerWriter) WriteResult(result viewer.ViewerResult) error {
 		errorStr = result.Error.Error()
 	}
 
+	skaterIDsStr := ""
+	if len(result.SkaterIDs) > 0 {
+		skaterIDsStr = result.SkaterIDs[0]
+		for i := 1; i < len(result.SkaterIDs); i++ {
+			skaterIDsStr += "|" + result.SkaterIDs[i]
+		}
+	}
+
 	record := []string{
 		result.Timestamp.Format(time.RFC3339),
 		result.EventID,
 		fmt.Sprintf("%d", result.ViewerNumber),
 		fmt.Sprintf("%d", result.MessageCount),
 		fmt.Sprintf("%.2f", float64(result.Latency.Microseconds())/1000.0),
+		skaterIDsStr,
 		errorStr,
 	}
 

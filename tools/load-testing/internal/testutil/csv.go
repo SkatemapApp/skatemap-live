@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,4 +96,47 @@ func CountRecords(t *testing.T, csvPath string) int {
 	}
 
 	return len(records) - 1
+}
+
+func ExtractSkaterIDs(t *testing.T, viewerCSVPath string) map[string]bool {
+	t.Helper()
+
+	file, err := os.Open(viewerCSVPath)
+	require.NoError(t, err, "Failed to open viewer CSV")
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	require.NoError(t, err, "Failed to read CSV")
+
+	require.Greater(t, len(records), 1, "CSV should have header + data rows")
+
+	skaterIDColumnIndex := -1
+	for i, header := range records[0] {
+		if header == "skater_ids" {
+			skaterIDColumnIndex = i
+			break
+		}
+	}
+	require.NotEqual(t, -1, skaterIDColumnIndex, "skater_ids column not found in viewer CSV")
+
+	skaterIDs := make(map[string]bool)
+	for i, record := range records {
+		if i == 0 {
+			continue
+		}
+		if len(record) != len(records[0]) {
+			t.Fatalf("Invalid CSV row %d: expected %d columns, got %d", i, len(records[0]), len(record))
+		}
+
+		skaterIDsStr := record[skaterIDColumnIndex]
+		if skaterIDsStr != "" {
+			ids := strings.Split(skaterIDsStr, "|")
+			for _, id := range ids {
+				skaterIDs[id] = true
+			}
+		}
+	}
+
+	return skaterIDs
 }

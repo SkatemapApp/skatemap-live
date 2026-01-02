@@ -40,5 +40,19 @@ func (s *SmokeTestSuite) TestEventIsolation() {
 	s.Assert().Greater(viewerACount, 5, "Event A viewer should have received messages")
 	s.Assert().Greater(viewerBCount, 5, "Event B viewer should have received messages")
 
+	skaterIDsA := testutil.ExtractSkaterIDs(t, viewerA.MetricsFile)
+	skaterIDsB := testutil.ExtractSkaterIDs(t, viewerB.MetricsFile)
+
+	t.Logf("Event A viewer saw %d unique skaters", len(skaterIDsA))
+	t.Logf("Event B viewer saw %d unique skaters", len(skaterIDsB))
+
+	for skaterID := range skaterIDsA {
+		s.Assert().False(skaterIDsB[skaterID], "Skater %s from Event A should not appear in Event B viewer", skaterID)
+	}
+
+	for skaterID := range skaterIDsB {
+		s.Assert().False(skaterIDsA[skaterID], "Skater %s from Event B should not appear in Event A viewer", skaterID)
+	}
+
 	s.Assert().False(testutil.DetectCrash(t), "No crashes should occur during event isolation test")
 }
