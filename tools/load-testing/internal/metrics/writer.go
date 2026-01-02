@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/skater"
+	"load-testing/internal/skater"
 )
 
 // Writer provides thread-safe CSV writing of load test metrics.

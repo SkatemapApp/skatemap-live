@@ -42,6 +42,7 @@ type ViewerResult struct {
 	Timestamp    time.Time
 	MessageCount int
 	Latency      time.Duration
+	SkaterIDs    []string
 	Error        error
 }
 
@@ -82,6 +83,7 @@ func (v *Viewer) Start() {
 			Timestamp:    time.Now(),
 			MessageCount: 0,
 			Latency:      0,
+			SkaterIDs:    nil,
 			Error:        fmt.Errorf("invalid URL: %w", err),
 		})
 		return
@@ -99,6 +101,7 @@ func (v *Viewer) Start() {
 			Timestamp:    time.Now(),
 			MessageCount: 0,
 			Latency:      0,
+			SkaterIDs:    nil,
 			Error:        fmt.Errorf("connection failed: %w", err),
 		})
 		return
@@ -112,6 +115,7 @@ func (v *Viewer) Start() {
 			Timestamp:    time.Now(),
 			MessageCount: 0,
 			Latency:      0,
+			SkaterIDs:    nil,
 			Error:        fmt.Errorf("failed to set read deadline: %w", err),
 		})
 		return
@@ -197,6 +201,7 @@ func (v *Viewer) receiveLoop(conn *websocket.Conn) {
 				Timestamp:    receiveTime,
 				MessageCount: messageCount,
 				Latency:      0,
+				SkaterIDs:    nil,
 				Error:        fmt.Errorf("connection error: %w", err),
 			})
 			return
@@ -210,6 +215,7 @@ func (v *Viewer) receiveLoop(conn *websocket.Conn) {
 				Timestamp:    receiveTime,
 				MessageCount: messageCount,
 				Latency:      0,
+				SkaterIDs:    nil,
 				Error:        fmt.Errorf("failed to parse message: %w", err),
 			})
 			continue
@@ -218,12 +224,18 @@ func (v *Viewer) receiveLoop(conn *websocket.Conn) {
 		messageCount++
 		latency := receiveTime.UnixMilli() - batch.ServerTime
 
+		skaterIDs := make([]string, len(batch.Locations))
+		for i, loc := range batch.Locations {
+			skaterIDs[i] = loc.SkaterID
+		}
+
 		v.sendResult(ViewerResult{
 			EventID:      v.eventID,
 			ViewerNumber: v.viewerNumber,
 			Timestamp:    receiveTime,
 			MessageCount: messageCount,
 			Latency:      time.Duration(latency) * time.Millisecond,
+			SkaterIDs:    skaterIDs,
 			Error:        nil,
 		})
 	}

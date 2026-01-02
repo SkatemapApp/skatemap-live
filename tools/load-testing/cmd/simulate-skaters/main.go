@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/metrics"
-	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/skater"
+	"load-testing/internal/metrics"
+	"load-testing/internal/skater"
 	"github.com/google/uuid"
 )
 

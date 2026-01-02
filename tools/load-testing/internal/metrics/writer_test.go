@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/skater"
+	"load-testing/internal/skater"
 )
 
 func TestNewWriter(t *testing.T) {

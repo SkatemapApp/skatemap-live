@@ -1,0 +1,48 @@
+name: Smoke Test Suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target Railway URL'
+        required: true
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Build simulation tools
+        working-directory: tools/load-testing
+        run: make build
+
+      - name: Install Railway CLI
+        run: |
+          curl -fsSL https://railway.app/install.sh | sh
+          echo "$HOME/.railway/bin" >> $GITHUB_PATH
+
+      - name: Run smoke tests
+        working-directory: tools/load-testing
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_URL: ${{ inputs.target_url || secrets.RAILWAY_PRODUCTION_URL }}
+        run: go test ./test/... -v -timeout 2h -json > smoke-test-results.json
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-results
+          path: tools/load-testing/smoke-test-results.json
