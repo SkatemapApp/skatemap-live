@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -17,7 +18,8 @@ func (s *SmokeTestSuite) SetupSuite() {
 	s.railwayURL = os.Getenv("RAILWAY_URL")
 	s.Require().NotEmpty(s.railwayURL, "RAILWAY_URL environment variable required")
 
-	resp, err := http.Get(s.railwayURL + "/health")
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(s.railwayURL + "/health")
 	s.Require().NoError(err, "Failed to connect to Railway service")
 	defer resp.Body.Close()
 
