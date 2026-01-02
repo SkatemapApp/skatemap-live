@@ -65,12 +65,20 @@ func DetectCrash(t *testing.T) bool {
 		"killed",
 		"deployment restart",
 		"crashed",
-		"exit code",
 	}
 
 	for _, indicator := range crashIndicators {
 		if strings.Contains(logStr, indicator) {
 			t.Logf("Detected crash indicator: %s", indicator)
+			return true
+		}
+	}
+
+	exitCodePattern := regexp.MustCompile(`exit code ([0-9]+)`)
+	matches := exitCodePattern.FindAllStringSubmatch(logStr, -1)
+	for _, match := range matches {
+		if len(match) > 1 && match[1] != "0" {
+			t.Logf("Detected crash indicator: exit code %s", match[1])
 			return true
 		}
 	}
