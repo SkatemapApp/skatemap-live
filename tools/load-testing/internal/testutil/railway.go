@@ -34,13 +34,14 @@ func ParseCleanupTime(t *testing.T) time.Time {
 	require.NoError(t, err, "Failed to fetch Railway logs")
 
 	cleanupPattern := regexp.MustCompile(`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z).*Cleanup completed`)
-	matches := cleanupPattern.FindStringSubmatch(string(output))
+	allMatches := cleanupPattern.FindAllStringSubmatch(string(output), -1)
 
-	if len(matches) < 2 {
+	if len(allMatches) == 0 {
 		t.Fatal("Failed to find cleanup timestamp in Railway logs")
 	}
 
-	timestamp, err := time.Parse(time.RFC3339Nano, matches[1])
+	lastMatch := allMatches[len(allMatches)-1]
+	timestamp, err := time.Parse(time.RFC3339Nano, lastMatch[1])
 	require.NoError(t, err, "Failed to parse cleanup timestamp")
 
 	return timestamp
