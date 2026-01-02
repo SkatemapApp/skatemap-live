@@ -166,23 +166,28 @@ func parseEventIDs(t *testing.T, scanner *bufio.Scanner) []string {
 	done := make(chan []string)
 
 	go func() {
+		var foundEventIDs []string
 		for scanner.Scan() {
 			line := scanner.Text()
 			t.Logf("simulate-skaters: %s", line)
 
-			if matches := eventIDPattern.FindStringSubmatch(line); len(matches) > 1 {
-				eventIDsStr := matches[1]
+			if foundEventIDs == nil {
+				if matches := eventIDPattern.FindStringSubmatch(line); len(matches) > 1 {
+					eventIDsStr := matches[1]
 
-				eventIDExtract := regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
-				eventIDs := eventIDExtract.FindAllString(eventIDsStr, -1)
+					eventIDExtract := regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
+					eventIDs := eventIDExtract.FindAllString(eventIDsStr, -1)
 
-				if len(eventIDs) > 0 {
-					done <- eventIDs
-					return
+					if len(eventIDs) > 0 {
+						foundEventIDs = eventIDs
+						done <- eventIDs
+					}
 				}
 			}
 		}
-		done <- nil
+		if foundEventIDs == nil {
+			done <- nil
+		}
 	}()
 
 	select {
