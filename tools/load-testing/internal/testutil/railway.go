@@ -33,7 +33,7 @@ func ParseCleanupTime(t *testing.T) time.Time {
 	output, err := cmd.Output()
 	require.NoError(t, err, "Failed to fetch Railway logs")
 
-	cleanupPattern := regexp.MustCompile(`(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z).*Cleanup completed`)
+	cleanupPattern := regexp.MustCompile(`(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}).*Cleanup completed`)
 	allMatches := cleanupPattern.FindAllStringSubmatch(string(output), -1)
 
 	if len(allMatches) == 0 {
@@ -41,8 +41,29 @@ func ParseCleanupTime(t *testing.T) time.Time {
 	}
 
 	lastMatch := allMatches[len(allMatches)-1]
-	timestamp, err := time.Parse(time.RFC3339Nano, lastMatch[1])
+	timestamp, err := time.Parse("2006-01-02 15:04:05", lastMatch[1])
 	require.NoError(t, err, "Failed to parse cleanup timestamp")
+
+	return timestamp
+}
+
+func ParseLastLocationUpdateTime(t *testing.T) time.Time {
+	t.Helper()
+
+	cmd := exec.Command("railway", "logs", "--tail", "500")
+	output, err := cmd.Output()
+	require.NoError(t, err, "Failed to fetch Railway logs")
+
+	updatePattern := regexp.MustCompile(`(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}).*Received location update request`)
+	allMatches := updatePattern.FindAllStringSubmatch(string(output), -1)
+
+	if len(allMatches) == 0 {
+		t.Fatal("Failed to find location update timestamp in Railway logs")
+	}
+
+	lastMatch := allMatches[len(allMatches)-1]
+	timestamp, err := time.Parse("2006-01-02 15:04:05", lastMatch[1])
+	require.NoError(t, err, "Failed to parse location update timestamp")
 
 	return timestamp
 }

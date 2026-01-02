@@ -24,16 +24,17 @@ func (s *SmokeTestSuite) TestLocationExpiry() {
 
 	time.Sleep(messageCollectionTime)
 
-	stopTime := time.Now()
 	skaters.Stop(t)
-	t.Logf("Stopped skaters at %s", stopTime.Format(time.RFC3339))
+	t.Logf("Stopped skaters")
 
 	time.Sleep(cleanupWaitTime)
 
+	lastUpdateTime := testutil.ParseLastLocationUpdateTime(t)
 	cleanupTime := testutil.ParseCleanupTime(t)
-	elapsed := cleanupTime.Sub(stopTime).Seconds()
+	elapsed := cleanupTime.Sub(lastUpdateTime).Seconds()
 
-	t.Logf("Cleanup occurred at %s (%.1f seconds after stop)", cleanupTime.Format(time.RFC3339), elapsed)
+	t.Logf("Last location update at %s (server time)", lastUpdateTime.Format(time.RFC3339))
+	t.Logf("Cleanup occurred at %s (%.1f seconds after last update)", cleanupTime.Format(time.RFC3339), elapsed)
 
 	s.Assert().InDelta(expectedCleanupTime.Seconds(), elapsed, cleanupTimeAssertionDelta.Seconds(), "Cleanup should occur within TTL + cleanup interval")
 
