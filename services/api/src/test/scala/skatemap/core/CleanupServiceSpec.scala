@@ -16,7 +16,7 @@ import scala.concurrent.Future
 class CleanupServiceSpec extends AnyWordSpec with Matchers with Eventually with MockitoSugar with ScalaFutures {
 
   implicit val defaultPatience: PatienceConfig = PatienceConfig(
-    timeout = Span(5, Seconds),
+    timeout = Span(3, Seconds),
     interval = Span(50, Millis)
   )
 

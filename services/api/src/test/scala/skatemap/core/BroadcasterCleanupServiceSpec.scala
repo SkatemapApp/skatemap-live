@@ -24,7 +24,7 @@ class BroadcasterCleanupServiceSpec
     with ScalaFutures {
 
   implicit val defaultPatience: PatienceConfig = PatienceConfig(
-    timeout = Span(5, Seconds),
+    timeout = Span(3, Seconds),
     interval = Span(50, Millis)
   )
 
