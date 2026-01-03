@@ -3,6 +3,7 @@
 set -e
 
 MAIN_BRANCH="master"
+REMOTE="origin"
 DRY_RUN=false
 
 show_help() {
@@ -20,6 +21,7 @@ show_help() {
     echo "  - Current branch"
     echo ""
     echo "Options:"
+    echo "  --remote <name>  Specify remote name (default: origin)"
     echo "  --dry-run, -n    Show which branches would be deleted without deleting them"
     echo "  --help, -h       Show this help message"
     echo ""
@@ -46,19 +48,19 @@ is_protected() {
 
 find_stale_branches() {
     local output
-    if ! output=$(git remote show origin 2>&1); then
+    if ! output=$(git remote show "$REMOTE" 2>&1); then
         echo "Warning: Could not fetch remote information" >&2
         return 0
     fi
 
     echo "$output" | grep 'stale (use' | \
-        sed 's/.*refs\/remotes\/origin\///' | \
+        sed "s/.*refs\/remotes\/$REMOTE\///" | \
         awk '{print $1}' || true
 }
 
 find_merged_branches() {
     local branches
-    if ! branches=$(git branch --merged origin/$MAIN_BRANCH 2>&1); then
+    if ! branches=$(git branch --merged "$REMOTE/$MAIN_BRANCH" 2>&1); then
         echo "Warning: Could not determine merged branches" >&2
         return 0
     fi
@@ -160,7 +162,7 @@ main() {
     fi
 
     echo "Fetching latest remote information..."
-    if ! git fetch --prune origin >/dev/null 2>&1; then
+    if ! git fetch --prune "$REMOTE" >/dev/null 2>&1; then
         echo "❌ Error: Cannot fetch from remote"
         exit 1
     fi
@@ -193,6 +195,14 @@ while [[ $# -gt 0 ]]; do
         --help|-h)
             show_help
             exit 0
+            ;;
+        --remote)
+            shift
+            if [[ -z "$1" ]]; then
+                echo "Error: --remote requires a remote name"
+                exit 1
+            fi
+            REMOTE="$1"
             ;;
         --dry-run|-n)
             DRY_RUN=true
