@@ -4,7 +4,7 @@ import org.apache.pekko.actor.ActorSystem
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpec
@@ -13,14 +13,20 @@ import play.api.inject.ApplicationLifecycle
 import skatemap.test.LogCapture
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 
 class BroadcasterCleanupServiceSpec
     extends AnyWordSpec
     with Matchers
     with Eventually
     with MockitoSugar
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with ScalaFutures {
+
+  implicit val defaultPatience: PatienceConfig = PatienceConfig(
+    timeout = Span(5, Seconds),
+    interval = Span(50, Millis)
+  )
 
   "BroadcasterCleanupService" should {
 
@@ -43,7 +49,7 @@ class BroadcasterCleanupServiceSpec
         }
       finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
@@ -67,7 +73,7 @@ class BroadcasterCleanupServiceSpec
         }
       finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
@@ -91,7 +97,7 @@ class BroadcasterCleanupServiceSpec
         }
       finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
@@ -115,7 +121,7 @@ class BroadcasterCleanupServiceSpec
         }
       finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
@@ -134,7 +140,7 @@ class BroadcasterCleanupServiceSpec
         verify(mockLifecycle).addStopHook(any[() => Future[_]])
       } finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
   }

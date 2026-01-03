@@ -4,17 +4,23 @@ import org.apache.pekko.NotUsed
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.Materializer
 import org.apache.pekko.stream.scaladsl.{Sink, Source}
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.test.FakeRequest
 import play.api.test.Helpers.stubControllerComponents
 import skatemap.core.{EventStreamService, InMemoryLocationStore, LocationConfig, StreamConfig}
 import skatemap.test.{LogCapture, StubBroadcaster, TestClock}
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
 
-class StreamControllerSpec extends AnyWordSpec with Matchers {
+class StreamControllerSpec extends AnyWordSpec with Matchers with ScalaFutures {
+
+  implicit val defaultPatience: PatienceConfig = PatienceConfig(
+    timeout = Span(3, Seconds),
+    interval = Span(50, Millis)
+  )
 
   private class MockEventStreamService
       extends EventStreamService(
@@ -100,7 +106,7 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
 
         try {
           intercept[RuntimeException] {
-            Await.result(controller.createErrorHandledStream(eventId).runWith(Sink.ignore), 1.second)
+            controller.createErrorHandledStream(eventId).runWith(Sink.ignore).futureValue
           }
 
           capture.hasMessageContaining("Stream error") should be(true)
@@ -115,12 +121,12 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
       val controller     = new StreamController(stubControllerComponents(), service)
 
       val webSocket = controller.streamEvent(invalidEventId)
-      val result    = Await.result(webSocket.apply(FakeRequest()), 1.second)
+      whenReady(webSocket.apply(FakeRequest())) { result =>
+        result.isLeft should be(true)
+        val errorResult = result.left.toOption.fold(fail("Expected Left but got Right"))(identity)
 
-      result.isLeft should be(true)
-      val errorResult = result.left.toOption.fold(fail("Expected Left but got Right"))(identity)
-
-      errorResult.header.status should be(400)
+        errorResult.header.status should be(400)
+      }
     }
 
     "accept valid UUID event ID" in {
@@ -129,9 +135,9 @@ class StreamControllerSpec extends AnyWordSpec with Matchers {
       val controller   = new StreamController(stubControllerComponents(), service)
 
       val webSocket = controller.streamEvent(validEventId)
-      val result    = Await.result(webSocket.apply(FakeRequest()), 1.second)
-
-      result.isRight should be(true)
+      whenReady(webSocket.apply(FakeRequest())) { result =>
+        result.isRight should be(true)
+      }
     }
   }
 }

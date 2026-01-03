@@ -3,7 +3,7 @@ package skatemap.core
 import org.apache.pekko.actor.ActorSystem
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
-import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpec
@@ -11,9 +11,14 @@ import org.scalatestplus.mockito.MockitoSugar
 import play.api.inject.ApplicationLifecycle
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 
-class CleanupServiceSpec extends AnyWordSpec with Matchers with Eventually with MockitoSugar {
+class CleanupServiceSpec extends AnyWordSpec with Matchers with Eventually with MockitoSugar with ScalaFutures {
+
+  implicit val defaultPatience: PatienceConfig = PatienceConfig(
+    timeout = Span(5, Seconds),
+    interval = Span(50, Millis)
+  )
 
   "CleanupService" should {
 
@@ -32,7 +37,7 @@ class CleanupServiceSpec extends AnyWordSpec with Matchers with Eventually with 
         verify(mockLifecycle).addStopHook(any[() => Future[_]])
       } finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
@@ -53,7 +58,7 @@ class CleanupServiceSpec extends AnyWordSpec with Matchers with Eventually with 
         }
       } finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
@@ -74,7 +79,7 @@ class CleanupServiceSpec extends AnyWordSpec with Matchers with Eventually with 
         }
       } finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
@@ -95,7 +100,7 @@ class CleanupServiceSpec extends AnyWordSpec with Matchers with Eventually with 
         }
       } finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
