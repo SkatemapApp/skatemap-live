@@ -102,8 +102,10 @@ display_and_confirm() {
     done
     echo ""
 
-    local protected="master"
-    [[ "$current_branch" != "master" ]] && protected="$current_branch, $protected"
+    local protected="master, main"
+    if [[ "$current_branch" != "master" ]] && [[ "$current_branch" != "main" ]]; then
+        protected="$current_branch, $protected"
+    fi
     echo "Protected: $protected"
     echo ""
 
