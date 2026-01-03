@@ -4,13 +4,13 @@ import org.apache.pekko.actor.ActorSystem
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.inject.ApplicationLifecycle
-import skatemap.test.LogCapture
+import skatemap.test.{LogCapture, ScalaFuturesSpec}
 
 import scala.concurrent.duration._
 import scala.concurrent.Future
@@ -21,12 +21,7 @@ class BroadcasterCleanupServiceSpec
     with Eventually
     with MockitoSugar
     with BeforeAndAfterAll
-    with ScalaFutures {
-
-  implicit val defaultPatience: PatienceConfig = PatienceConfig(
-    timeout = Span(3, Seconds),
-    interval = Span(50, Millis)
-  )
+    with ScalaFuturesSpec {
 
   "BroadcasterCleanupService" should {
 

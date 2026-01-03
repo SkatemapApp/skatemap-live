@@ -4,24 +4,17 @@ import org.apache.pekko.NotUsed
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.Materializer
 import org.apache.pekko.stream.scaladsl.{Sink, Source}
-import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.test.FakeRequest
 import play.api.test.Helpers.stubControllerComponents
 import skatemap.core.{EventStreamService, InMemoryLocationStore, LocationConfig, StreamConfig}
-import skatemap.test.{LogCapture, StubBroadcaster, TestClock}
+import skatemap.test.{LogCapture, ScalaFuturesSpec, StubBroadcaster, TestClock}
 
 import scala.concurrent.duration._
 
-class StreamControllerSpec extends AnyWordSpec with Matchers with ScalaFutures {
-
-  implicit val defaultPatience: PatienceConfig = PatienceConfig(
-    timeout = Span(3, Seconds),
-    interval = Span(50, Millis)
-  )
+class StreamControllerSpec extends AnyWordSpec with Matchers with ScalaFuturesSpec {
 
   private class MockEventStreamService
       extends EventStreamService(
