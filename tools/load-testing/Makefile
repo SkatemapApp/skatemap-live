@@ -2,7 +2,12 @@
 
 install-tools:
 	@echo "Installing development tools..."
-	@grep _ tools.go | awk -F'"' '{print $$2}' | xargs -I {} sh -c 'echo "  Installing {}..." && go install {}'
+	@grep _ tools.go | awk -F'"' '{print $$2}' | while read -r tool; do \
+		base=$$(echo "$$tool" | grep -oE '^[^/]+/[^/]+/[^/]+'); \
+		version=$$(go list -m -f '{{.Version}}' "$$base" 2>/dev/null || echo "latest"); \
+		echo "  Installing $$tool@$$version..."; \
+		go install "$$tool@$$version"; \
+	done
 	@echo "✓ All tools installed"
 
 help:
@@ -30,11 +35,6 @@ fmt:
 	@if ! command -v goimports > /dev/null 2>&1; then \
 		echo "Error: goimports not found in PATH"; \
 		echo "Install with: make install-tools"; \
-		exit 1; \
-	fi
-	@if ! goimports -h > /dev/null 2>&1; then \
-		echo "Error: goimports found but not working properly"; \
-		echo "Reinstall with: make install-tools"; \
 		exit 1; \
 	fi
 	goimports -w .
