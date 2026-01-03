@@ -198,6 +198,106 @@ test_hook_detects_staged_go_files() {
     rm -rf "$temp_dir"
 }
 
+test_hook_handles_missing_sbt() {
+    local temp_dir=$(mktemp -d)
+    local original_dir=$(pwd)
+    local original_path="$PATH"
+
+    cd "$temp_dir"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+    touch build.sbt
+
+    echo "object Test" > Test.scala
+    git add Test.scala
+
+    export PATH="/usr/bin:/bin"
+
+    set +e
+    local output=$("$HOOK_SCRIPT" 2>&1)
+    local exit_code=$?
+    set -e
+
+    export PATH="$original_path"
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
+
+    assert_equals "0" "$exit_code" "Hook exits successfully when sbt not found"
+    assert_contains "$output" "sbt not found in PATH" "Hook warns about missing sbt"
+}
+
+test_hook_handles_scalafmt_failure() {
+    local temp_dir=$(mktemp -d)
+    local original_dir=$(pwd)
+    local original_path="$PATH"
+    local mock_bin="$temp_dir/mock-bin"
+
+    mkdir -p "$mock_bin"
+    cat > "$mock_bin/sbt" <<'MOCK_SBT'
+#!/bin/bash
+echo "[error] scalafmt failed: syntax error" >&2
+exit 1
+MOCK_SBT
+    chmod +x "$mock_bin/sbt"
+
+    cd "$temp_dir"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+    touch build.sbt
+
+    echo "object Test" > Test.scala
+    git add Test.scala
+
+    export PATH="$mock_bin:$PATH"
+
+    set +e
+    "$HOOK_SCRIPT" >output.txt 2>&1
+    local exit_code=$?
+    local output=$(cat output.txt)
+    set -e
+
+    export PATH="$original_path"
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
+
+    assert_equals "1" "$exit_code" "Hook exits with code 1 when scalafmt fails"
+    assert_contains "$output" "scalafmt failed" "Hook displays scalafmt error"
+}
+
+test_hook_handles_missing_goimports() {
+    local temp_dir=$(mktemp -d)
+    local original_dir=$(pwd)
+    local original_path="$PATH"
+
+    cd "$temp_dir"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "package main" > main.go
+    git add main.go
+
+    export PATH="/usr/bin:/bin"
+
+    set +e
+    "$HOOK_SCRIPT" >output.txt 2>&1
+    local exit_code=$?
+    local output=$(cat output.txt)
+    set -e
+
+    export PATH="$original_path"
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
+
+    assert_equals "1" "$exit_code" "Hook exits with code 1 when goimports not found"
+    assert_contains "$output" "goimports not found" "Hook displays error about missing goimports"
+}
+
 echo "Running pre-commit hook tests..."
 echo
 
@@ -208,6 +308,9 @@ test_sbt_dir_prefers_services_api
 test_hook_exits_early_with_no_staged_files
 test_hook_detects_staged_scala_files
 test_hook_detects_staged_go_files
+test_hook_handles_missing_sbt
+test_hook_handles_scalafmt_failure
+test_hook_handles_missing_goimports
 
 echo
 echo "================================"
