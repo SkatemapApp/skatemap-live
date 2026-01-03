@@ -18,8 +18,25 @@ fi
 if [ -n "$staged_scala_files" ]; then
     echo "Running scalafmt on staged Scala files..."
 
-    # Run scalafmt on the project
-    sbt scalafmtAll > /dev/null 2>&1
+    # Find the sbt project directory (services/api)
+    sbt_dir=""
+    if [ -d "services/api" ] && [ -f "services/api/build.sbt" ]; then
+        sbt_dir="services/api"
+    elif [ -f "build.sbt" ]; then
+        sbt_dir="."
+    fi
+
+    if [ -z "$sbt_dir" ]; then
+        echo "Warning: Could not find sbt project directory, skipping scalafmt"
+    elif ! command -v sbt &> /dev/null; then
+        echo "Warning: sbt not found in PATH, skipping scalafmt"
+    else
+        scalafmt_output=$(cd "$sbt_dir" && sbt scalafmtAll 2>&1) || {
+            echo "Error: scalafmt failed" >&2
+            echo "$scalafmt_output" | grep -iE "(error|failed|exception)" >&2
+            exit 1
+        }
+    fi
 
     # Check if scalafmt made any changes to staged files
     changes_made=false
