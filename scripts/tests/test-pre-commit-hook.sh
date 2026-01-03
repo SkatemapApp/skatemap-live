@@ -147,8 +147,10 @@ test_hook_exits_early_with_no_staged_files() {
     touch file.txt
     git add file.txt
 
-    local output=$("$HOOK_SCRIPT" 2>&1 || true)
+    set +e
+    "$HOOK_SCRIPT" >/dev/null 2>&1
     local exit_code=$?
+    set -e
 
     assert_equals "0" "$exit_code" "Hook exits with code 0 when no Scala or Go files staged"
 
