@@ -2,12 +2,21 @@
 
 install-tools:
 	@echo "Installing development tools..."
-	@grep _ tools.go | awk -F'"' '{print $$2}' | while read -r tool; do \
+	@tools=$$(grep _ tools.go | awk -F'"' '{print $$2}'); \
+	failed=0; \
+	for tool in $$tools; do \
 		base=$$(echo "$$tool" | grep -oE '^[^/]+/[^/]+/[^/]+'); \
 		version=$$(go list -m -f '{{.Version}}' "$$base" 2>/dev/null || echo "latest"); \
 		echo "  Installing $$tool@$$version..."; \
-		go install "$$tool@$$version"; \
-	done
+		if ! go install "$$tool@$$version"; then \
+			echo "  ✗ Failed to install $$tool"; \
+			failed=1; \
+		fi; \
+	done; \
+	if [ $$failed -eq 1 ]; then \
+		echo "✗ Tool installation failed"; \
+		exit 1; \
+	fi
 	@echo "✓ All tools installed"
 
 help:
