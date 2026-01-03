@@ -5,6 +5,7 @@ set -e
 MAIN_BRANCH="master"
 REMOTE="origin"
 DRY_RUN=false
+PROTECTED_BRANCHES=("master" "main")
 
 show_help() {
     echo "Usage: cleanup-merged-branches.sh [OPTIONS]"
@@ -16,8 +17,9 @@ show_help() {
     echo "  - Deleted from the remote repository"
     echo ""
     echo "Protected branches (never deleted):"
-    echo "  - master"
-    echo "  - main"
+    for branch in "${PROTECTED_BRANCHES[@]}"; do
+        echo "  - $branch"
+    done
     echo "  - Current branch"
     echo ""
     echo "Options:"
@@ -39,8 +41,9 @@ is_protected() {
     local branch=$1
     local current_branch=$2
 
-    [[ "$branch" == "master" ]] && return 0
-    [[ "$branch" == "main" ]] && return 0
+    for protected in "${PROTECTED_BRANCHES[@]}"; do
+        [[ "$branch" == "$protected" ]] && return 0
+    done
     [[ "$branch" == "$current_branch" ]] && return 0
 
     return 1
@@ -152,11 +155,24 @@ delete_branches() {
     fi
 }
 
+check_git_version() {
+    local version=$(git --version | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    local major=$(echo "$version" | cut -d. -f1)
+    local minor=$(echo "$version" | cut -d. -f2)
+
+    if [[ $major -lt 2 ]] || [[ $major -eq 2 && $minor -lt 10 ]]; then
+        echo "⚠️  Warning: Git $version detected. Git 2.10+ recommended for reliable upstream tracking"
+        echo ""
+    fi
+}
+
 main() {
     if ! git rev-parse --git-dir > /dev/null 2>&1; then
         echo "❌ Error: Not a git repository"
         exit 1
     fi
+
+    check_git_version
 
     echo "Fetching latest remote information..."
     if ! git fetch --prune "$REMOTE" >/dev/null 2>&1; then
