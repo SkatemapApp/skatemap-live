@@ -45,16 +45,26 @@ is_protected() {
 }
 
 find_stale_branches() {
-    git remote show origin 2>/dev/null | \
-        grep 'stale (use' | \
+    local output
+    if ! output=$(git remote show origin 2>&1); then
+        echo "Warning: Could not fetch remote information" >&2
+        return 0
+    fi
+
+    echo "$output" | grep 'stale (use' | \
         sed 's/.*refs\/remotes\/origin\///' | \
         awk '{print $1}' || true
 }
 
 find_merged_branches() {
-    git branch --merged origin/$MAIN_BRANCH | \
-        sed 's/^[* ]*//' || true
-}
+    local branches
+    if ! branches=$(git branch --merged origin/$MAIN_BRANCH 2>&1); then
+        echo "Warning: Could not determine merged branches" >&2
+        return 0
+    fi
+
+    echo "$branches" | sed 's/^[* ]*//'}
+
 
 collect_deletable_branches() {
     local current_branch=$1
