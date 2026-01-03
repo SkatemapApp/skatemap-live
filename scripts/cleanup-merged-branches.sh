@@ -156,13 +156,25 @@ delete_branches() {
 }
 
 check_git_version() {
-    local version=$(git --version | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    local git_version_output=$(git --version 2>/dev/null)
+    local version=$(echo "$git_version_output" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+
+    if [[ -z "$version" ]]; then
+        version=$(echo "$git_version_output" | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    fi
+
+    if [[ -z "$version" ]]; then
+        return
+    fi
+
     local major=$(echo "$version" | cut -d. -f1)
     local minor=$(echo "$version" | cut -d. -f2)
 
-    if [[ $major -lt 2 ]] || [[ $major -eq 2 && $minor -lt 10 ]]; then
-        echo "⚠️  Warning: Git $version detected. Git 2.10+ recommended for reliable upstream tracking"
-        echo ""
+    if [[ -n "$major" ]] && [[ -n "$minor" ]]; then
+        if [[ $major -lt 2 ]] || [[ $major -eq 2 && $minor -lt 10 ]]; then
+            echo "⚠️  Warning: Git $version detected. Git 2.10+ recommended for reliable upstream tracking"
+            echo ""
+        fi
     fi
 }
 
