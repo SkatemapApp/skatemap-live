@@ -5,6 +5,7 @@ set -e
 MAIN_BRANCH="master"
 REMOTE="origin"
 DRY_RUN=false
+PROTECTED_BRANCHES=("master" "main")
 
 show_help() {
     echo "Usage: cleanup-merged-branches.sh [OPTIONS]"
@@ -16,8 +17,9 @@ show_help() {
     echo "  - Deleted from the remote repository"
     echo ""
     echo "Protected branches (never deleted):"
-    echo "  - master"
-    echo "  - main"
+    for branch in "${PROTECTED_BRANCHES[@]}"; do
+        echo "  - $branch"
+    done
     echo "  - Current branch"
     echo ""
     echo "Options:"
@@ -39,8 +41,9 @@ is_protected() {
     local branch=$1
     local current_branch=$2
 
-    [[ "$branch" == "master" ]] && return 0
-    [[ "$branch" == "main" ]] && return 0
+    for protected in "${PROTECTED_BRANCHES[@]}"; do
+        [[ "$branch" == "$protected" ]] && return 0
+    done
     [[ "$branch" == "$current_branch" ]] && return 0
 
     return 1
@@ -102,8 +105,17 @@ display_and_confirm() {
     done
     echo ""
 
-    local protected="master"
-    [[ "$current_branch" != "master" ]] && protected="$current_branch, $protected"
+    local protected_list="${PROTECTED_BRANCHES[*]}"
+    local protected="${protected_list// /, }"
+
+    local is_current_protected=false
+    for branch in "${PROTECTED_BRANCHES[@]}"; do
+        [[ "$current_branch" == "$branch" ]] && is_current_protected=true
+    done
+
+    if [[ "$is_current_protected" == false ]]; then
+        protected="$current_branch, $protected"
+    fi
     echo "Protected: $protected"
     echo ""
 
@@ -150,11 +162,36 @@ delete_branches() {
     fi
 }
 
+check_git_version() {
+    local git_version_output=$(git --version 2>/dev/null)
+    local version=$(echo "$git_version_output" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+
+    if [[ -z "$version" ]]; then
+        version=$(echo "$git_version_output" | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    fi
+
+    if [[ -z "$version" ]]; then
+        return
+    fi
+
+    local major=$(echo "$version" | cut -d. -f1)
+    local minor=$(echo "$version" | cut -d. -f2)
+
+    if [[ -n "$major" ]] && [[ -n "$minor" ]]; then
+        if [[ $major -lt 2 ]] || [[ $major -eq 2 && $minor -lt 10 ]]; then
+            echo "⚠️  Warning: Git $version detected. Git 2.10+ recommended for reliable upstream tracking"
+            echo ""
+        fi
+    fi
+}
+
 main() {
     if ! git rev-parse --git-dir > /dev/null 2>&1; then
         echo "❌ Error: Not a git repository"
         exit 1
     fi
+
+    check_git_version
 
     echo "Fetching latest remote information..."
     if ! git fetch --prune "$REMOTE" >/dev/null 2>&1; then
@@ -185,31 +222,33 @@ main() {
     fi
 }
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --help|-h)
-            show_help
-            exit 0
-            ;;
-        --remote)
-            shift
-            if [[ -z "$1" ]]; then
-                echo "Error: --remote requires a remote name"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            --remote)
+                shift
+                if [[ -z "$1" ]]; then
+                    echo "Error: --remote requires a remote name"
+                    exit 1
+                fi
+                REMOTE="$1"
+                ;;
+            --dry-run|-n)
+                DRY_RUN=true
+                ;;
+            *)
+                echo "Unknown option: $1"
+                echo ""
+                show_help
                 exit 1
-            fi
-            REMOTE="$1"
-            ;;
-        --dry-run|-n)
-            DRY_RUN=true
-            ;;
-        *)
-            echo "Unknown option: $1"
-            echo ""
-            show_help
-            exit 1
-            ;;
-    esac
-    shift
-done
+                ;;
+        esac
+        shift
+    done
 
-main
+    main
+fi

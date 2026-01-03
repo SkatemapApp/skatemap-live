@@ -82,3 +82,5 @@ Preview without deleting:
 ```bash
 ./scripts/cleanup-merged-branches.sh --dry-run
 ```
+
+**Requirements**: Git 2.10 or later (for `git for-each-ref` upstream tracking)
