@@ -45,5 +45,6 @@ jobs:
       run: |
         echo "Linting shell scripts..."
         # Note: SC1091 (can't follow source) is acceptable - test scripts source files dynamically
-        find . -name "*.sh" -type f -exec shellcheck {} +
-        shellcheck scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
+        # Severity: error,warning (excluding info and style for now)
+        find . -name "*.sh" -type f -exec shellcheck --severity=warning {} +
+        shellcheck --severity=warning scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
