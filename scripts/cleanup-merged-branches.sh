@@ -133,10 +133,10 @@ delete_branches() {
     for branch in "${branches[@]}"; do
         if git branch -D "$branch" >/dev/null 2>&1; then
             echo "  ✅ Deleted $branch"
-            ((success++))
+            success=$((success + 1))
         else
             echo "  ❌ Failed to delete $branch"
-            ((failed++))
+            failed=$((failed + 1))
         fi
     done
 
