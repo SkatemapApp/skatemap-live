@@ -1,11 +1,18 @@
-.PHONY: build test smoke-test help
+.PHONY: build test fmt smoke-test install-tools help
+
+install-tools:
+	@echo "Installing development tools..."
+	@grep _ tools.go | awk -F'"' '{print $$2}' | xargs -I {} sh -c 'echo "  Installing {}..." && go install {}'
+	@echo "✓ All tools installed"
 
 help:
 	@echo "Available targets:"
-	@echo "  build       - Build simulation binaries"
-	@echo "  test        - Run unit tests"
-	@echo "  smoke-test  - Run smoke tests (requires RAILWAY_URL)"
-	@echo "  help        - Show this help message"
+	@echo "  install-tools - Install development tools (goimports, etc.)"
+	@echo "  build         - Build simulation binaries"
+	@echo "  test          - Run unit tests"
+	@echo "  fmt           - Format Go files with goimports"
+	@echo "  smoke-test    - Run smoke tests (requires RAILWAY_URL)"
+	@echo "  help          - Show this help message"
 
 build:
 	@echo "Building simulation binaries..."
@@ -17,6 +24,16 @@ build:
 test:
 	@echo "Running unit tests..."
 	go test ./internal/... -v
+
+fmt:
+	@echo "Formatting Go files..."
+	@if ! command -v goimports > /dev/null 2>&1; then \
+		echo "Error: goimports not installed"; \
+		echo "Install with: make install-tools"; \
+		exit 1; \
+	fi
+	goimports -w .
+	@echo "Go files formatted successfully"
 
 smoke-test: build
 	@if [ -z "$(RAILWAY_URL)" ]; then \

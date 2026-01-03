@@ -134,4 +134,3 @@ func (s *Skater) UpdateLocation() UpdateResult {
 		Error:        nil,
 	}
 }
-
