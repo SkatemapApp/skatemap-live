@@ -105,8 +105,15 @@ display_and_confirm() {
     done
     echo ""
 
-    local protected="master, main"
-    if [[ "$current_branch" != "master" ]] && [[ "$current_branch" != "main" ]]; then
+    local protected_list="${PROTECTED_BRANCHES[*]}"
+    local protected="${protected_list// /, }"
+
+    local is_current_protected=false
+    for branch in "${PROTECTED_BRANCHES[@]}"; do
+        [[ "$current_branch" == "$branch" ]] && is_current_protected=true
+    done
+
+    if [[ "$is_current_protected" == false ]]; then
         protected="$current_branch, $protected"
     fi
     echo "Protected: $protected"
