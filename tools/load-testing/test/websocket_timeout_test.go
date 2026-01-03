@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	websocketIdleTime           = 95 * time.Second
+	websocketIdleTime            = 95 * time.Second
 	initialMessageCollectionTime = 30 * time.Second
-	resumeVerificationTime      = 15 * time.Second
+	resumeVerificationTime       = 15 * time.Second
 )
 
 func (s *SmokeTestSuite) TestWebSocketTimeout() {

@@ -1,11 +1,32 @@
-.PHONY: build test smoke-test help
+.PHONY: build test fmt smoke-test install-tools help
+
+install-tools:
+	@echo "Installing development tools..."
+	@tools=$$(grep _ tools.go | awk -F'"' '{print $$2}'); \
+	failed=0; \
+	for tool in $$tools; do \
+		base=$$(echo "$$tool" | grep -oE '^[^/]+/[^/]+/[^/]+'); \
+		version=$$(go list -m -f '{{.Version}}' "$$base" 2>/dev/null || echo "latest"); \
+		echo "  Installing $$tool@$$version..."; \
+		if ! go install "$$tool@$$version"; then \
+			echo "  ✗ Failed to install $$tool"; \
+			failed=1; \
+		fi; \
+	done; \
+	if [ $$failed -eq 1 ]; then \
+		echo "✗ Tool installation failed"; \
+		exit 1; \
+	fi
+	@echo "✓ All tools installed"
 
 help:
 	@echo "Available targets:"
-	@echo "  build       - Build simulation binaries"
-	@echo "  test        - Run unit tests"
-	@echo "  smoke-test  - Run smoke tests (requires RAILWAY_URL)"
-	@echo "  help        - Show this help message"
+	@echo "  install-tools - Install development tools (goimports, etc.)"
+	@echo "  build         - Build simulation binaries"
+	@echo "  test          - Run unit tests"
+	@echo "  fmt           - Format Go files with goimports"
+	@echo "  smoke-test    - Run smoke tests (requires RAILWAY_URL)"
+	@echo "  help          - Show this help message"
 
 build:
 	@echo "Building simulation binaries..."
@@ -17,6 +38,16 @@ build:
 test:
 	@echo "Running unit tests..."
 	go test ./internal/... -v
+
+fmt:
+	@echo "Formatting Go files..."
+	@if ! command -v goimports > /dev/null 2>&1; then \
+		echo "Error: goimports not found in PATH"; \
+		echo "Install with: make install-tools"; \
+		exit 1; \
+	fi
+	goimports -w .
+	@echo "Go files formatted successfully"
 
 smoke-test: build
 	@if [ -z "$(RAILWAY_URL)" ]; then \

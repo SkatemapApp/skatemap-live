@@ -14,6 +14,7 @@ import (
 
 	"load-testing/internal/metrics"
 	"load-testing/internal/skater"
+
 	"github.com/google/uuid"
 )
 

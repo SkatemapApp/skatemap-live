@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	stabilityTestDuration     = 30 * time.Minute
-	stabilityCheckInterval    = 5 * time.Minute
-	updateIntervalSeconds     = 3
-	approximateUpdatesPerMin  = 60 / updateIntervalSeconds
+	stabilityTestDuration    = 30 * time.Minute
+	stabilityCheckInterval   = 5 * time.Minute
+	updateIntervalSeconds    = 3
+	approximateUpdatesPerMin = 60 / updateIntervalSeconds
 )
 
 func (s *SmokeTestSuite) TestStability() {

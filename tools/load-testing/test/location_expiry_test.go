@@ -7,11 +7,11 @@ import (
 )
 
 const (
-	locationTTL              = 30 * time.Second
-	cleanupInterval          = 10 * time.Second
-	messageCollectionTime    = 30 * time.Second
-	cleanupWaitTime          = 45 * time.Second
-	expectedCleanupTime      = 35 * time.Second
+	locationTTL               = 30 * time.Second
+	cleanupInterval           = 10 * time.Second
+	messageCollectionTime     = 30 * time.Second
+	cleanupWaitTime           = 45 * time.Second
+	expectedCleanupTime       = 35 * time.Second
 	cleanupTimeAssertionDelta = 10 * time.Second
 )
 

@@ -193,6 +193,19 @@ tools/load-testing/
 
 ## Development
 
+Install development tools:
+
+```bash
+make install-tools
+```
+
+This installs all required development tools (goimports, etc.) as defined in `tools.go`.
+
+Note: Ensure `~/go/bin` is in your PATH. Add to your shell profile if needed:
+```bash
+export PATH="$HOME/go/bin:$PATH"
+```
+
 Run tests:
 
 ```bash
@@ -202,7 +215,7 @@ go test ./...
 Format code:
 
 ```bash
-go fmt ./...
+make fmt
 ```
 
 ## Future Enhancements
