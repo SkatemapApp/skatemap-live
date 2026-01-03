@@ -50,101 +50,92 @@ assert_contains() {
     fi
 }
 
-source_script_functions() {
+source_functions() {
     source "$CLEANUP_SCRIPT"
 }
 
-test_protected_branches_display_master_main() {
-    local temp_dir=$(mktemp -d)
-    local original_dir=$(pwd)
+test_is_protected_function() {
+    source_functions
 
-    cd "$temp_dir"
-    git init -q
-    git config user.email "test@test.com"
-    git config user.name "Test"
-
-    local current_branch="feature-branch"
-    local protected="master, main"
-    if [[ "$current_branch" != "master" ]] && [[ "$current_branch" != "main" ]]; then
-        protected="$current_branch, $protected"
+    if is_protected "master" "feature"; then
+        echo -e "${GREEN}✓${NC} is_protected returns true for master"
+        pass_count=$((pass_count + 1))
+    else
+        echo -e "${RED}✗${NC} is_protected should return true for master"
+        fail_count=$((fail_count + 1))
     fi
+    test_count=$((test_count + 1))
 
-    assert_contains "$protected" "master" "Protected branches display contains master"
-    assert_contains "$protected" "main" "Protected branches display contains main"
-    assert_contains "$protected" "feature-branch" "Protected branches display contains current branch"
+    if is_protected "main" "feature"; then
+        echo -e "${GREEN}✓${NC} is_protected returns true for main"
+        pass_count=$((pass_count + 1))
+    else
+        echo -e "${RED}✗${NC} is_protected should return true for main"
+        fail_count=$((fail_count + 1))
+    fi
+    test_count=$((test_count + 1))
 
-    cd "$original_dir"
-    rm -rf "$temp_dir"
+    if is_protected "feature" "feature"; then
+        echo -e "${GREEN}✓${NC} is_protected returns true for current branch"
+        pass_count=$((pass_count + 1))
+    else
+        echo -e "${RED}✗${NC} is_protected should return true for current branch"
+        fail_count=$((fail_count + 1))
+    fi
+    test_count=$((test_count + 1))
+
+    if ! is_protected "feature" "master"; then
+        echo -e "${GREEN}✓${NC} is_protected returns false for non-protected branch"
+        pass_count=$((pass_count + 1))
+    else
+        echo -e "${RED}✗${NC} is_protected should return false for non-protected branch"
+        fail_count=$((fail_count + 1))
+    fi
+    test_count=$((test_count + 1))
+}
+
+test_protected_branches_display_master_main() {
+    source_functions
+    DRY_RUN=true
+
+    local output=$(display_and_confirm "feature-branch" "old-feature" 2>&1)
+
+    assert_contains "$output" "master" "Protected branches display contains master"
+    assert_contains "$output" "main" "Protected branches display contains main"
+    assert_contains "$output" "feature-branch" "Protected branches display contains current branch"
 }
 
 test_current_branch_not_duplicated_when_master() {
-    local temp_dir=$(mktemp -d)
-    local original_dir=$(pwd)
+    source_functions
+    DRY_RUN=true
 
-    cd "$temp_dir"
-    git init -q
-    git config user.email "test@test.com"
-    git config user.name "Test"
+    local output=$(display_and_confirm "master" "old-feature" 2>&1)
 
-    local current_branch="master"
-    local protected="master, main"
-    if [[ "$current_branch" != "master" ]] && [[ "$current_branch" != "main" ]]; then
-        protected="$current_branch, $protected"
-    fi
-
-    local count=$(echo "$protected" | grep -o "master" | wc -l | tr -d ' ')
-    assert_equals "1" "$count" "Master not duplicated when current branch is master"
-
-    cd "$original_dir"
-    rm -rf "$temp_dir"
+    assert_contains "$output" "Protected: master, main" "Master not duplicated in protected list when current branch is master"
 }
 
 test_current_branch_not_duplicated_when_main() {
-    local temp_dir=$(mktemp -d)
-    local original_dir=$(pwd)
+    source_functions
+    DRY_RUN=true
 
-    cd "$temp_dir"
-    git init -q
-    git config user.email "test@test.com"
-    git config user.name "Test"
+    local output=$(display_and_confirm "main" "old-feature" 2>&1)
 
-    local current_branch="main"
-    local protected="master, main"
-    if [[ "$current_branch" != "master" ]] && [[ "$current_branch" != "main" ]]; then
-        protected="$current_branch, $protected"
-    fi
-
-    local count=$(echo "$protected" | grep -o "main" | wc -l | tr -d ' ')
-    assert_equals "1" "$count" "Main not duplicated when current branch is main"
-
-    cd "$original_dir"
-    rm -rf "$temp_dir"
+    assert_contains "$output" "Protected: master, main" "Main not duplicated in protected list when current branch is main"
 }
 
 test_current_branch_prepended_when_feature_branch() {
-    local temp_dir=$(mktemp -d)
-    local original_dir=$(pwd)
+    source_functions
+    DRY_RUN=true
 
-    cd "$temp_dir"
-    git init -q
-    git config user.email "test@test.com"
-    git config user.name "Test"
+    local output=$(display_and_confirm "feature-xyz" "old-feature" 2>&1)
 
-    local current_branch="feature-xyz"
-    local protected="master, main"
-    if [[ "$current_branch" != "master" ]] && [[ "$current_branch" != "main" ]]; then
-        protected="$current_branch, $protected"
-    fi
-
-    assert_equals "feature-xyz, master, main" "$protected" "Feature branch prepended to protected list"
-
-    cd "$original_dir"
-    rm -rf "$temp_dir"
+    assert_contains "$output" "Protected: feature-xyz, master, main" "Feature branch prepended to protected list"
 }
 
 echo "Running cleanup-merged-branches tests..."
 echo
 
+test_is_protected_function
 test_protected_branches_display_master_main
 test_current_branch_not_duplicated_when_master
 test_current_branch_not_duplicated_when_main

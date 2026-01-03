@@ -215,31 +215,33 @@ main() {
     fi
 }
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --help|-h)
-            show_help
-            exit 0
-            ;;
-        --remote)
-            shift
-            if [[ -z "$1" ]]; then
-                echo "Error: --remote requires a remote name"
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help|-h)
+                show_help
+                exit 0
+                ;;
+            --remote)
+                shift
+                if [[ -z "$1" ]]; then
+                    echo "Error: --remote requires a remote name"
+                    exit 1
+                fi
+                REMOTE="$1"
+                ;;
+            --dry-run|-n)
+                DRY_RUN=true
+                ;;
+            *)
+                echo "Unknown option: $1"
+                echo ""
+                show_help
                 exit 1
-            fi
-            REMOTE="$1"
-            ;;
-        --dry-run|-n)
-            DRY_RUN=true
-            ;;
-        *)
-            echo "Unknown option: $1"
-            echo ""
-            show_help
-            exit 1
-            ;;
-    esac
-    shift
-done
+                ;;
+        esac
+        shift
+    done
 
-main
+    main
+fi
