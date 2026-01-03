@@ -5,6 +5,7 @@ import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.Materializer
 import org.apache.pekko.stream.scaladsl.{Sink, Source}
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.exceptions.TestFailedException
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpec
@@ -105,9 +106,12 @@ class StreamControllerSpec extends AnyWordSpec with Matchers with ScalaFutures {
         implicit val mat: Materializer   = Materializer(system)
 
         try {
-          intercept[RuntimeException] {
+          val caught = intercept[TestFailedException] {
             controller.createErrorHandledStream(eventId).runWith(Sink.ignore).futureValue
           }
+          caught.cause.fold(fail("Expected TestFailedException with a cause"))(cause =>
+            cause shouldBe a[RuntimeException]
+          )
 
           capture.hasMessageContaining("Stream error") should be(true)
         } finally
