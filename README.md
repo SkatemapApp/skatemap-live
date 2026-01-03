@@ -66,7 +66,7 @@ Install git hooks for commit message validation and code formatting:
 ```
 
 This installs:
-- **pre-commit**: Formats Scala and Go files automatically
+- **pre-commit**: Formats Scala, Go, and shell files automatically
 - **commit-msg**: Validates conventional commit message format
 
 ### Branch Cleanup
