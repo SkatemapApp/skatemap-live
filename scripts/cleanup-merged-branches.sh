@@ -48,7 +48,7 @@ is_protected() {
 
 find_stale_branches() {
     git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads/ 2>/dev/null | \
-        awk '$2 == "[gone]" {print $1}' || true
+        awk '$2 == "[gone]" {printf "%s%c", $1, 0}' || true
 }
 
 find_merged_branches() {
@@ -58,8 +58,10 @@ find_merged_branches() {
         return 0
     fi
 
-    echo "$branches" | sed 's/^[* ]*//'}
-
+    echo "$branches" | sed 's/^[* ]*//' | while IFS= read -r branch; do
+        [[ -n "$branch" ]] && printf '%s\0' "$branch"
+    done
+}
 
 collect_deletable_branches() {
     local current_branch=$1
@@ -69,9 +71,9 @@ collect_deletable_branches() {
     find_stale_branches >> "$temp_file"
     find_merged_branches >> "$temp_file"
 
-    sort -u "$temp_file" | while IFS= read -r branch; do
+    sort -uz "$temp_file" | while IFS= read -r -d '' branch; do
         if [[ -n "$branch" ]] && ! is_protected "$branch" "$current_branch"; then
-            echo "$branch"
+            printf '%s\0' "$branch"
         fi
     done
 
@@ -173,7 +175,7 @@ main() {
     collect_deletable_branches "$current_branch" > "$temp_branches"
 
     local -a deletable_branches
-    while IFS= read -r branch; do
+    while IFS= read -r -d '' branch; do
         deletable_branches+=("$branch")
     done < "$temp_branches"
     rm -f "$temp_branches"
