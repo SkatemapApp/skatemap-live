@@ -298,6 +298,97 @@ test_hook_handles_missing_goimports() {
     assert_contains "$output" "goimports not found" "Hook displays error about missing goimports"
 }
 
+test_hook_formats_scala_files_integration() {
+    local temp_dir=$(mktemp -d)
+    local original_dir=$(pwd)
+    local original_path="$PATH"
+    local mock_bin="$temp_dir/mock-bin"
+
+    mkdir -p "$mock_bin"
+    cat > "$mock_bin/sbt" <<'MOCK_SBT'
+#!/bin/bash
+find . -name "*.scala" -type f | while read -r file; do
+    echo "// formatted" >> "$file"
+done
+exit 0
+MOCK_SBT
+    chmod +x "$mock_bin/sbt"
+
+    cd "$temp_dir"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+    touch build.sbt
+
+    echo "object Test" > Test.scala
+    git add Test.scala
+
+    export PATH="$mock_bin:$PATH"
+
+    set +e
+    "$HOOK_SCRIPT" >output.txt 2>&1
+    local exit_code=$?
+    local output=$(cat output.txt)
+    set -e
+
+    export PATH="$original_path"
+
+    local formatted_content=$(cat Test.scala)
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
+
+    assert_equals "0" "$exit_code" "Hook exits successfully after formatting"
+    assert_contains "$output" "Formatted: Test.scala" "Hook reports formatted file"
+    assert_contains "$formatted_content" "// formatted" "File was actually formatted"
+}
+
+test_hook_formats_go_files_integration() {
+    local temp_dir=$(mktemp -d)
+    local original_dir=$(pwd)
+    local original_path="$PATH"
+    local mock_bin="$temp_dir/mock-bin"
+
+    mkdir -p "$mock_bin"
+    cat > "$mock_bin/goimports" <<'MOCK_GOIMPORTS'
+#!/bin/bash
+for file in "$@"; do
+    if [[ "$file" != "-w" ]]; then
+        echo "// formatted by goimports" >> "$file"
+    fi
+done
+exit 0
+MOCK_GOIMPORTS
+    chmod +x "$mock_bin/goimports"
+
+    cd "$temp_dir"
+    git init -q
+    git config user.email "test@test.com"
+    git config user.name "Test"
+
+    echo "package main" > main.go
+    git add main.go
+
+    export PATH="$mock_bin:$PATH"
+
+    set +e
+    "$HOOK_SCRIPT" >output.txt 2>&1
+    local exit_code=$?
+    local output=$(cat output.txt)
+    set -e
+
+    export PATH="$original_path"
+
+    local formatted_content=$(cat main.go)
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
+
+    assert_equals "0" "$exit_code" "Hook exits successfully after formatting Go files"
+    assert_contains "$output" "Formatted: main.go" "Hook reports formatted Go file"
+    assert_contains "$formatted_content" "// formatted by goimports" "Go file was actually formatted"
+}
+
 echo "Running pre-commit hook tests..."
 echo
 
@@ -311,6 +402,8 @@ test_hook_detects_staged_go_files
 test_hook_handles_missing_sbt
 test_hook_handles_scalafmt_failure
 test_hook_handles_missing_goimports
+test_hook_formats_scala_files_integration
+test_hook_formats_go_files_integration
 
 echo
 echo "================================"
