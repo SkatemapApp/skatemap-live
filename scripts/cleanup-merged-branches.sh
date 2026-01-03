@@ -163,8 +163,11 @@ delete_branches() {
 }
 
 check_git_version() {
-  local git_version_output=$(git --version 2>/dev/null)
-  local version=$(echo "$git_version_output" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+  local git_version_output
+  git_version_output=$(git --version 2>/dev/null)
+
+  local version
+  version=$(echo "$git_version_output" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
 
   if [[ -z "$version" ]]; then
     version=$(echo "$git_version_output" | grep -oE '[0-9]+\.[0-9]+' | head -1)
@@ -174,8 +177,10 @@ check_git_version() {
     return
   fi
 
-  local major=$(echo "$version" | cut -d. -f1)
-  local minor=$(echo "$version" | cut -d. -f2)
+  local major
+  major=$(echo "$version" | cut -d. -f1)
+  local minor
+  minor=$(echo "$version" | cut -d. -f2)
 
   if [[ -n "$major" ]] && [[ -n "$minor" ]]; then
     if [[ $major -lt 2 ]] || [[ $major -eq 2 && $minor -lt 10 ]]; then
