@@ -47,15 +47,8 @@ is_protected() {
 }
 
 find_stale_branches() {
-    local output
-    if ! output=$(git remote show "$REMOTE" 2>&1); then
-        echo "Warning: Could not fetch remote information" >&2
-        return 0
-    fi
-
-    echo "$output" | grep 'stale (use' | \
-        sed "s/.*refs\/remotes\/$REMOTE\///" | \
-        awk '{print $1}' || true
+    git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads/ 2>/dev/null | \
+        awk '$2 == "[gone]" {print $1}' || true
 }
 
 find_merged_branches() {
