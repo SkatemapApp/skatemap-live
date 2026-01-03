@@ -52,7 +52,7 @@ assert_contains() {
 
 test_sbt_dir_detection_in_services_api() {
     local temp_dir=$(mktemp -d)
-    trap "rm -rf $temp_dir" EXIT
+    local original_dir=$(pwd)
 
     mkdir -p "$temp_dir/services/api"
     touch "$temp_dir/services/api/build.sbt"
@@ -67,11 +67,14 @@ test_sbt_dir_detection_in_services_api() {
     fi
 
     assert_equals "services/api" "$sbt_dir" "Detects sbt project in services/api"
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
 }
 
 test_sbt_dir_detection_in_root() {
     local temp_dir=$(mktemp -d)
-    trap "rm -rf $temp_dir" EXIT
+    local original_dir=$(pwd)
 
     touch "$temp_dir/build.sbt"
 
@@ -85,11 +88,14 @@ test_sbt_dir_detection_in_root() {
     fi
 
     assert_equals "." "$sbt_dir" "Detects sbt project in root directory"
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
 }
 
 test_sbt_dir_detection_none_found() {
     local temp_dir=$(mktemp -d)
-    trap "rm -rf $temp_dir" EXIT
+    local original_dir=$(pwd)
 
     cd "$temp_dir"
 
@@ -101,11 +107,14 @@ test_sbt_dir_detection_none_found() {
     fi
 
     assert_equals "" "$sbt_dir" "Returns empty when no sbt project found"
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
 }
 
 test_sbt_dir_prefers_services_api() {
     local temp_dir=$(mktemp -d)
-    trap "rm -rf $temp_dir" EXIT
+    local original_dir=$(pwd)
 
     mkdir -p "$temp_dir/services/api"
     touch "$temp_dir/services/api/build.sbt"
@@ -121,11 +130,14 @@ test_sbt_dir_prefers_services_api() {
     fi
 
     assert_equals "services/api" "$sbt_dir" "Prefers services/api over root when both exist"
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
 }
 
 test_hook_exits_early_with_no_staged_files() {
     local temp_dir=$(mktemp -d)
-    trap "rm -rf $temp_dir" EXIT
+    local original_dir=$(pwd)
 
     cd "$temp_dir"
     git init -q
@@ -139,11 +151,14 @@ test_hook_exits_early_with_no_staged_files() {
     local exit_code=$?
 
     assert_equals "0" "$exit_code" "Hook exits with code 0 when no Scala or Go files staged"
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
 }
 
 test_hook_detects_staged_scala_files() {
     local temp_dir=$(mktemp -d)
-    trap "rm -rf $temp_dir" EXIT
+    local original_dir=$(pwd)
 
     cd "$temp_dir"
     git init -q
@@ -156,11 +171,14 @@ test_hook_detects_staged_scala_files() {
     staged_scala_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.scala$' || true)
 
     assert_contains "$staged_scala_files" "Test.scala" "Detects staged Scala files"
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
 }
 
 test_hook_detects_staged_go_files() {
     local temp_dir=$(mktemp -d)
-    trap "rm -rf $temp_dir" EXIT
+    local original_dir=$(pwd)
 
     cd "$temp_dir"
     git init -q
@@ -173,6 +191,9 @@ test_hook_detects_staged_go_files() {
     staged_go_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
 
     assert_contains "$staged_go_files" "main.go" "Detects staged Go files"
+
+    cd "$original_dir"
+    rm -rf "$temp_dir"
 }
 
 echo "Running pre-commit hook tests..."
