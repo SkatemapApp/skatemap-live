@@ -28,8 +28,13 @@ test:
 fmt:
 	@echo "Formatting Go files..."
 	@if ! command -v goimports > /dev/null 2>&1; then \
-		echo "Error: goimports not installed"; \
+		echo "Error: goimports not found in PATH"; \
 		echo "Install with: make install-tools"; \
+		exit 1; \
+	fi
+	@if ! goimports -h > /dev/null 2>&1; then \
+		echo "Error: goimports found but not working properly"; \
+		echo "Reinstall with: make install-tools"; \
 		exit 1; \
 	fi
 	goimports -w .

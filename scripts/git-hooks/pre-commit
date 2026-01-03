@@ -45,8 +45,14 @@ if [ -n "$staged_go_files" ]; then
     echo "Running goimports on staged Go files..."
 
     if ! command -v goimports &> /dev/null; then
-        echo "Error: goimports not found."
-        echo "Install with: cd tools/load-testing && make install-tools"
+        echo "Error: goimports not found in PATH"
+        if [ -f "$HOME/go/bin/goimports" ]; then
+            echo "goimports is installed at ~/go/bin/goimports but not in PATH"
+            echo "Add to your shell profile: export PATH=\"\$HOME/go/bin:\$PATH\""
+        else
+            echo "Install with: cd tools/load-testing && make install-tools"
+            echo "Then ensure ~/go/bin is in your PATH"
+        fi
         exit 1
     fi
 

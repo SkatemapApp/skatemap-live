@@ -34,4 +34,12 @@ echo "Prerequisites for pre-commit hook:"
 echo "  - sbt (for Scala formatting)"
 echo "  - goimports (for Go formatting)"
 echo "    Install with: cd tools/load-testing && make install-tools"
-echo "    Ensure ~/go/bin is in your PATH"
+echo ""
+
+if [[ ":$PATH:" != *":$HOME/go/bin:"* ]]; then
+    echo "⚠️  WARNING: ~/go/bin is not in your PATH"
+    echo "   Go tools will not be found by the pre-commit hook"
+    echo "   Add to your shell profile (.bashrc, .zshrc, etc.):"
+    echo "   export PATH=\"\$HOME/go/bin:\$PATH\""
+    echo ""
+fi
