@@ -1,43 +1,46 @@
 #!/bin/bash
 
-# Pre-commit hook to format Scala files with scalafmt
-# This hook runs scalafmt on all staged Scala files and adds them back to the commit
+# Pre-commit hook to format Scala and Go files
+# This hook runs scalafmt on Scala files and goimports on Go files
 
 set -e
 
-# Check if there are any staged Scala files
+# Check if there are any staged Scala or Go files
 staged_scala_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.scala$' || true)
+staged_go_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
 
-if [ -z "$staged_scala_files" ]; then
-    # No Scala files staged, exit successfully
+# Exit early only if neither Scala nor Go files are staged
+if [ -z "$staged_scala_files" ] && [ -z "$staged_go_files" ]; then
     exit 0
 fi
 
-echo "Running scalafmt on staged Scala files..."
+# Format Scala files if any are staged
+if [ -n "$staged_scala_files" ]; then
+    echo "Running scalafmt on staged Scala files..."
 
-# Run scalafmt on the project
-sbt scalafmtAll > /dev/null 2>&1
+    # Run scalafmt on the project
+    sbt scalafmtAll > /dev/null 2>&1
 
-# Check if scalafmt made any changes to staged files
-changes_made=false
-for file in $staged_scala_files; do
-    if git diff --name-only | grep -q "^$file$"; then
-        changes_made=true
-        echo "Formatted: $file"
-        # Re-add the formatted file to the staging area
-        git add "$file"
+    # Check if scalafmt made any changes to staged files
+    changes_made=false
+    for file in $staged_scala_files; do
+        if git diff --name-only | grep -q "^$file$"; then
+            changes_made=true
+            echo "Formatted: $file"
+            # Re-add the formatted file to the staging area
+            git add "$file"
+        fi
+    done
+
+    if [ "$changes_made" = true ]; then
+        echo "Scala files have been formatted and re-staged."
+        echo "Please review the changes and commit again if needed."
     fi
-done
 
-if [ "$changes_made" = true ]; then
-    echo "Scala files have been formatted and re-staged."
-    echo "Please review the changes and commit again if needed."
+    echo "Pre-commit scalafmt check completed successfully."
 fi
 
-echo "Pre-commit scalafmt check completed successfully."
-
-staged_go_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
-
+# Format Go files if any are staged
 if [ -n "$staged_go_files" ]; then
     echo "Running goimports on staged Go files..."
 
