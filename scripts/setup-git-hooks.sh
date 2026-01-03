@@ -38,6 +38,13 @@ echo "  - shfmt (for shell script formatting)"
 echo "    Install with: brew install shfmt"
 echo ""
 
+if command -v shfmt &>/dev/null; then
+  echo "✅ shfmt is installed and ready"
+else
+  echo "⚠️  shfmt not found - install with: brew install shfmt"
+fi
+echo ""
+
 if [[ ":$PATH:" != *":$HOME/go/bin:"* ]]; then
   echo "⚠️  WARNING: ~/go/bin is not in your PATH"
   echo "   Go tools will not be found by the pre-commit hook"
