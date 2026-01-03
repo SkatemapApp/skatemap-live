@@ -44,5 +44,6 @@ jobs:
     - name: Lint shell scripts
       run: |
         echo "Linting shell scripts..."
+        # Note: SC1091 (can't follow source) is acceptable - test scripts source files dynamically
         find . -name "*.sh" -type f -exec shellcheck {} +
         shellcheck scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
