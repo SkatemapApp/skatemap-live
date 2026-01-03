@@ -111,7 +111,8 @@ if jcmd "$APP_PID" GC.heap_dump "$HEAP_DUMP_1" 2>&1 | grep -q "Heap dump file cr
   echo "Heap dump saved: $HEAP_DUMP_1"
 else
   echo "WARNING: Final heap dump failed - using most recent periodic dump"
-  HEAP_DUMP_1=$(find "$HEAP_DUMP_DIR" -name "at-*min-$TIMESTAMP.hprof" -type f -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+  # shellcheck disable=SC2012
+  HEAP_DUMP_1=$(ls -t "$HEAP_DUMP_DIR"/at-*min-"$TIMESTAMP".hprof 2>/dev/null | head -1)
   if [ -n "$HEAP_DUMP_1" ]; then
     echo "Most recent heap dump: $HEAP_DUMP_1"
   else
@@ -157,12 +158,13 @@ echo "=========================================="
 echo "Profiling Complete"
 echo "=========================================="
 echo "Heap dumps:"
-PERIODIC_DUMPS=$(find "$HEAP_DUMP_DIR" -name "at-*min-$TIMESTAMP.hprof" -type f -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null)
+# shellcheck disable=SC2012
+PERIODIC_DUMPS=$(ls -t "$HEAP_DUMP_DIR"/at-*min-"$TIMESTAMP".hprof 2>/dev/null)
 if [ -n "$PERIODIC_DUMPS" ]; then
   echo "  Periodic dumps (during load):"
   while IFS= read -r dump; do
     echo "    $(basename "$dump")"
-  done <<< "$PERIODIC_DUMPS"
+  done <<<"$PERIODIC_DUMPS"
 fi
 if [ -n "$HEAP_DUMP_1" ] && [ -f "$HEAP_DUMP_1" ]; then
   echo "  After load: $(basename "$HEAP_DUMP_1")"
@@ -179,7 +181,8 @@ echo "  Load test:   /tmp/load-test-$TIMESTAMP.log"
 echo ""
 echo "Next steps:"
 echo "  1. Open most recent heap dump in Eclipse MAT:"
-LATEST_DUMP=$(find "$HEAP_DUMP_DIR" -name "*-$TIMESTAMP.hprof" -type f -print0 2>/dev/null | xargs -0 ls -t 2>/dev/null | head -1)
+# shellcheck disable=SC2012
+LATEST_DUMP=$(ls -t "$HEAP_DUMP_DIR"/*-"$TIMESTAMP".hprof 2>/dev/null | head -1)
 if [ -n "$LATEST_DUMP" ]; then
   echo "     open -a \"Memory Analyzer\" \"$LATEST_DUMP\""
 fi
