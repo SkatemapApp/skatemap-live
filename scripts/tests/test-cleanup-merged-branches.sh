@@ -11,9 +11,9 @@ fail_count=0
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# shellcheck disable=SC2329
 assert_equals() {
   local expected="$1"
   local actual="$2"
@@ -51,6 +51,7 @@ assert_contains() {
 }
 
 source_functions() {
+  # shellcheck source=../cleanup-merged-branches.sh
   source "$CLEANUP_SCRIPT"
 }
 
@@ -96,9 +97,11 @@ test_is_protected_function() {
 
 test_protected_branches_display_master_main() {
   source_functions
+  # shellcheck disable=SC2034
   DRY_RUN=true
 
-  local output=$(display_and_confirm "feature-branch" "old-feature" 2>&1)
+  local output
+  output=$(display_and_confirm "feature-branch" "old-feature" 2>&1)
 
   assert_contains "$output" "master" "Protected branches display contains master"
   assert_contains "$output" "main" "Protected branches display contains main"
@@ -107,27 +110,33 @@ test_protected_branches_display_master_main() {
 
 test_current_branch_not_duplicated_when_master() {
   source_functions
+  # shellcheck disable=SC2034
   DRY_RUN=true
 
-  local output=$(display_and_confirm "master" "old-feature" 2>&1)
+  local output
+  output=$(display_and_confirm "master" "old-feature" 2>&1)
 
   assert_contains "$output" "Protected: master, main" "Master not duplicated in protected list when current branch is master"
 }
 
 test_current_branch_not_duplicated_when_main() {
   source_functions
+  # shellcheck disable=SC2034
   DRY_RUN=true
 
-  local output=$(display_and_confirm "main" "old-feature" 2>&1)
+  local output
+  output=$(display_and_confirm "main" "old-feature" 2>&1)
 
   assert_contains "$output" "Protected: master, main" "Main not duplicated in protected list when current branch is main"
 }
 
 test_current_branch_prepended_when_feature_branch() {
   source_functions
+  # shellcheck disable=SC2034
   DRY_RUN=true
 
-  local output=$(display_and_confirm "feature-xyz" "old-feature" 2>&1)
+  local output
+  output=$(display_and_confirm "feature-xyz" "old-feature" 2>&1)
 
   assert_contains "$output" "Protected: feature-xyz, master, main" "Feature branch prepended to protected list"
 }
