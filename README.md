@@ -54,3 +54,31 @@ This project follows a monorepo structure:
 - **`tools/`**: Development and operations tooling
 
 Each directory owns its build system and dependencies.
+
+## Development
+
+### Git Hooks
+
+Install git hooks for commit message validation and code formatting:
+
+```bash
+./scripts/setup-git-hooks.sh
+```
+
+This installs:
+- **pre-commit**: Formats Scala and Go files automatically
+- **commit-msg**: Validates conventional commit message format
+
+### Branch Cleanup
+
+Clean up local branches that have been merged:
+
+```bash
+./scripts/cleanup-merged-branches.sh
+```
+
+Preview without deleting:
+
+```bash
+./scripts/cleanup-merged-branches.sh --dry-run
+```
