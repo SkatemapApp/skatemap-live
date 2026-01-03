@@ -10,17 +10,18 @@ import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.inject.ApplicationLifecycle
-import skatemap.test.LogCapture
+import skatemap.test.{LogCapture, ScalaFuturesSpec}
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 
 class BroadcasterCleanupServiceSpec
     extends AnyWordSpec
     with Matchers
     with Eventually
     with MockitoSugar
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with ScalaFuturesSpec {
 
   "BroadcasterCleanupService" should {
 
@@ -43,7 +44,7 @@ class BroadcasterCleanupServiceSpec
         }
       finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
@@ -67,7 +68,7 @@ class BroadcasterCleanupServiceSpec
         }
       finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
@@ -91,7 +92,7 @@ class BroadcasterCleanupServiceSpec
         }
       finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
@@ -115,7 +116,7 @@ class BroadcasterCleanupServiceSpec
         }
       finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
 
@@ -134,7 +135,7 @@ class BroadcasterCleanupServiceSpec
         verify(mockLifecycle).addStopHook(any[() => Future[_]])
       } finally {
         actorSystem.terminate()
-        Await.result(actorSystem.whenTerminated, 5.seconds)
+        actorSystem.whenTerminated.futureValue
       }
     }
   }
