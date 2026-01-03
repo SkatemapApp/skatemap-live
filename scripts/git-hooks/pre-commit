@@ -26,14 +26,16 @@ if [ -n "$staged_scala_files" ]; then
         sbt_dir="."
     fi
 
-    if [ -n "$sbt_dir" ]; then
+    if [ -z "$sbt_dir" ]; then
+        echo "Warning: Could not find sbt project directory, skipping scalafmt"
+    elif ! command -v sbt &> /dev/null; then
+        echo "Warning: sbt not found in PATH, skipping scalafmt"
+    else
         scalafmt_output=$(cd "$sbt_dir" && sbt scalafmtAll 2>&1) || {
             echo "Error: scalafmt failed" >&2
             echo "$scalafmt_output" | grep -iE "(error|failed|exception)" >&2
             exit 1
         }
-    else
-        echo "Warning: Could not find sbt project directory, skipping scalafmt"
     fi
 
     # Check if scalafmt made any changes to staged files
