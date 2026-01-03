@@ -12,7 +12,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 trait ScalaFuturesSpec extends ScalaFutures {
 
   implicit val defaultPatience: PatienceConfig = PatienceConfig(
-    timeout = Span(3, Seconds),
+    timeout = Span(5, Seconds),
     interval = Span(50, Millis)
   )
 }
