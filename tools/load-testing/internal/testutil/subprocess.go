@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -124,9 +125,7 @@ func StartViewers(t *testing.T, targetURL string, eventIDs []string) *Process {
 		"--metrics-file", metricsFile,
 	}
 
-	for _, eventID := range eventIDs {
-		args = append(args, "--events", eventID)
-	}
+	args = append(args, "--events", strings.Join(eventIDs, ","))
 
 	cmd := exec.Command("../bin/simulate-viewers", args...)
 
