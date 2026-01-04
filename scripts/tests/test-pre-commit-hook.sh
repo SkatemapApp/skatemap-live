@@ -11,7 +11,6 @@ fail_count=0
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 NC='\033[0m'
 
 assert_equals() {
@@ -51,8 +50,10 @@ assert_contains() {
 }
 
 test_sbt_dir_detection_in_services_api() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
 
   mkdir -p "$temp_dir/services/api"
   touch "$temp_dir/services/api/build.sbt"
@@ -73,8 +74,10 @@ test_sbt_dir_detection_in_services_api() {
 }
 
 test_sbt_dir_detection_in_root() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
 
   touch "$temp_dir/build.sbt"
 
@@ -94,8 +97,10 @@ test_sbt_dir_detection_in_root() {
 }
 
 test_sbt_dir_detection_none_found() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
 
   cd "$temp_dir"
 
@@ -113,8 +118,10 @@ test_sbt_dir_detection_none_found() {
 }
 
 test_sbt_dir_prefers_services_api() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
 
   mkdir -p "$temp_dir/services/api"
   touch "$temp_dir/services/api/build.sbt"
@@ -136,8 +143,10 @@ test_sbt_dir_prefers_services_api() {
 }
 
 test_hook_exits_early_with_no_staged_files() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
 
   cd "$temp_dir"
   git init -q
@@ -159,8 +168,10 @@ test_hook_exits_early_with_no_staged_files() {
 }
 
 test_hook_detects_staged_scala_files() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
 
   cd "$temp_dir"
   git init -q
@@ -179,8 +190,10 @@ test_hook_detects_staged_scala_files() {
 }
 
 test_hook_detects_staged_go_files() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
 
   cd "$temp_dir"
   git init -q
@@ -199,8 +212,10 @@ test_hook_detects_staged_go_files() {
 }
 
 test_hook_handles_missing_sbt() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
   local original_path="$PATH"
 
   cd "$temp_dir"
@@ -215,7 +230,8 @@ test_hook_handles_missing_sbt() {
   export PATH="/usr/bin:/bin"
 
   set +e
-  local output=$("$HOOK_SCRIPT" 2>&1)
+  local output
+  output=$("$HOOK_SCRIPT" 2>&1)
   local exit_code=$?
   set -e
 
@@ -229,8 +245,10 @@ test_hook_handles_missing_sbt() {
 }
 
 test_hook_handles_scalafmt_failure() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
   local original_path="$PATH"
   local mock_bin="$temp_dir/mock-bin"
 
@@ -256,7 +274,8 @@ MOCK_SBT
   set +e
   "$HOOK_SCRIPT" >output.txt 2>&1
   local exit_code=$?
-  local output=$(cat output.txt)
+  local output
+  output=$(cat output.txt)
   set -e
 
   export PATH="$original_path"
@@ -269,8 +288,10 @@ MOCK_SBT
 }
 
 test_hook_handles_missing_goimports() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
   local original_path="$PATH"
 
   cd "$temp_dir"
@@ -286,7 +307,8 @@ test_hook_handles_missing_goimports() {
   set +e
   "$HOOK_SCRIPT" >output.txt 2>&1
   local exit_code=$?
-  local output=$(cat output.txt)
+  local output
+  output=$(cat output.txt)
   set -e
 
   export PATH="$original_path"
@@ -299,8 +321,10 @@ test_hook_handles_missing_goimports() {
 }
 
 test_hook_formats_scala_files_integration() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
   local original_path="$PATH"
   local mock_bin="$temp_dir/mock-bin"
 
@@ -328,12 +352,14 @@ MOCK_SBT
   set +e
   "$HOOK_SCRIPT" >output.txt 2>&1
   local exit_code=$?
-  local output=$(cat output.txt)
+  local output
+  output=$(cat output.txt)
   set -e
 
   export PATH="$original_path"
 
-  local formatted_content=$(cat Test.scala)
+  local formatted_content
+  formatted_content=$(cat Test.scala)
 
   cd "$original_dir"
   rm -rf "$temp_dir"
@@ -344,8 +370,10 @@ MOCK_SBT
 }
 
 test_hook_formats_go_files_integration() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
   local original_path="$PATH"
   local mock_bin="$temp_dir/mock-bin"
 
@@ -374,12 +402,14 @@ MOCK_GOIMPORTS
   set +e
   "$HOOK_SCRIPT" >output.txt 2>&1
   local exit_code=$?
-  local output=$(cat output.txt)
+  local output
+  output=$(cat output.txt)
   set -e
 
   export PATH="$original_path"
 
-  local formatted_content=$(cat main.go)
+  local formatted_content
+  formatted_content=$(cat main.go)
 
   cd "$original_dir"
   rm -rf "$temp_dir"
@@ -390,8 +420,10 @@ MOCK_GOIMPORTS
 }
 
 test_hook_detects_staged_shell_files() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
 
   cd "$temp_dir"
   git init -q
@@ -410,8 +442,10 @@ test_hook_detects_staged_shell_files() {
 }
 
 test_hook_handles_missing_shfmt() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
   local original_path="$PATH"
 
   cd "$temp_dir"
@@ -427,7 +461,8 @@ test_hook_handles_missing_shfmt() {
   set +e
   "$HOOK_SCRIPT" >output.txt 2>&1
   local exit_code=$?
-  local output=$(cat output.txt)
+  local output
+  output=$(cat output.txt)
   set -e
 
   export PATH="$original_path"
@@ -440,8 +475,10 @@ test_hook_handles_missing_shfmt() {
 }
 
 test_hook_formats_shell_files_integration() {
-  local temp_dir=$(mktemp -d)
-  local original_dir=$(pwd)
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local original_dir
+  original_dir=$(pwd)
   local original_path="$PATH"
   local mock_bin="$temp_dir/mock-bin"
 
@@ -470,12 +507,14 @@ MOCK_SHFMT
   set +e
   "$HOOK_SCRIPT" >output.txt 2>&1
   local exit_code=$?
-  local output=$(cat output.txt)
+  local output
+  output=$(cat output.txt)
   set -e
 
   export PATH="$original_path"
 
-  local formatted_content=$(cat script.sh)
+  local formatted_content
+  formatted_content=$(cat script.sh)
 
   cd "$original_dir"
   rm -rf "$temp_dir"

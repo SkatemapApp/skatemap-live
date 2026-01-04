@@ -1,4 +1,4 @@
-name: Shell Script Formatting
+name: Shell Script Quality
 permissions:
   contents: read
 
@@ -7,15 +7,17 @@ on:
     branches: [ master ]
     paths:
       - '**/*.sh'
+      - 'scripts/git-hooks/**'
       - '.github/workflows/shell.yml'
   pull_request:
     branches: [ master ]
     paths:
       - '**/*.sh'
+      - 'scripts/git-hooks/**'
       - '.github/workflows/shell.yml'
 
 jobs:
-  formatting:
+  quality:
 
     runs-on: ubuntu-latest
 
@@ -29,7 +31,20 @@ jobs:
         chmod +x /tmp/shfmt
         sudo mv /tmp/shfmt /usr/local/bin/shfmt
 
+    - name: Install shellcheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+
     - name: Check shell script formatting
       run: |
         echo "Checking shell script formatting..."
         shfmt -i 2 -d .
+
+    - name: Lint shell scripts
+      run: |
+        echo "Linting shell scripts..."
+        # Note: SC1091 (can't follow source) is acceptable - test scripts source files dynamically
+        # Severity: error,warning (excluding info and style for now)
+        find . -name "*.sh" -type f -exec shellcheck --severity=warning {} +
+        shellcheck --severity=warning scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg

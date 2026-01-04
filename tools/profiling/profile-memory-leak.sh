@@ -48,7 +48,7 @@ trap cleanup EXIT INT TERM
 echo ""
 echo "Step 1: Starting application..."
 cd "$API_DIR"
-sbt run >/tmp/sbt-run-$TIMESTAMP.log 2>&1 &
+sbt run >"/tmp/sbt-run-$TIMESTAMP.log" 2>&1 &
 SBT_PID=$!
 echo "sbt started (PID: $SBT_PID)"
 
@@ -83,18 +83,17 @@ go run ./cmd/simulate-skaters \
   --target-url "$TARGET_URL" \
   --event-id "$EVENT_ID" \
   --skaters-per-event "$SKATERS_PER_EVENT" \
-  --update-interval "$UPDATE_INTERVAL" >/tmp/load-test-$TIMESTAMP.log 2>&1 &
+  --update-interval "$UPDATE_INTERVAL" >"/tmp/load-test-$TIMESTAMP.log" 2>&1 &
 LOAD_PID=$!
 echo "Load test started (PID: $LOAD_PID)"
 
-LOAD_DURATION_SECONDS=$((LOAD_DURATION_MINUTES * 60))
 HEAP_DUMP_INTERVAL=${HEAP_DUMP_INTERVAL_MINUTES:-10}
 echo "Waiting $LOAD_DURATION_MINUTES minutes for load to run (heap dumps every $HEAP_DUMP_INTERVAL minutes)..."
-for i in $(seq 1 $LOAD_DURATION_MINUTES); do
+for i in $(seq 1 "$LOAD_DURATION_MINUTES"); do
   sleep 60
   echo "  $i / $LOAD_DURATION_MINUTES minutes elapsed..."
 
-  if [ $((i % HEAP_DUMP_INTERVAL)) -eq 0 ] && [ $i -lt $LOAD_DURATION_MINUTES ]; then
+  if [ $((i % HEAP_DUMP_INTERVAL)) -eq 0 ] && [ "$i" -lt "$LOAD_DURATION_MINUTES" ]; then
     echo "  Taking periodic heap dump at $i minutes..."
     PERIODIC_DUMP="$HEAP_DUMP_DIR/at-${i}min-$TIMESTAMP.hprof"
     if jcmd "$APP_PID" GC.heap_dump "$PERIODIC_DUMP" 2>&1 | grep -q "Heap dump file created"; then
@@ -112,7 +111,8 @@ if jcmd "$APP_PID" GC.heap_dump "$HEAP_DUMP_1" 2>&1 | grep -q "Heap dump file cr
   echo "Heap dump saved: $HEAP_DUMP_1"
 else
   echo "WARNING: Final heap dump failed - using most recent periodic dump"
-  HEAP_DUMP_1=$(ls -t "$HEAP_DUMP_DIR"/at-*min-$TIMESTAMP.hprof 2>/dev/null | head -1)
+  # shellcheck disable=SC2012
+  HEAP_DUMP_1=$(ls -t "$HEAP_DUMP_DIR"/at-*min-"$TIMESTAMP".hprof 2>/dev/null | head -1)
   if [ -n "$HEAP_DUMP_1" ]; then
     echo "Most recent heap dump: $HEAP_DUMP_1"
   else
@@ -130,7 +130,7 @@ LOAD_PID=""
 
 echo ""
 echo "Step 5: Waiting $IDLE_DURATION_MINUTES minutes (idle period)..."
-for i in $(seq 1 $IDLE_DURATION_MINUTES); do
+for i in $(seq 1 "$IDLE_DURATION_MINUTES"); do
   sleep 60
   echo "  $i / $IDLE_DURATION_MINUTES minutes elapsed..."
 done
@@ -158,18 +158,19 @@ echo "=========================================="
 echo "Profiling Complete"
 echo "=========================================="
 echo "Heap dumps:"
-PERIODIC_DUMPS=$(ls -t "$HEAP_DUMP_DIR"/at-*min-$TIMESTAMP.hprof 2>/dev/null)
+# shellcheck disable=SC2012
+PERIODIC_DUMPS=$(ls -t "$HEAP_DUMP_DIR"/at-*min-"$TIMESTAMP".hprof 2>/dev/null)
 if [ -n "$PERIODIC_DUMPS" ]; then
   echo "  Periodic dumps (during load):"
-  for dump in $PERIODIC_DUMPS; do
-    echo "    $(basename $dump)"
-  done
+  while IFS= read -r dump; do
+    echo "    $(basename "$dump")"
+  done <<<"$PERIODIC_DUMPS"
 fi
 if [ -n "$HEAP_DUMP_1" ] && [ -f "$HEAP_DUMP_1" ]; then
-  echo "  After load: $(basename $HEAP_DUMP_1)"
+  echo "  After load: $(basename "$HEAP_DUMP_1")"
 fi
 if [ -n "$HEAP_DUMP_2" ] && [ -f "$HEAP_DUMP_2" ]; then
-  echo "  After idle: $(basename $HEAP_DUMP_2)"
+  echo "  After idle: $(basename "$HEAP_DUMP_2")"
 fi
 echo ""
 echo "All dumps location: $HEAP_DUMP_DIR"
@@ -180,7 +181,8 @@ echo "  Load test:   /tmp/load-test-$TIMESTAMP.log"
 echo ""
 echo "Next steps:"
 echo "  1. Open most recent heap dump in Eclipse MAT:"
-LATEST_DUMP=$(ls -t "$HEAP_DUMP_DIR"/*-$TIMESTAMP.hprof 2>/dev/null | head -1)
+# shellcheck disable=SC2012
+LATEST_DUMP=$(ls -t "$HEAP_DUMP_DIR"/*-"$TIMESTAMP".hprof 2>/dev/null | head -1)
 if [ -n "$LATEST_DUMP" ]; then
   echo "     open -a \"Memory Analyzer\" \"$LATEST_DUMP\""
 fi
