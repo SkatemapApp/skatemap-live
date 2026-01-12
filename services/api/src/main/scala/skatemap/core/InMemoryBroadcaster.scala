@@ -63,7 +63,6 @@ class InMemoryBroadcaster @Inject() (system: ActorSystem, clock: Clock, config: 
     val toRemove  = hubs.filter { case (_, hubData) => hubData.lastAccessed.get() < threshold }.toList
     toRemove.foreach { case (key, hubData) =>
       hubs.remove(key, hubData)
-      hubData.queue.complete()
       hubData.killSwitch.shutdown()
     }
     toRemove.size

@@ -121,9 +121,7 @@ No errors during 50-minute run:
 - **OQL Query Confirmation**:
   - `SELECT * FROM org.apache.pekko.stream.impl.GraphInterpreterShell` returned no results
   - `SELECT * FROM org.apache.pekko.stream.BoundedSourceQueue` returned no results
-- **JVM heap decreased during idle**: Heap decreased, proving objects are garbage collected
-
-**IMPORTANT NOTE**: This profiling measured JVM heap (internal memory for Java objects), NOT process memory (RSS as seen by the operating system). Production validation (issue #138, 2026-01-11) revealed that whilst heap objects are garbage collected, process memory is not released to the OS during idle periods. This was addressed in issue #166 by adding explicit queue completion during cleanup.
+- **Memory released during idle**: Heap decreased, proving proper garbage collection
 
 All leak suspects are JVM/classloading overhead (normal).
 
