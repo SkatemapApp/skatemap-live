@@ -2,8 +2,11 @@
 """
 Parse JFR (Java Flight Recorder) heap summary events and generate memory usage graph.
 
+Dependencies:
+    matplotlib>=3.7.0
+
 Usage:
-    jfr print --events jdk.GCHeapSummary recording.jfr | python3 jfr-to-memory-graph.py output.png
+    jfr print --events jdk.GCHeapSummary recording.jfr | uv run python jfr-to-memory-graph.py output.png
 
 The script:
 1. Parses JFR output to extract timestamp and heap usage
@@ -32,36 +35,64 @@ def parse_jfr_output(lines: List[str]) -> List[Tuple[datetime, float]]:
     datapoints = []
     current_event = {}
 
+    in_event = False
+    brace_depth = 0
+
     for line in lines:
         line = line.strip()
 
         # New event starts
         if line.startswith('jdk.GCHeapSummary'):
+            # Save previous event if complete
+            if current_event and 'time_str' in current_event and 'heap_mb' in current_event:
+                datapoints.append((current_event['time_str'], current_event['heap_mb']))
             current_event = {}
+            in_event = True
+            brace_depth = 0
+
+        if not in_event:
+            continue
+
+        # Track brace depth for nested objects
+        if '{' in line:
+            brace_depth += line.count('{')
+        if '}' in line:
+            brace_depth -= line.count('}')
 
         # Extract startTime
         if 'startTime' in line:
-            # Format: startTime = 2026-01-18T12:34:56.789Z or 12:34:56.789
-            match = re.search(r'startTime = (.+)', line)
+            # Format: startTime = 22:57:10.295 (2026-01-18) or 12:34:56.789
+            match = re.search(r'startTime = (.+?)(?:\s*\(|$)', line)
             if match:
                 time_str = match.group(1).strip()
                 current_event['time_str'] = time_str
 
-        # Extract heapUsed (in bytes)
+        # Extract heapUsed (can be in MB or bytes)
         if 'heapUsed' in line:
-            match = re.search(r'heapUsed = ([\d.]+)', line)
+            # Format can be: "heapUsed = 747.8 MB" or "heapUsed = 123456789"
+            match = re.search(r'heapUsed = ([\d.]+)\s*([A-Z]+)?', line)
             if match:
-                heap_bytes = float(match.group(1))
-                heap_mb = heap_bytes / (1024 * 1024)  # Convert to MB
+                value = float(match.group(1))
+                unit = match.group(2) if match.group(2) else None
+
+                if unit == 'MB':
+                    heap_mb = value
+                elif unit == 'GB':
+                    heap_mb = value * 1024
+                elif unit == 'KB':
+                    heap_mb = value / 1024
+                else:
+                    # Assume bytes if no unit
+                    heap_mb = value / (1024 * 1024)
+
                 current_event['heap_mb'] = heap_mb
 
-        # Event complete (closing brace)
-        if line == '}' and current_event:
+        # Event complete when we return to depth 0
+        if brace_depth == 0 and in_event and current_event:
             if 'time_str' in current_event and 'heap_mb' in current_event:
-                # Store as (relative_time_seconds, heap_mb) for now
-                # We'll process timestamps in a second pass
                 datapoints.append((current_event['time_str'], current_event['heap_mb']))
             current_event = {}
+            in_event = False
 
     return datapoints
 
