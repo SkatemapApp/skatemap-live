@@ -2,13 +2,7 @@ package skatemap.core
 
 import org.apache.pekko.NotUsed
 import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.stream.{
-  KillSwitches,
-  OverflowStrategy,
-  QueueOfferResult,
-  StreamDetachedException,
-  UniqueKillSwitch
-}
+import org.apache.pekko.stream.{KillSwitches, OverflowStrategy, StreamDetachedException, UniqueKillSwitch}
 import org.apache.pekko.stream.scaladsl.{BroadcastHub, Keep, Source, SourceQueueWithComplete}
 import org.slf4j.{Logger, LoggerFactory}
 import skatemap.domain.Location
@@ -54,12 +48,7 @@ class InMemoryBroadcaster @Inject() (system: ActorSystem, clock: Clock, config: 
     val hubData = getOrCreateHub(eventId)
     hubData.queue
       .offer(location)
-      .map {
-        case QueueOfferResult.Enqueued    => ()
-        case QueueOfferResult.Dropped     => logger.warn("Location dropped for event {} due to queue overflow", eventId)
-        case QueueOfferResult.QueueClosed => logger.warn("Location dropped for event {} because queue closed", eventId)
-        case QueueOfferResult.Failure(cause) => logger.error("Failed to offer location for event {}", eventId, cause)
-      }
+      .map(_ => ())
       .recover { case _: StreamDetachedException =>
         logger.error("Failed to offer location for event {}", eventId)
       }

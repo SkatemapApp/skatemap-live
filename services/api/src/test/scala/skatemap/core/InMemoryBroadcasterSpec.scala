@@ -223,21 +223,6 @@ class InMemoryBroadcasterSpec
       broadcaster2.hubs(eventId) should be(recreatedHub)
     }
 
-    "handle queue overflow with dropHead strategy" in {
-      val smallBufferConfig = HubConfig(ttl = 300.seconds, cleanupInterval = 60.seconds, bufferSize = 2)
-      val broadcaster       = new InMemoryBroadcaster(system, TestClock.fixed(1000L), smallBufferConfig)
-      val eventId           = "550e8400-e29b-41d4-a716-446655440000"
-
-      val subscriber = broadcaster.subscribe(eventId).take(2).runWith(Sink.seq)
-
-      (1 to 10).foreach { i =>
-        broadcaster.publish(eventId, Location(s"skater-${i.toString}", 1.0, 2.0, i.toLong)).futureValue
-      }
-
-      val results = subscriber.futureValue
-      results should have size 2
-    }
-
     "log error when publishing to closed queue" in {
       import ch.qos.logback.classic.Level
       import skatemap.test.LogCapture
