@@ -40,8 +40,9 @@ graph LR
 
 **Source.queue**
 - Creates a bounded source queue with buffer size 128 (configurable via `skatemap.hub.bufferSize`)
-- Publishers call `queue.offer(location)` to enqueue locations
-- Returns `QueueOfferResult` indicating success (`Enqueued`), drop (`Dropped` for overflow), or queue closed (`QueueClosed`)
+- Uses `OverflowStrategy.dropHead` - when buffer is full, oldest message is automatically dropped to make room for new message
+- Publishers call `queue.offer(location)` to enqueue locations (returns `Future[QueueOfferResult]`)
+- With `dropHead` strategy, `offer()` always returns `Enqueued` (drops are handled internally by Pekko)
 - Single materialisation - the queue persists for the lifetime of the hub
 - Eliminates memory leak from the previous MergeHub approach where each `publish()` materialised a new stream
 
@@ -60,40 +61,49 @@ graph LR
 
 ### Materialised Values
 
-The stream materialises to `((BoundedSourceQueue[Location], UniqueKillSwitch), Source[Location, NotUsed])`:
+The stream materialises to `((SourceQueueWithComplete[Location], UniqueKillSwitch), Source[Location, NotUsed])`:
 
-- **BoundedSourceQueue**: Used by `publish()` to offer locations into the hub via `queue.offer(location)`
+- **SourceQueueWithComplete**: Used by `publish()` to offer locations into the hub via `queue.offer(location)` (returns `Future[QueueOfferResult]`)
 - **KillSwitch**: Used by cleanup service to shut down the hub
 - **Source**: Used by `subscribe()` to receive locations from the hub
 
 These values are stored in `HubData` and kept in a `TrieMap[String, HubData]` registry indexed by event ID.
 
-**Error Handling**: The `offer()` method returns `QueueOfferResult`:
-- `Enqueued`: Location successfully queued
-- `Dropped`: Queue full (buffer overflow) - location discarded, warning logged
-- `QueueClosed`: Hub shut down - location discarded, warning logged
-- `Failure(cause)`: Stream stage failure - location discarded, error logged with cause exception
+**Error Handling**: The `publish()` method returns `Future[Unit]` and handles errors asynchronously:
+- `Enqueued`: Location successfully queued (normal case with `dropHead` strategy)
+- `Dropped`: Will not occur with `dropHead` strategy (overflow handled internally)
+- `QueueClosed`: Hub shut down - warning logged (rare edge case)
+- `Failure(cause)`: Stream stage failure - error logged with cause exception (rare edge case)
+- `StreamDetachedException`: Queue closed or stream failed - error logged ("Failed to offer location")
+
+The `dropHead` strategy ensures publishers always succeed even when buffer is full, trading stale data for fresh data. This decouples publishers from subscribers - publishers don't need active subscribers to succeed.
 
 ### Code Reference
 
-Implementation: `/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:33-37`
+Implementation: `/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:33-38`
 
 ```scala
 val ((queue, killSwitch), source) = Source
-  .queue[Location](config.bufferSize)
+  .queue[Location](config.bufferSize, OverflowStrategy.dropHead)
   .viaMat(KillSwitches.single)(Keep.both)
   .toMat(BroadcastHub.sink[Location](bufferSize = config.bufferSize))(Keep.both)
   .run()
 ```
 
-Publishing to the hub (`/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:47-52`):
+Publishing to the hub (`/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:49-58`):
 
 ```scala
-hubData.queue.offer(location) match {
-  case QueueOfferResult.Enqueued    => ()
-  case QueueOfferResult.Dropped     => logger.warn("Location dropped for event {} due to queue overflow", eventId)
-  case QueueOfferResult.QueueClosed => logger.warn("Location dropped for event {} because queue closed", eventId)
-  case QueueOfferResult.Failure(cause) => logger.error("Failed to offer location for event {}", eventId, cause)
+def publish(eventId: String, location: Location): Future[Unit] = {
+  val hubData = getOrCreateHub(eventId)
+  hubData.queue.offer(location).map {
+    case QueueOfferResult.Enqueued    => ()
+    case QueueOfferResult.Dropped     => logger.warn("Location dropped for event {} due to queue overflow", eventId)
+    case QueueOfferResult.QueueClosed => logger.warn("Location dropped for event {} because queue closed", eventId)
+    case QueueOfferResult.Failure(cause) => logger.error("Failed to offer location for event {}", eventId, cause)
+  }.recover {
+    case _: StreamDetachedException =>
+      logger.error("Failed to offer location for event {}", eventId)
+  }
 }
 ```
 
@@ -233,8 +243,10 @@ See [issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) for th
 
 **`skatemap.hub.bufferSize`** (default: 128)
 - Configures buffer size for BOTH the source queue AND the BroadcastHub
-- Source.queue buffer: If full, `queue.offer()` returns `Dropped` and the location is discarded
+- Source.queue buffer: Uses `OverflowStrategy.dropHead` - when full, oldest message is automatically dropped to make room for new message
 - BroadcastHub buffer: If subscribers lag and buffer fills, oldest messages are dropped
+- The `dropHead` strategy ensures fresh location data takes priority over stale data
+- Publishers always succeed even without active subscribers (no publisher/subscriber coupling)
 - This dual-buffer design provides backpressure protection at both the publish and subscribe boundaries
 
 **`skatemap.hub.ttlSeconds`** (default: 300)

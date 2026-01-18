@@ -3,14 +3,11 @@ package skatemap.api
 import org.apache.pekko.stream.Materializer
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice._
-import play.api.http.Status.{ACCEPTED, BAD_REQUEST}
+import play.api.http.Status.ACCEPTED
 import play.api.libs.json.Json
 import play.api.test.Helpers._
 import play.api.test._
-import skatemap.core.{InMemoryLocationStore, LocationConfig}
-import skatemap.test.{LogCapture, StubBroadcaster, TestClock}
-
-import scala.concurrent.duration._
+import skatemap.test.{LogCapture, StubBroadcaster}
 
 class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
 
@@ -21,7 +18,7 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
 
   private def createController() = new skatemap.api.LocationController(
     stubControllerComponents(),
-    new InMemoryLocationStore(TestClock.fixed(1234567890123L), LocationConfig(1.hour)),
+    inject[skatemap.core.LocationStore],
     new StubBroadcaster()
   )
 

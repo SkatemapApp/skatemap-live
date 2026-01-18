@@ -3,13 +3,14 @@ package skatemap.api
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.Materializer
 import org.apache.pekko.stream.testkit.scaladsl.TestSink
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice._
 import play.api.libs.json.{JsValue, Json}
 import skatemap.core.{Broadcaster, EventStreamService, LocationStore}
 import skatemap.domain.Location
 
-class WebSocketEndToEndSpec extends PlaySpec with GuiceOneAppPerSuite {
+class WebSocketEndToEndSpec extends PlaySpec with GuiceOneAppPerSuite with ScalaFutures {
 
   implicit lazy val system: ActorSystem        = app.actorSystem
   implicit lazy val materializer: Materializer = app.materializer
@@ -38,7 +39,7 @@ class WebSocketEndToEndSpec extends PlaySpec with GuiceOneAppPerSuite {
       initialMessage must include("-0.1278")
 
       store.put(eventId, location2)
-      broadcaster.publish(eventId, location2)
+      broadcaster.publish(eventId, location2).futureValue
 
       val updateMessage = testSink.expectNext()
       updateMessage must include("skater-pipeline-2")
@@ -142,8 +143,8 @@ class WebSocketEndToEndSpec extends PlaySpec with GuiceOneAppPerSuite {
       message2 must include("skater-iso-2")
       message2 must not include "skater-iso-1"
 
-      broadcaster.publish(eventId1, Location("skater-iso-update-1", -5.0, 55.0, timestamp))
-      broadcaster.publish(eventId2, Location("skater-iso-update-2", -6.0, 56.0, timestamp))
+      broadcaster.publish(eventId1, Location("skater-iso-update-1", -5.0, 55.0, timestamp)).futureValue
+      broadcaster.publish(eventId2, Location("skater-iso-update-2", -6.0, 56.0, timestamp)).futureValue
 
       val update1 = testSink1.expectNext()
       val update2 = testSink2.expectNext()
