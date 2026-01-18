@@ -77,7 +77,20 @@ fi
 echo "Application PID: $APP_PID"
 
 echo ""
-echo "Step 2: Starting load test for $LOAD_DURATION_MINUTES minutes..."
+echo "Step 2: Starting JFR (Java Flight Recorder) for continuous memory monitoring..."
+TOTAL_DURATION_MIN=$((LOAD_DURATION_MINUTES + IDLE_DURATION_MINUTES + 5))
+JFR_FILE="$HEAP_DUMP_DIR/memory-recording-$TIMESTAMP.jfr"
+if jcmd "$APP_PID" JFR.start name=memory-test settings=profile duration="${TOTAL_DURATION_MIN}m" filename="$JFR_FILE" 2>&1 | grep -q "Started recording"; then
+  echo "JFR recording started: $JFR_FILE"
+  echo "  Duration: $TOTAL_DURATION_MIN minutes"
+  echo "  This will capture continuous heap usage throughout the test"
+else
+  echo "WARNING: JFR recording failed to start - continuing without continuous monitoring"
+  JFR_FILE=""
+fi
+
+echo ""
+echo "Step 3: Starting load test for $LOAD_DURATION_MINUTES minutes..."
 cd "$REPO_ROOT/tools/load-testing"
 go run ./cmd/simulate-skaters \
   --target-url "$TARGET_URL" \
@@ -105,7 +118,7 @@ for i in $(seq 1 "$LOAD_DURATION_MINUTES"); do
 done
 
 echo ""
-echo "Step 3: Taking final heap dump after load..."
+echo "Step 4: Taking final heap dump after load..."
 HEAP_DUMP_1="$HEAP_DUMP_DIR/after-${LOAD_DURATION_MINUTES}min-load-$TIMESTAMP.hprof"
 if jcmd "$APP_PID" GC.heap_dump "$HEAP_DUMP_1" 2>&1 | grep -q "Heap dump file created"; then
   echo "Heap dump saved: $HEAP_DUMP_1"
@@ -121,7 +134,7 @@ else
 fi
 
 echo ""
-echo "Step 4: Stopping load test..."
+echo "Step 5: Stopping load test..."
 if kill -0 "$LOAD_PID" 2>/dev/null; then
   kill "$LOAD_PID"
   echo "Load test stopped"
@@ -129,14 +142,14 @@ fi
 LOAD_PID=""
 
 echo ""
-echo "Step 5: Waiting $IDLE_DURATION_MINUTES minutes (idle period)..."
+echo "Step 6: Waiting $IDLE_DURATION_MINUTES minutes (idle period)..."
 for i in $(seq 1 "$IDLE_DURATION_MINUTES"); do
   sleep 60
   echo "  $i / $IDLE_DURATION_MINUTES minutes elapsed..."
 done
 
 echo ""
-echo "Step 6: Taking heap dump after idle period..."
+echo "Step 7: Taking heap dump after idle period..."
 HEAP_DUMP_2="$HEAP_DUMP_DIR/after-${IDLE_DURATION_MINUTES}min-idle-$TIMESTAMP.hprof"
 if jcmd "$APP_PID" GC.heap_dump "$HEAP_DUMP_2" 2>&1 | grep -q "Heap dump file created"; then
   echo "Heap dump saved: $HEAP_DUMP_2"
@@ -146,7 +159,23 @@ else
 fi
 
 echo ""
-echo "Step 7: Stopping application..."
+echo "Step 8: Generating memory usage graph from JFR recording..."
+MEMORY_GRAPH=""
+if [ -n "$JFR_FILE" ] && [ -f "$JFR_FILE" ]; then
+  echo "Processing JFR recording..."
+  MEMORY_GRAPH="$HEAP_DUMP_DIR/memory-usage-$TIMESTAMP.png"
+  if jfr print --events jdk.GCHeapSummary "$JFR_FILE" 2>/dev/null | python3 "$SCRIPT_DIR/jfr-to-memory-graph.py" "$MEMORY_GRAPH" 2>&1; then
+    echo "Memory graph generated: $MEMORY_GRAPH"
+  else
+    echo "WARNING: Failed to generate memory graph from JFR recording"
+    MEMORY_GRAPH=""
+  fi
+else
+  echo "Skipping memory graph generation (no JFR recording available)"
+fi
+
+echo ""
+echo "Step 9: Stopping application..."
 if kill -0 "$APP_PID" 2>/dev/null; then
   kill "$APP_PID"
   echo "Application stopped"
@@ -179,6 +208,12 @@ echo "Logs:"
 echo "  Application: /tmp/sbt-run-$TIMESTAMP.log"
 echo "  Load test:   /tmp/load-test-$TIMESTAMP.log"
 echo ""
+if [ -n "$MEMORY_GRAPH" ] && [ -f "$MEMORY_GRAPH" ]; then
+  echo "Memory graph (continuous heap usage):"
+  echo "  $MEMORY_GRAPH"
+  echo "  Open with: open \"$MEMORY_GRAPH\""
+  echo ""
+fi
 echo "Next steps:"
 echo "  1. Open most recent heap dump in Eclipse MAT:"
 # shellcheck disable=SC2012

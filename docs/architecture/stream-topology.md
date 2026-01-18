@@ -78,6 +78,8 @@ These values are stored in `HubData` and kept in a `TrieMap[String, HubData]` re
 
 The `dropHead` strategy ensures publishers always succeed even when buffer is full, trading stale data for fresh data. This decouples publishers from subscribers - publishers don't need active subscribers to succeed.
 
+**Critical consideration:** When using `dropHead` with BroadcastHub, messages can accumulate in stream graph internals if no subscribers are draining the hub. The documented pattern is to attach `Sink.ignore` as a permanent draining subscriber to prevent accumulation ([Pekko docs](https://pekko.apache.org/docs/pekko/current/stream/stream-dynamic.html)). Without this, memory leaks can occur in scenarios with no active subscribers.
+
 ### Code Reference
 
 Implementation: `/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:33-38`
@@ -88,7 +90,11 @@ val ((queue, killSwitch), source) = Source
   .viaMat(KillSwitches.single)(Keep.both)
   .toMat(BroadcastHub.sink[Location](bufferSize = config.bufferSize))(Keep.both)
   .run()
+
+source.runWith(Sink.ignore)
 ```
+
+**Note:** The `Sink.ignore` attachment is essential to prevent memory accumulation when no real subscribers are present. It continuously drains the BroadcastHub, ensuring messages don't accumulate in internal buffers. When real subscribers connect, the BroadcastHub broadcasts to both `Sink.ignore` and real subscribers.
 
 Publishing to the hub (`/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:49-58`):
 
@@ -247,7 +253,12 @@ See [issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) for th
 - BroadcastHub buffer: If subscribers lag and buffer fills, oldest messages are dropped
 - The `dropHead` strategy ensures fresh location data takes priority over stale data
 - Publishers always succeed even without active subscribers (no publisher/subscriber coupling)
-- This dual-buffer design provides backpressure protection at both the publish and subscribe boundaries
+- **Important:** `dropHead` deliberately ignores backpressure from downstream (documented Pekko behaviour)
+  - When BroadcastHub has no subscribers, it attempts to apply backpressure
+  - dropHead defeats this backpressure mechanism, continuing to emit messages
+  - Without a draining subscriber, messages can accumulate in stream graph internals
+  - **Solution:** Attach `Sink.ignore` to continuously drain when no real subscribers (see [Pekko docs](https://pekko.apache.org/docs/pekko/current/stream/stream-dynamic.html))
+  - This pattern ensures messages are always consumed, preventing accumulation
 
 **`skatemap.hub.ttlSeconds`** (default: 300)
 - How long unused hubs are kept before cleanup
@@ -262,7 +273,11 @@ See [issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) for th
 ## See Also
 
 - [API README](/services/api/README.md) - High-level architecture diagram
+- [Issue #138](https://github.com/SkatemapApp/skatemap-live/issues/138) - Memory leak investigation: dropHead + BroadcastHub backpressure conflict
 - [Issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) - Why KillSwitch is needed for BroadcastHub cleanup
 - [Pull Request #148](https://github.com/SkatemapApp/skatemap-live/pull/148) - Migration from MergeHub to Source.queue to fix publish memory leak
+- [Pull Request #169](https://github.com/SkatemapApp/skatemap-live/pull/169) - dropHead fix that inadvertently worsened memory leak
+- [dropHead Fix Results](/docs/profiling/drophead-fix-results-20260118.md) - Railway validation showing backpressure conflict
 - [ADR 0003](/docs/adr/0003-jvm-profiling-tooling.md) - Profiling tools used to diagnose memory leaks
 - [Pekko Streams Documentation](https://pekko.apache.org/docs/pekko/current/stream/) - General stream concepts
+- [Pekko BroadcastHub with Sink.ignore pattern](https://pekko.apache.org/docs/pekko/current/stream/stream-dynamic.html) - Documented pattern for draining hubs without subscribers
