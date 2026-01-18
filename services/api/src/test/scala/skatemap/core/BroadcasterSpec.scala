@@ -50,8 +50,8 @@ class BroadcasterSpec
       val subscriber1Future = broadcaster.subscribe(event1).take(2).runWith(Sink.seq)
       val subscriber2Future = broadcaster.subscribe(event1).take(2).runWith(Sink.seq)
 
-      broadcaster.publish(event1, location1)
-      broadcaster.publish(event1, location2)
+      broadcaster.publish(event1, location1).futureValue
+      broadcaster.publish(event1, location2).futureValue
 
       val subscriber1Results = subscriber1Future.futureValue
       val subscriber2Results = subscriber2Future.futureValue
@@ -66,8 +66,8 @@ class BroadcasterSpec
       val event1Subscriber = broadcaster.subscribe(event1).take(1).runWith(Sink.seq)
       val event2Subscriber = broadcaster.subscribe(event2).take(1).runWith(Sink.seq)
 
-      broadcaster.publish(event1, location1)
-      broadcaster.publish(event2, location2)
+      broadcaster.publish(event1, location1).futureValue
+      broadcaster.publish(event2, location2).futureValue
 
       val event1Results = event1Subscriber.futureValue
       val event2Results = event2Subscriber.futureValue
@@ -86,7 +86,7 @@ class BroadcasterSpec
         .runWith(Sink.seq)
 
       (1 to 150).foreach { i =>
-        broadcaster.publish(event1, location1.copy(timestamp = i))
+        broadcaster.publish(event1, location1.copy(timestamp = i)).futureValue
       }
 
       val results = slowSubscriber.futureValue
@@ -102,7 +102,7 @@ class BroadcasterSpec
       broadcaster.subscribe(event1)
       broadcaster.hubs.size shouldBe 1
 
-      broadcaster.publish(event2, location1)
+      broadcaster.publish(event2, location1).futureValue
       broadcaster.hubs.size shouldBe 2
     }
 
@@ -110,7 +110,7 @@ class BroadcasterSpec
       val broadcaster = createBroadcaster()
 
       val subscriber = broadcaster.subscribe(event1).take(1).runWith(Sink.seq)
-      broadcaster.publish(event1, location1)
+      broadcaster.publish(event1, location1).futureValue
 
       val results = subscriber.futureValue
       results should contain only location1

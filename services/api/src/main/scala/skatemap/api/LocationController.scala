@@ -6,15 +6,18 @@ import skatemap.core.{Broadcaster, LocationStore, LocationValidator}
 import skatemap.domain.Location
 
 import javax.inject.{Inject, Singleton}
+import scala.concurrent.ExecutionContext
 
 @Singleton
 class LocationController @Inject() (
   val controllerComponents: ControllerComponents,
   store: LocationStore,
-  broadcaster: Broadcaster
+  broadcaster: Broadcaster,
+  ec: ExecutionContext
 ) extends BaseController {
 
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
+  private val logger: Logger                              = LoggerFactory.getLogger(getClass)
+  private implicit val executionContext: ExecutionContext = ec
 
   private object MdcKeys {
     val EventId  = "eventId"
@@ -45,7 +48,9 @@ class LocationController @Inject() (
               locationUpdate.timestamp
             )
             store.put(skatingEventId, location)
-            broadcaster.publish(skatingEventId, location)
+            broadcaster.publish(skatingEventId, location).failed.foreach { error =>
+              logger.error("Failed to publish location for event={}, skater={}", skatingEventId, skaterId, error)
+            }
             Accepted
         }
       } finally {

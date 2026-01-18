@@ -22,7 +22,8 @@ class LocationControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injec
   private def createController() = new skatemap.api.LocationController(
     stubControllerComponents(),
     new InMemoryLocationStore(TestClock.fixed(1234567890123L), LocationConfig(1.hour)),
-    new StubBroadcaster()
+    new StubBroadcaster(),
+    app.actorSystem.dispatcher
   )
 
   "LocationController.updateLocation" should {

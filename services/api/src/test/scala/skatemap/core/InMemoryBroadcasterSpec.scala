@@ -42,7 +42,7 @@ class InMemoryBroadcasterSpec
       val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
       val eventId     = "550e8400-e29b-41d4-a716-446655440000"
 
-      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime))
+      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime)).futureValue
 
       broadcaster.hubs.contains(eventId) should be(true)
       broadcaster.hubs(eventId).lastAccessed.get() should be(fixedTime)
@@ -55,7 +55,7 @@ class InMemoryBroadcasterSpec
       val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
       val eventId     = "550e8400-e29b-41d4-a716-446655440000"
 
-      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, initialTime))
+      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, initialTime)).futureValue
       val firstTimestamp = broadcaster.hubs(eventId).lastAccessed.get()
 
       broadcaster.hubs(eventId).lastAccessed.set(initialTime)
@@ -64,7 +64,7 @@ class InMemoryBroadcasterSpec
       val broadcaster2 = new InMemoryBroadcaster(system, updatedClock, defaultConfig)
       transferHubs(broadcaster, broadcaster2)
 
-      broadcaster2.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440101", 3.0, 4.0, laterTime))
+      broadcaster2.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440101", 3.0, 4.0, laterTime)).futureValue
       val secondTimestamp = broadcaster2.hubs(eventId).lastAccessed.get()
 
       secondTimestamp should be > firstTimestamp
@@ -99,8 +99,8 @@ class InMemoryBroadcasterSpec
       val eventId1    = "550e8400-e29b-41d4-a716-446655440000"
       val eventId2    = "550e8400-e29b-41d4-a716-446655440001"
 
-      broadcaster.publish(eventId1, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime))
-      broadcaster.publish(eventId2, Location("550e8400-e29b-41d4-a716-446655440101", 3.0, 4.0, fixedTime))
+      broadcaster.publish(eventId1, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime)).futureValue
+      broadcaster.publish(eventId2, Location("550e8400-e29b-41d4-a716-446655440101", 3.0, 4.0, fixedTime)).futureValue
 
       broadcaster.hubs.size should be(2)
 
@@ -123,7 +123,7 @@ class InMemoryBroadcasterSpec
       val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
       val eventId     = "550e8400-e29b-41d4-a716-446655440000"
 
-      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime))
+      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime)).futureValue
 
       val ttlMillis    = 5000L
       val laterTime    = fixedTime + ttlMillis - 1000L
@@ -146,7 +146,7 @@ class InMemoryBroadcasterSpec
       val eventIds = (1 to 5).map(i => s"550e8400-e29b-41d4-a716-44665544000${i.toString}")
       eventIds.zipWithIndex.foreach { case (eventId, index) =>
         val skaterId = s"550e8400-e29b-41d4-a716-44665544010${index.toString}"
-        broadcaster.publish(eventId, Location(skaterId, 1.0, 2.0, fixedTime))
+        broadcaster.publish(eventId, Location(skaterId, 1.0, 2.0, fixedTime)).futureValue
       }
 
       broadcaster.hubs.size should be(5)
@@ -170,7 +170,7 @@ class InMemoryBroadcasterSpec
       val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
       val eventId     = "550e8400-e29b-41d4-a716-446655440000"
 
-      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime))
+      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime)).futureValue
 
       broadcaster.hubs.contains(eventId) should be(true)
 
@@ -192,7 +192,7 @@ class InMemoryBroadcasterSpec
       val broadcaster = new InMemoryBroadcaster(system, clock, defaultConfig)
       val eventId     = "550e8400-e29b-41d4-a716-446655440000"
 
-      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime))
+      broadcaster.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440100", 1.0, 2.0, fixedTime)).futureValue
 
       val ttlMillis    = 5000L
       val laterTime    = fixedTime + ttlMillis + 1000L
@@ -208,7 +208,7 @@ class InMemoryBroadcasterSpec
       staleHubsToCleanup should not be empty
 
       broadcaster2.hubs.remove(eventId)
-      broadcaster2.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440101", 3.0, 4.0, laterTime))
+      broadcaster2.publish(eventId, Location("550e8400-e29b-41d4-a716-446655440101", 3.0, 4.0, laterTime)).futureValue
       val recreatedHub = broadcaster2.hubs(eventId)
 
       staleHubsToCleanup.foreach { case (key, hubData) =>
@@ -217,13 +217,13 @@ class InMemoryBroadcasterSpec
       }
 
       val testLocation = Location("550e8400-e29b-41d4-a716-446655440102", 5.0, 6.0, laterTime)
-      broadcaster2.publish(eventId, testLocation)
+      broadcaster2.publish(eventId, testLocation).futureValue
 
       broadcaster2.hubs.contains(eventId) should be(true)
       broadcaster2.hubs(eventId) should be(recreatedHub)
     }
 
-    "handle queue overflow by dropping new elements without error" in {
+    "handle queue overflow with dropHead strategy" in {
       val smallBufferConfig = HubConfig(ttl = 300.seconds, cleanupInterval = 60.seconds, bufferSize = 2)
       val broadcaster       = new InMemoryBroadcaster(system, TestClock.fixed(1000L), smallBufferConfig)
       val eventId           = "550e8400-e29b-41d4-a716-446655440000"
@@ -231,33 +231,17 @@ class InMemoryBroadcasterSpec
       val subscriber = broadcaster.subscribe(eventId).take(2).runWith(Sink.seq)
 
       (1 to 10).foreach { i =>
-        broadcaster.publish(eventId, Location(s"skater-${i.toString}", 1.0, 2.0, i.toLong))
+        broadcaster.publish(eventId, Location(s"skater-${i.toString}", 1.0, 2.0, i.toLong)).futureValue
       }
 
       val results = subscriber.futureValue
       results should have size 2
     }
 
-    "log warning when queue overflow drops location" in {
+    "log error when publishing to closed queue" in {
+      import ch.qos.logback.classic.Level
       import skatemap.test.LogCapture
-      val smallBufferConfig = HubConfig(ttl = 300.seconds, cleanupInterval = 60.seconds, bufferSize = 2)
-      val broadcaster       = new InMemoryBroadcaster(system, TestClock.fixed(1000L), smallBufferConfig)
-      val eventId           = "550e8400-e29b-41d4-a716-446655440000"
 
-      broadcaster.subscribe(eventId)
-
-      val result = LogCapture.withCapture("skatemap.core.InMemoryBroadcaster") { capture =>
-        (1 to 10).foreach { i =>
-          broadcaster.publish(eventId, Location(s"skater-${i.toString}", 1.0, 2.0, i.toLong))
-        }
-        capture.hasMessageContaining("Location dropped")
-      }
-
-      result shouldBe Some(true)
-    }
-
-    "log warning when publishing to closed queue" in {
-      import skatemap.test.LogCapture
       val broadcaster = new InMemoryBroadcaster(system, TestClock.fixed(1000L), defaultConfig)
       val eventId     = "550e8400-e29b-41d4-a716-446655440000"
 
@@ -266,8 +250,8 @@ class InMemoryBroadcasterSpec
       hubData.queue.complete()
 
       val result = LogCapture.withCapture("skatemap.core.InMemoryBroadcaster") { capture =>
-        broadcaster.publish(eventId, Location("skater-1", 1.0, 2.0, 1000L))
-        capture.hasMessageContaining("queue closed") || capture.hasMessageContaining("QueueClosed")
+        broadcaster.publish(eventId, Location("skater-1", 1.0, 2.0, 1000L)).futureValue
+        capture.hasMessageAtLevel("Failed to offer location", Level.ERROR)
       }
 
       result shouldBe Some(true)
@@ -284,13 +268,31 @@ class InMemoryBroadcasterSpec
       val hubData = broadcaster.hubs(eventId)
       hubData.killSwitch.shutdown()
 
-      eventually {
-        val result = LogCapture.withCapture("skatemap.core.InMemoryBroadcaster") { capture =>
-          broadcaster.publish(eventId, Location("skater-1", 1.0, 2.0, 1000L))
-          capture.hasMessageAtLevel("Failed to offer location", Level.ERROR)
-        }
-        result shouldBe Some(true)
+      val result = LogCapture.withCapture("skatemap.core.InMemoryBroadcaster") { capture =>
+        broadcaster.publish(eventId, Location("skater-1", 1.0, 2.0, 1000L)).futureValue
+        capture.hasMessageAtLevel("Failed to offer location", Level.ERROR)
       }
+
+      result shouldBe Some(true)
+    }
+
+    "not log overflow warnings when buffer fills with dropHead strategy" in {
+      import skatemap.test.LogCapture
+      val smallBufferConfig = HubConfig(ttl = 300.seconds, cleanupInterval = 60.seconds, bufferSize = 2)
+      val broadcaster       = new InMemoryBroadcaster(system, TestClock.fixed(1000L), smallBufferConfig)
+      val eventId           = "550e8400-e29b-41d4-a716-446655440000"
+
+      val subscriber = broadcaster.subscribe(eventId).take(2).runWith(Sink.seq)
+
+      val result = LogCapture.withCapture("skatemap.core.InMemoryBroadcaster") { capture =>
+        (1 to 10).foreach { i =>
+          broadcaster.publish(eventId, Location(s"skater-${i.toString}", 1.0, 2.0, i.toLong)).futureValue
+        }
+        !capture.hasMessageContaining("Location dropped")
+      }
+
+      result shouldBe Some(true)
+      subscriber.futureValue should have size 2
     }
   }
 }
