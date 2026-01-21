@@ -17,7 +17,7 @@ The script:
 
 import sys
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Tuple
 import subprocess
 
@@ -114,15 +114,16 @@ def normalize_timestamps(datapoints: List[Tuple[str, float]]) -> List[Tuple[floa
     ]
 
     first_time = None
+    matched_format = None
     for fmt in formats:
         try:
             first_time = datetime.strptime(first_time_str, fmt)
+            matched_format = fmt
             break
         except ValueError:
             continue
 
     if first_time is None:
-        # Fallback: treat as seconds since epoch
         print(f"Warning: Could not parse timestamp format: {first_time_str}", file=sys.stderr)
         return [(float(i), heap) for i, (_, heap) in enumerate(datapoints)]
 
@@ -130,8 +131,12 @@ def normalize_timestamps(datapoints: List[Tuple[str, float]]) -> List[Tuple[floa
     normalized = []
     for time_str, heap_mb in datapoints:
         try:
-            t = datetime.strptime(time_str, formats[0])  # Use same format as first
+            t = datetime.strptime(time_str, matched_format)
             elapsed_seconds = (t - first_time).total_seconds()
+
+            if elapsed_seconds < 0:
+                elapsed_seconds = (t + timedelta(days=1) - first_time).total_seconds()
+
             normalized.append((elapsed_seconds, heap_mb))
         except ValueError:
             continue
