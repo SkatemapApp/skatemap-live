@@ -137,6 +137,42 @@ open -a "Memory Analyzer" heap-dumps/snapshot.hprof
 
 GC logs are automatically generated with timestamps in current directory (format: `gc-<timestamp>.log`).
 
+### Continuous Memory Monitoring with JFR
+
+Java Flight Recorder (JFR) provides continuous heap monitoring during profiling tests. See [ADR 0005](../../docs/adr/0005-jfr-continuous-memory-monitoring.md) for tool selection rationale.
+
+**Why JFR:** Heap dump snapshots (used for MAT analysis) miss continuous growth trends between snapshots. JFR captures heap usage throughout entire test duration, generating memory-over-time graphs that detect linear growth patterns.
+
+**Automated workflow** (recommended):
+```bash
+./tools/profiling/profile-memory-leak.sh
+```
+
+The script automatically:
+1. Starts JFR recording when application starts
+2. Runs load test and takes periodic heap dumps
+3. Generates memory usage graph from JFR recording
+4. Outputs both graph (for trend analysis) and heap dumps (for MAT analysis)
+
+**Manual JFR commands:**
+
+Start recording:
+```bash
+jcmd $(jps | grep PlayRun | awk '{print $1}') JFR.start name=memory-test settings=profile duration=30m filename=recording.jfr
+```
+
+Generate memory graph from recording:
+```bash
+jfr print --events jdk.GCHeapSummary recording.jfr | python3 tools/profiling/jfr-to-memory-graph.py memory-graph.png
+```
+
+The graph shows:
+- Continuous heap usage over time (every GC event)
+- Linear regression growth rate (MB/min)
+- Assessment: LEAK DETECTED (>5 MB/min), Potential leak (>1 MB/min), or Stable
+
+**Critical:** Use JFR graphs to validate memory leak fixes locally before Railway deployment. Heap dump snapshots alone are insufficient (see [Issue #171](https://github.com/SkatemapApp/skatemap-live/issues/171)).
+
 ### CPU/Allocation Profiling with async-profiler
 
 Download async-profiler:

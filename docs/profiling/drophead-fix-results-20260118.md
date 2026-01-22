@@ -239,6 +239,157 @@ All leak suspects are SBT/Scala compiler infrastructure (normal development mode
 - No false-positive overflow warnings
 - Proper async error handling with `Future[Unit]`
 
+## Railway Validation Results
+
+**Date:** 2026-01-18
+**Duration:** 30 minutes load (no subscribers)
+**Deployment:** Production Railway environment
+**Event ID:** eff99c08-51fd-415d-9fed-d535ca5fb643
+**Load:** 10 skaters, 3s update interval
+
+### Memory Growth
+
+Railway metrics graph shows:
+- **Start:** ~300 MB (21:00)
+- **End:** ~750 MB (21:30)
+- **Growth:** 450 MB in 30 minutes
+- **Growth rate: 15.0 MB/min**
+
+### Comparison with Baselines
+
+| Configuration | Memory Growth Rate | Change from Baseline |
+|--------------|-------------------|---------------------|
+| **Baseline** (Issue #138, no dropHead, no subscribers) | 11.7 MB/min | N/A |
+| **Local** (with dropHead, no subscribers) | 2.8 MB/min | -76% (improvement) |
+| **Railway** (with dropHead, no subscribers) | **15.0 MB/min** | **+28% (WORSE)** |
+
+### Result
+
+❌ **Railway validation FAILED** — Memory leak is **worse** than baseline, not better.
+
+### Why Local and Railway Differ
+
+**Local behaviour:**
+- Memory released during idle period (128 MB → 126 MB)
+- Object counts decreased (1,295,793 → 1,278,952)
+- MAT analysis shows no leak suspects
+
+**Railway behaviour:**
+- Linear memory growth throughout test
+- No memory release observed
+- 15 MB/min sustained leak rate
+
+**Hypothesis:** Local testing with `sbt run` may have different behaviour than production deployment due to:
+- JVM configuration differences
+- Garbage collection settings
+- Development vs production runtime characteristics
+
+**Conclusion:** Local profiling is insufficient for validating memory leak fixes. Railway validation revealed the fix failed in production conditions.
+
+## Root Cause Analysis
+
+### The Backpressure Conflict
+
+The dropHead strategy creates a **fundamental conflict** with BroadcastHub's design when there are no subscribers:
+
+**Problem:**
+1. **BroadcastHub (no subscribers):** Designed to apply backpressure upstream to pause message flow ([Pekko docs](https://pekko.apache.org/docs/pekko/current/stream/stream-dynamic.html))
+2. **OverflowStrategy.dropHead:** Deliberately ignores backpressure, always accepts new messages ([Pekko docs](https://pekko.apache.org/docs/pekko/current/stream/stream-rate.html))
+3. **Result:** dropHead defeats BroadcastHub's backpressure mechanism, causing uncontrolled message accumulation
+
+**Evidence from Issue #138:**
+- Without subscribers: 11.7 MB/min leak (backpressure works but causes overflow warnings)
+- With subscribers: 4.2 MB/min leak (subscribers drain the hub)
+- **With dropHead but no subscribers: 15.0 MB/min leak (backpressure defeated)**
+
+The dropHead "fix" eliminated overflow warnings (cosmetic improvement) but removed the backpressure protection that was limiting memory accumulation (functional regression).
+
+### The Correct Solution
+
+The documented pattern for this scenario is to attach `Sink.ignore` to drain the BroadcastHub when no real subscribers are present ([Pekko docs](https://pekko.apache.org/docs/pekko/current/stream/stream-dynamic.html)):
+
+```scala
+val ((queue, killSwitch), source) = Source
+  .queue[Location](config.bufferSize, OverflowStrategy.dropHead)
+  .viaMat(KillSwitches.single)(Keep.both)
+  .toMat(BroadcastHub.sink[Location](bufferSize = config.bufferSize))(Keep.both)
+  .run()
+
+source.runWith(Sink.ignore)
+```
+
+This ensures:
+- When **no real subscribers:** Sink.ignore continuously drains messages → no accumulation
+- When **real subscribers arrive:** BroadcastHub broadcasts to both Sink.ignore and real subscribers
+- **dropHead remains useful:** Prevents overflow warnings during high traffic with real subscribers
+
+## Lessons Learned: Why Local Testing Failed to Detect the Leak
+
+### The Methodology Flaw
+
+**Local testing approach:**
+1. Take heap dump snapshots at specific moments (45 min load, 20 min idle)
+2. Analyse with Eclipse MAT for leak suspects
+3. Compare file sizes and object counts
+4. Calculate growth rate from snapshots
+
+**What this approach measured:**
+- Memory state at specific moments (possibly after GC)
+- Leak suspects (objects not being GC'd)
+- Whether memory was released during idle period
+
+**What this approach missed:**
+- **Continuous growth trend during load**
+- Peak memory usage between snapshots
+- Stream graph accumulation that IS eventually GC'd but keeps refilling
+
+### The Critical Difference
+
+| Metric | Local Snapshots | Railway Continuous | Reality |
+|--------|----------------|-------------------|---------|
+| Methodology | Heap dumps at 45min, 65min | Continuous memory graph | Continuous monitoring needed |
+| Observed behaviour | 128 MB → 126 MB (decrease) | 300 MB → 750 MB (linear growth) | Railway shows actual behaviour |
+| Calculated rate | 2.8 MB/min | 15.0 MB/min | Local testing was wrong |
+| Conclusion | "76% improvement ✅" | "28% worse ❌" | False confidence |
+
+### Why Snapshots Are Insufficient
+
+**Problem 1: GC timing bias**
+- Heap dumps may be taken after GC runs
+- Shows "clean" state, not peak accumulation
+- Memory graph would show sawtooth pattern (grow → GC → grow)
+- Snapshots only capture the valleys, missing the growth
+
+**Problem 2: "Memory released during idle" is misleading**
+- Decrease from 128 MB → 126 MB during idle doesn't prove no leak during load
+- Could mean: accumulated during load, some GC'd during idle
+- Railway showed NO release, indicating continuous accumulation
+
+**Problem 3: MAT leak suspects don't show this type of leak**
+- MAT finds objects not being GC'd (traditional memory leaks)
+- Stream graph internal buffers ARE eventually GC'd
+- But they keep refilling faster than draining → net growth
+- This pattern doesn't appear in "leak suspects"
+
+### What Should Have Been Done
+
+**Requirements for proper validation:**
+1. **Continuous heap monitoring** — Track used heap every 30-60 seconds throughout entire test
+2. **Memory graphs** — Plot heap usage over time to visualise trends
+3. **Detect linear growth** — Look for sustained upward trend, not just snapshots
+4. **Match Railway conditions** — Same duration, same load pattern
+
+**Tools that would have caught this:**
+- **VisualVM** — Real-time heap graph during test (GUI-based)
+- **Java Flight Recorder (JFR)** — Continuous low-overhead recording, can plot post-test
+- **JMX monitoring** — Script to query heap usage and log continuously
+
+### Action Required
+
+See Issue #171 — Implement continuous memory monitoring for local leak validation.
+
+**Until this is fixed:** Local profiling results should be treated as preliminary. Railway validation is the source of truth for memory leak fixes.
+
 ## Heap Dump Locations
 
 All dumps available at: `services/api/heap-dumps/`
