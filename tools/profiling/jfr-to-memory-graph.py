@@ -129,15 +129,19 @@ def normalize_timestamps(datapoints: List[Tuple[str, float]]) -> List[Tuple[floa
 
     # Convert all timestamps to seconds since start
     normalized = []
+    prev_time = first_time
+    day_offset = 0
+
     for time_str, heap_mb in datapoints:
         try:
             t = datetime.strptime(time_str, matched_format)
-            elapsed_seconds = (t - first_time).total_seconds()
 
-            if elapsed_seconds < 0:
-                elapsed_seconds = (t + timedelta(days=1) - first_time).total_seconds()
+            if t < prev_time:
+                day_offset += 1
 
+            elapsed_seconds = (t - first_time).total_seconds() + (day_offset * 86400)
             normalized.append((elapsed_seconds, heap_mb))
+            prev_time = t
         except ValueError:
             continue
 
