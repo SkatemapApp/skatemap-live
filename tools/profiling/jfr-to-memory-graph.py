@@ -17,9 +17,8 @@ The script:
 
 import sys
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Tuple
-import subprocess
 
 def parse_jfr_output(lines: List[str]) -> List[Tuple[datetime, float]]:
     """
@@ -152,8 +151,11 @@ def calculate_growth_rate(datapoints: List[Tuple[float, float]]) -> Tuple[float,
     Calculate linear regression slope (MB/min) from datapoints.
     Returns (slope_mb_per_min, initial_mb, final_mb).
     """
-    if len(datapoints) < 2:
+    if len(datapoints) == 0:
         return (0.0, 0.0, 0.0)
+    if len(datapoints) == 1:
+        heap_mb = datapoints[0][1]
+        return (0.0, heap_mb, heap_mb)
 
     # Simple linear regression
     n = len(datapoints)
