@@ -3,7 +3,7 @@ package skatemap.core
 import org.apache.pekko.NotUsed
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.{KillSwitches, OverflowStrategy, StreamDetachedException, UniqueKillSwitch}
-import org.apache.pekko.stream.scaladsl.{BroadcastHub, Keep, Source, SourceQueueWithComplete}
+import org.apache.pekko.stream.scaladsl.{BroadcastHub, Keep, Sink, Source, SourceQueueWithComplete}
 import org.slf4j.{Logger, LoggerFactory}
 import skatemap.domain.Location
 
@@ -37,6 +37,7 @@ class InMemoryBroadcaster @Inject() (system: ActorSystem, clock: Clock, config: 
           .viaMat(KillSwitches.single)(Keep.both)
           .toMat(BroadcastHub.sink[Location](bufferSize = config.bufferSize))(Keep.both)
           .run()
+        source.runWith(Sink.ignore)
         HubData(queue, source, killSwitch, new AtomicLong(clock.millis()))
       }
     )
