@@ -50,6 +50,7 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
         .runWith(TestSink.probe[String])
 
       testSink.request(1)
+      testSink.expectNoMessage(100.millis)
 
       val newLocation = Location("skater-2", -1.1278, 52.5074, 2000L)
       store.put(eventId, newLocation)
