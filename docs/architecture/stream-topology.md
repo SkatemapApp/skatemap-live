@@ -96,6 +96,8 @@ source.runWith(Sink.ignore)
 
 **Note:** The `Sink.ignore` attachment is essential to prevent memory accumulation when no real subscribers are present. It continuously drains the BroadcastHub, ensuring messages don't accumulate in internal buffers. When real subscribers connect, the BroadcastHub broadcasts to both `Sink.ignore` and real subscribers.
 
+**Known limitation:** Memory acquired during hub lifecycle is not released when hubs are cleaned up (issue #166). This creates a stepwise memory growth pattern where memory footprint increases with peak load and never shrinks. Railway validation (2026-01-25) showed 93 MB retained after a 30-minute test. See `docs/railway-validation-results-20260125.md` for details.
+
 Publishing to the hub (`/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:49-58`):
 
 ```scala
