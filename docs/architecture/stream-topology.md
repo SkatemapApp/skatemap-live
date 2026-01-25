@@ -40,8 +40,9 @@ graph LR
 
 **Source.queue**
 - Creates a bounded source queue with buffer size 128 (configurable via `skatemap.hub.bufferSize`)
-- Publishers call `queue.offer(location)` to enqueue locations
-- Returns `QueueOfferResult` indicating success (`Enqueued`), drop (`Dropped` for overflow), or queue closed (`QueueClosed`)
+- Uses `OverflowStrategy.dropHead` - when buffer is full, oldest message is automatically dropped to make room for new message
+- Publishers call `queue.offer(location)` to enqueue locations (returns `Future[QueueOfferResult]`)
+- With `dropHead` strategy, `offer()` always returns `Enqueued` (drops are handled internally by Pekko)
 - Single materialisation - the queue persists for the lifetime of the hub
 - Eliminates memory leak from the previous MergeHub approach where each `publish()` materialised a new stream
 
@@ -60,40 +61,55 @@ graph LR
 
 ### Materialised Values
 
-The stream materialises to `((BoundedSourceQueue[Location], UniqueKillSwitch), Source[Location, NotUsed])`:
+The stream materialises to `((SourceQueueWithComplete[Location], UniqueKillSwitch), Source[Location, NotUsed])`:
 
-- **BoundedSourceQueue**: Used by `publish()` to offer locations into the hub via `queue.offer(location)`
+- **SourceQueueWithComplete**: Used by `publish()` to offer locations into the hub via `queue.offer(location)` (returns `Future[QueueOfferResult]`)
 - **KillSwitch**: Used by cleanup service to shut down the hub
 - **Source**: Used by `subscribe()` to receive locations from the hub
 
 These values are stored in `HubData` and kept in a `TrieMap[String, HubData]` registry indexed by event ID.
 
-**Error Handling**: The `offer()` method returns `QueueOfferResult`:
-- `Enqueued`: Location successfully queued
-- `Dropped`: Queue full (buffer overflow) - location discarded, warning logged
-- `QueueClosed`: Hub shut down - location discarded, warning logged
-- `Failure(cause)`: Stream stage failure - location discarded, error logged with cause exception
+**Error Handling**: The `publish()` method returns `Future[Unit]` and handles errors asynchronously:
+- `Enqueued`: Location successfully queued (normal case with `dropHead` strategy)
+- `Dropped`: Will not occur with `dropHead` strategy (overflow handled internally)
+- `QueueClosed`: Hub shut down - warning logged (rare edge case)
+- `Failure(cause)`: Stream stage failure - error logged with cause exception (rare edge case)
+- `StreamDetachedException`: Queue closed or stream failed - error logged ("Failed to offer location")
+
+The `dropHead` strategy ensures publishers always succeed even when buffer is full, trading stale data for fresh data. This decouples publishers from subscribers - publishers don't need active subscribers to succeed.
+
+**Critical consideration:** When using `dropHead` with BroadcastHub, messages can accumulate in stream graph internals if no subscribers are draining the hub. The documented pattern is to attach `Sink.ignore` as a permanent draining subscriber to prevent accumulation ([Pekko docs](https://pekko.apache.org/docs/pekko/current/stream/stream-dynamic.html)). Without this, memory leaks can occur in scenarios with no active subscribers.
 
 ### Code Reference
 
-Implementation: `/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:33-37`
+Implementation: `/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:33-38`
 
 ```scala
 val ((queue, killSwitch), source) = Source
-  .queue[Location](config.bufferSize)
+  .queue[Location](config.bufferSize, OverflowStrategy.dropHead)
   .viaMat(KillSwitches.single)(Keep.both)
   .toMat(BroadcastHub.sink[Location](bufferSize = config.bufferSize))(Keep.both)
   .run()
+
+source.runWith(Sink.ignore)
 ```
 
-Publishing to the hub (`/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:47-52`):
+**Note:** The `Sink.ignore` attachment is essential to prevent memory accumulation when no real subscribers are present. It continuously drains the BroadcastHub, ensuring messages don't accumulate in internal buffers. When real subscribers connect, the BroadcastHub broadcasts to both `Sink.ignore` and real subscribers.
+
+Publishing to the hub (`/services/api/src/main/scala/skatemap/core/InMemoryBroadcaster.scala:49-58`):
 
 ```scala
-hubData.queue.offer(location) match {
-  case QueueOfferResult.Enqueued    => ()
-  case QueueOfferResult.Dropped     => logger.warn("Location dropped for event {} due to queue overflow", eventId)
-  case QueueOfferResult.QueueClosed => logger.warn("Location dropped for event {} because queue closed", eventId)
-  case QueueOfferResult.Failure(cause) => logger.error("Failed to offer location for event {}", eventId, cause)
+def publish(eventId: String, location: Location): Future[Unit] = {
+  val hubData = getOrCreateHub(eventId)
+  hubData.queue.offer(location).map {
+    case QueueOfferResult.Enqueued    => ()
+    case QueueOfferResult.Dropped     => logger.warn("Location dropped for event {} due to queue overflow", eventId)
+    case QueueOfferResult.QueueClosed => logger.warn("Location dropped for event {} because queue closed", eventId)
+    case QueueOfferResult.Failure(cause) => logger.error("Failed to offer location for event {}", eventId, cause)
+  }.recover {
+    case _: StreamDetachedException =>
+      logger.error("Failed to offer location for event {}", eventId)
+  }
 }
 ```
 
@@ -233,9 +249,16 @@ See [issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) for th
 
 **`skatemap.hub.bufferSize`** (default: 128)
 - Configures buffer size for BOTH the source queue AND the BroadcastHub
-- Source.queue buffer: If full, `queue.offer()` returns `Dropped` and the location is discarded
+- Source.queue buffer: Uses `OverflowStrategy.dropHead` - when full, oldest message is automatically dropped to make room for new message
 - BroadcastHub buffer: If subscribers lag and buffer fills, oldest messages are dropped
-- This dual-buffer design provides backpressure protection at both the publish and subscribe boundaries
+- The `dropHead` strategy ensures fresh location data takes priority over stale data
+- Publishers always succeed even without active subscribers (no publisher/subscriber coupling)
+- **Important:** `dropHead` deliberately ignores backpressure from downstream (documented Pekko behaviour)
+  - When BroadcastHub has no subscribers, it attempts to apply backpressure
+  - dropHead defeats this backpressure mechanism, continuing to emit messages
+  - Without a draining subscriber, messages can accumulate in stream graph internals
+  - **Solution:** Attach `Sink.ignore` to continuously drain when no real subscribers (see [Pekko docs](https://pekko.apache.org/docs/pekko/current/stream/stream-dynamic.html))
+  - This pattern ensures messages are always consumed, preventing accumulation
 
 **`skatemap.hub.ttlSeconds`** (default: 300)
 - How long unused hubs are kept before cleanup
@@ -250,7 +273,11 @@ See [issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) for th
 ## See Also
 
 - [API README](/services/api/README.md) - High-level architecture diagram
+- [Issue #138](https://github.com/SkatemapApp/skatemap-live/issues/138) - Memory leak investigation: dropHead + BroadcastHub backpressure conflict
 - [Issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) - Why KillSwitch is needed for BroadcastHub cleanup
 - [Pull Request #148](https://github.com/SkatemapApp/skatemap-live/pull/148) - Migration from MergeHub to Source.queue to fix publish memory leak
+- [Pull Request #169](https://github.com/SkatemapApp/skatemap-live/pull/169) - dropHead fix that inadvertently worsened memory leak
+- [dropHead Fix Results](/docs/profiling/drophead-fix-results-20260118.md) - Railway validation showing backpressure conflict
 - [ADR 0003](/docs/adr/0003-jvm-profiling-tooling.md) - Profiling tools used to diagnose memory leaks
 - [Pekko Streams Documentation](https://pekko.apache.org/docs/pekko/current/stream/) - General stream concepts
+- [Pekko BroadcastHub with Sink.ignore pattern](https://pekko.apache.org/docs/pekko/current/stream/stream-dynamic.html) - Documented pattern for draining hubs without subscribers

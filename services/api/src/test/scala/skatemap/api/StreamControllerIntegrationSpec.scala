@@ -3,6 +3,7 @@ package skatemap.api
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.Materializer
 import org.apache.pekko.stream.testkit.scaladsl.TestSink
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.play.PlaySpec
 import org.scalatestplus.play.guice._
 import play.api.libs.json.Json
@@ -11,7 +12,7 @@ import skatemap.domain.Location
 
 import scala.concurrent.duration._
 
-class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite {
+class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite with ScalaFutures {
 
   implicit lazy val system: ActorSystem        = app.actorSystem
   implicit lazy val materializer: Materializer = app.materializer
@@ -49,10 +50,11 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
         .runWith(TestSink.probe[String])
 
       testSink.request(1)
+      testSink.expectNoMessage(100.millis)
 
       val newLocation = Location("skater-2", -1.1278, 52.5074, 2000L)
       store.put(eventId, newLocation)
-      broadcaster.publish(eventId, newLocation)
+      broadcaster.publish(eventId, newLocation).futureValue
 
       val updateMessage = testSink.expectNext(2.seconds)
       updateMessage must include("skater-2")
@@ -87,7 +89,7 @@ class StreamControllerIntegrationSpec extends PlaySpec with GuiceOneAppPerSuite 
 
       val newLocation = Location("skater-4", -1.6178, 54.9783, 4000L)
       store.put(eventId, newLocation)
-      broadcaster.publish(eventId, newLocation)
+      broadcaster.publish(eventId, newLocation).futureValue
 
       val update1 = testSink1.expectNext(2.seconds)
       val update2 = testSink2.expectNext(2.seconds)
