@@ -27,7 +27,7 @@ RUN --mount=type=cache,id=s/3f2cb6e0-c897-4e0a-b01a-b1025950affe-sbt,target=/roo
     --mount=type=cache,id=s/3f2cb6e0-c897-4e0a-b01a-b1025950affe-coursier,target=/root/.cache/coursier \
     sbt stage
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jdk
 
 RUN apt-get update && \
     apt-get install -y curl && \
