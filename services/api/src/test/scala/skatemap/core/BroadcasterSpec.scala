@@ -2,6 +2,7 @@ package skatemap.core
 
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.scaladsl.Sink
+import org.apache.pekko.stream.testkit.scaladsl.TestSink
 import org.apache.pekko.testkit.TestKit
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
@@ -63,17 +64,22 @@ class BroadcasterSpec
     "ensure event isolation - subscribers from different events do not receive each other's updates" in {
       val broadcaster = createBroadcaster()
 
-      val event1Subscriber = broadcaster.subscribe(event1).take(1).runWith(Sink.seq)
-      val event2Subscriber = broadcaster.subscribe(event2).take(1).runWith(Sink.seq)
+      val event1Probe = broadcaster.subscribe(event1).runWith(TestSink.probe[Location])
+      val event2Probe = broadcaster.subscribe(event2).runWith(TestSink.probe[Location])
+
+      event1Probe.request(1)
+      event2Probe.request(1)
+      event1Probe.expectNoMessage(100.millis)
+      event2Probe.expectNoMessage(100.millis)
 
       broadcaster.publish(event1, location1).futureValue
       broadcaster.publish(event2, location2).futureValue
 
-      val event1Results = event1Subscriber.futureValue
-      val event2Results = event2Subscriber.futureValue
+      event1Probe.expectNext(location1)
+      event2Probe.expectNext(location2)
 
-      event1Results should contain only location1
-      event2Results should contain only location2
+      event1Probe.cancel()
+      event2Probe.cancel()
     }
 
     "handle backpressure with buffer limit" in {
