@@ -1,7 +1,7 @@
 package skatemap.core
 
 import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.stream.scaladsl.Sink
+import org.apache.pekko.stream.testkit.scaladsl.TestSink
 import org.apache.pekko.testkit.TestKit
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
@@ -47,50 +47,62 @@ class BroadcasterSpec
     "allow multiple subscribers to receive updates from the same event" in {
       val broadcaster = createBroadcaster()
 
-      val subscriber1Future = broadcaster.subscribe(event1).take(2).runWith(Sink.seq)
-      val subscriber2Future = broadcaster.subscribe(event1).take(2).runWith(Sink.seq)
+      val probe1 = broadcaster.subscribe(event1).runWith(TestSink.probe[Location])
+      val probe2 = broadcaster.subscribe(event1).runWith(TestSink.probe[Location])
+
+      probe1.request(2)
+      probe2.request(2)
+      probe1.expectNoMessage(100.millis)
+      probe2.expectNoMessage(100.millis)
 
       broadcaster.publish(event1, location1).futureValue
       broadcaster.publish(event1, location2).futureValue
 
-      val subscriber1Results = subscriber1Future.futureValue
-      val subscriber2Results = subscriber2Future.futureValue
+      probe1.expectNextUnordered(location1, location2)
+      probe2.expectNextUnordered(location1, location2)
 
-      subscriber1Results should contain theSameElementsAs Seq(location1, location2)
-      subscriber2Results should contain theSameElementsAs Seq(location1, location2)
+      probe1.cancel()
+      probe2.cancel()
     }
 
     "ensure event isolation - subscribers from different events do not receive each other's updates" in {
       val broadcaster = createBroadcaster()
 
-      val event1Subscriber = broadcaster.subscribe(event1).take(1).runWith(Sink.seq)
-      val event2Subscriber = broadcaster.subscribe(event2).take(1).runWith(Sink.seq)
+      val event1Probe = broadcaster.subscribe(event1).runWith(TestSink.probe[Location])
+      val event2Probe = broadcaster.subscribe(event2).runWith(TestSink.probe[Location])
+
+      event1Probe.request(1)
+      event2Probe.request(1)
+      event1Probe.expectNoMessage(100.millis)
+      event2Probe.expectNoMessage(100.millis)
 
       broadcaster.publish(event1, location1).futureValue
       broadcaster.publish(event2, location2).futureValue
 
-      val event1Results = event1Subscriber.futureValue
-      val event2Results = event2Subscriber.futureValue
+      event1Probe.expectNext(location1)
+      event2Probe.expectNext(location2)
 
-      event1Results should contain only location1
-      event2Results should contain only location2
+      event1Probe.cancel()
+      event2Probe.cancel()
     }
 
     "handle backpressure with buffer limit" in {
       val broadcaster = createBroadcaster()
 
-      val slowSubscriber = broadcaster
+      val probe = broadcaster
         .subscribe(event1)
-        .take(3)
         .throttle(1, 100.millis)
-        .runWith(Sink.seq)
+        .runWith(TestSink.probe[Location])
+
+      probe.request(3)
+      probe.expectNoMessage(100.millis)
 
       (1 to 150).foreach { i =>
         broadcaster.publish(event1, location1.copy(timestamp = i)).futureValue
       }
 
-      val results = slowSubscriber.futureValue
-      results should have size 3
+      probe.expectNextN(3)
+      probe.cancel()
     }
 
     "create streams lazily" in {
@@ -109,11 +121,14 @@ class BroadcasterSpec
     "support publishing to non-existent event (lazy creation)" in {
       val broadcaster = createBroadcaster()
 
-      val subscriber = broadcaster.subscribe(event1).take(1).runWith(Sink.seq)
+      val probe = broadcaster.subscribe(event1).runWith(TestSink.probe[Location])
+      probe.request(1)
+      probe.expectNoMessage(100.millis)
+
       broadcaster.publish(event1, location1).futureValue
 
-      val results = subscriber.futureValue
-      results should contain only location1
+      probe.expectNext(location1)
+      probe.cancel()
     }
   }
 }
