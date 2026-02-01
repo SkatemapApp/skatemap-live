@@ -190,7 +190,6 @@ run / javaOptions ++= Seq(
 // services/api/docker-entrypoint.sh
 exec bin/skatemap-live \
   -J-XX:ReservedCodeCacheSize=128m \
-  -J-XX:NativeMemoryTracking=summary \
   -Dplay.http.secret.key="${APPLICATION_SECRET}"
 ```
 
