@@ -233,12 +233,55 @@ If thread count is stable but committed memory grows in other categories, invest
 - Class loading/unloading (metaspace)
 - Direct buffer allocations (Internal category)
 
+## Cleanup After Investigation
+
+**Important:** NMT adds 5-10% performance overhead. Once the investigation is complete and the memory leak is fixed, NMT should be disabled.
+
+**Steps to disable NMT:**
+
+1. **Remove from Railway deployment** (`services/api/docker-entrypoint.sh`):
+   ```diff
+   exec bin/skatemap-live \
+   -  -J-XX:NativeMemoryTracking=summary \
+      -Dplay.http.secret.key="${APPLICATION_SECRET}"
+   ```
+
+2. **Remove from local development** (`services/api/build.sbt`):
+   ```diff
+   run / javaOptions ++= Seq(
+     "-Xlog:gc*=debug:file=gc-%t.log:time,level,tags",
+     "-XX:+HeapDumpOnOutOfMemoryError",
+   -  "-XX:HeapDumpPath=./heap-dumps/",
+   -  "-XX:NativeMemoryTracking=summary"
+   +  "-XX:HeapDumpPath=./heap-dumps/"
+   ),
+   ```
+
+3. **Deploy to Railway** to remove overhead from production
+4. **Archive investigation documentation** for future reference
+
 ## Next Steps After NMT Analysis
 
 1. **Document findings** in `docs/profiling/nmt-analysis-YYYYMMDD.md`
 2. **Update issue #166** with NMT results
 3. **Implement fix** based on findings (e.g., thread pool configuration)
 4. **Validate fix** with another Railway test showing memory returned to baseline
+5. **Disable NMT** (see Cleanup section above) to remove performance overhead
+
+## Future Enhancements
+
+**Automation opportunity:** The NMT investigation workflow could be automated similar to `tools/profiling/profile-memory-leak.sh`:
+
+- Auto-detect JVM process
+- Capture baseline before load test
+- Run load test with configurable duration
+- Capture diff after idle period
+- Generate analysis report with category breakdown
+- Compare against expected thresholds
+
+This would streamline future native memory investigations and enable regression testing.
+
+**Tracked in:** [Issue #177 — Automate native memory tracking investigation workflow](https://github.com/SkatemapApp/skatemap-live/issues/177)
 
 ## References
 
