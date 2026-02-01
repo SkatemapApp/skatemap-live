@@ -242,6 +242,69 @@ run / javaOptions ++= Seq(
 
 If memory constraints require action, **Option 1** (reduce code cache to 128 MB) is the safest approach.
 
+## Verification: Third Consecutive Test
+
+**Date:** 1 February 2026, 22:03 UTC
+**Objective:** Verify retention is one-time (stable) vs cumulative (grows with each test)
+
+### Test Configuration
+
+**Critical difference:** No restart between tests 2 and 3
+
+- **Test 2** (20:48 UTC): Fresh baseline (200 MB) → 250 MB after test
+- **Test 3** (22:03 UTC): Started from 250 MB (no restart) → tested if memory grows to 300 MB
+
+**Test 3 parameters:**
+- Duration: 42 minutes
+- Skaters: 10 per event
+- Update interval: 3 seconds
+- **Starting memory:** ~270 MB (after test 2)
+
+### Results
+
+**Railway memory metrics:**
+
+| Time | Memory | Event |
+|------|--------|-------|
+| 22:03 UTC | ~270 MB | Test 3 starts |
+| 22:07 UTC | 275 MB | During test |
+| 22:45 UTC | 278 MB | After test completion |
+| **Change** | **+8 MB** | **Within noise tolerance** |
+
+### Analysis
+
+**If cumulative (x+y+y pattern):**
+- Expected: 270 MB + 50 MB = **320 MB** ❌
+- Actual: **278 MB** ✓
+
+**If stable (x+y pattern):**
+- Expected: ~270-280 MB ✓
+- Actual: **278 MB** ✓
+
+**Conclusion:** Memory retention is **one-time warmup overhead**, not cumulative.
+
+### Explanation
+
+**Why memory stays stable:**
+
+1. **Code cache:** Methods already compiled during test 2 → reused in test 3 → no additional compilation
+2. **Metaspace:** Classes already loaded during test 2 → reused in test 3 → no additional class loading
+3. **JVM warmed up:** Test 2 performed the one-time warmup, test 3 operates on already-optimised code
+
+**Pattern confirmed:**
+- First test after restart: Baseline + 50 MB (warmup)
+- Subsequent tests: Stays at baseline + 50 MB (stable)
+
+### Decision
+
+**Accepted as normal JVM behaviour** based on verification showing:
+- ✅ Retention is one-time (50 MB), not cumulative
+- ✅ Memory stays stable across multiple load cycles
+- ✅ Code cache and metaspace improve performance
+- ✅ 50 MB overhead is acceptable for production service
+
+**Test run:** https://github.com/SkatemapApp/skatemap-live/actions/runs/21571065748
+
 ## Next Steps
 
 1. **Document findings in issue #166** ✅
