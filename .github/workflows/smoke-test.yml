@@ -29,10 +29,8 @@ jobs:
         run: make build
 
       - name: Install Railway CLI
-        env:
-          RAILWAY_VERSION: "4.27.5"
         run: |
-          curl -fsSL https://railway.app/install.sh | sh
+          curl -fsSL https://railway.app/install.sh | RAILWAY_VERSION="4.27.5" sh
           echo "$HOME/.railway/bin" >> $GITHUB_PATH
           export PATH="$HOME/.railway/bin:$PATH"
           echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Railway CLI installed"
