@@ -33,15 +33,32 @@ jobs:
           curl -fsSL https://railway.app/install.sh | sh
           echo "$HOME/.railway/bin" >> $GITHUB_PATH
 
+      - name: Check Railway URL configuration
+        id: check-url
+        env:
+          RAILWAY_URL: ${{ inputs.target_url || secrets.RAILWAY_PRODUCTION_URL }}
+        run: |
+          if [ -z "$RAILWAY_URL" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "::warning::RAILWAY_PRODUCTION_URL secret not configured. Skipping scheduled smoke tests."
+            echo "::warning::To enable scheduled tests, add RAILWAY_PRODUCTION_URL secret in repository settings."
+            echo "::warning::Or run manually via workflow_dispatch with a target_url parameter."
+          else
+            echo "::add-mask::$RAILWAY_URL"
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "railway_url=$RAILWAY_URL" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run smoke tests
+        if: steps.check-url.outputs.skip == 'false'
         working-directory: tools/load-testing
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_URL: ${{ inputs.target_url || secrets.RAILWAY_PRODUCTION_URL }}
+          RAILWAY_URL: ${{ steps.check-url.outputs.railway_url }}
         run: go test ./test/... -v -timeout 2h -json > smoke-test-results.json
 
       - name: Upload test results
-        if: always()
+        if: always() && steps.check-url.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: smoke-test-results
