@@ -57,7 +57,7 @@ jobs:
         run: go test ./test/... -v -timeout 2h -json > smoke-test-results.json
 
       - name: Upload test results
-        if: always()
+        if: always() && steps.check-url.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
           name: smoke-test-results
