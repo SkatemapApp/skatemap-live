@@ -49,11 +49,25 @@ jobs:
             echo "railway_url=$RAILWAY_URL" >> $GITHUB_OUTPUT
           fi
 
+      - name: Validate Railway configuration
+        if: steps.check-url.outputs.skip == 'false'
+        run: |
+          if [ -z "${{ secrets.RAILWAY_PROJECT_ID }}" ]; then
+            echo "::error::RAILWAY_PROJECT_ID secret not configured"
+            exit 1
+          fi
+          if [ -z "${{ secrets.RAILWAY_ENVIRONMENT_ID }}" ]; then
+            echo "::error::RAILWAY_ENVIRONMENT_ID secret not configured"
+            exit 1
+          fi
+
       - name: Link Railway project
         if: steps.check-url.outputs.skip == 'false'
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway link --project ${{ secrets.RAILWAY_PROJECT_ID }}
+        run: |
+          echo "Linking Railway project with environment"
+          railway link --project ${{ secrets.RAILWAY_PROJECT_ID }} --environment ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
 
       - name: Run smoke tests
         if: steps.check-url.outputs.skip == 'false'
