@@ -29,9 +29,12 @@ jobs:
         run: make build
 
       - name: Install Railway CLI
+        env:
+          RAILWAY_VERSION: "4.27.5"
         run: |
           curl -fsSL https://railway.app/install.sh | sh
           echo "$HOME/.railway/bin" >> $GITHUB_PATH
+          echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Railway CLI installed"
           railway --version
 
       - name: Check Railway URL configuration
@@ -53,6 +56,10 @@ jobs:
       - name: Validate Railway configuration
         if: steps.check-url.outputs.skip == 'false'
         run: |
+          if [ -z "${{ secrets.RAILWAY_TOKEN }}" ]; then
+            echo "::error::RAILWAY_TOKEN secret not configured"
+            exit 1
+          fi
           if [ -z "${{ secrets.RAILWAY_PROJECT_ID }}" ]; then
             echo "::error::RAILWAY_PROJECT_ID secret not configured"
             exit 1
@@ -69,8 +76,9 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          echo "Linking Railway project with environment"
+          echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Linking Railway project with environment"
           railway link --project ${{ secrets.RAILWAY_PROJECT_ID }} --environment ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
+          echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Railway project linked successfully"
 
       - name: Run smoke tests
         if: steps.check-url.outputs.skip == 'false'
