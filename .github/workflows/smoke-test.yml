@@ -32,6 +32,7 @@ jobs:
         run: |
           curl -fsSL https://railway.app/install.sh | sh
           echo "$HOME/.railway/bin" >> $GITHUB_PATH
+          railway --version
 
       - name: Check Railway URL configuration
         id: check-url
@@ -60,6 +61,7 @@ jobs:
             echo "::error::RAILWAY_ENVIRONMENT_ID secret not configured"
             exit 1
           fi
+          echo "::notice::Railway configuration validated successfully"
 
       - name: Link Railway project
         if: steps.check-url.outputs.skip == 'false'
