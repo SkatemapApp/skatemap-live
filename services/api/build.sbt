@@ -17,8 +17,7 @@ lazy val root = (project in file("."))
     run / javaOptions ++= Seq(
       "-Xlog:gc*=debug:file=gc-%t.log:time,level,tags",
       "-XX:+HeapDumpOnOutOfMemoryError",
-      "-XX:HeapDumpPath=./heap-dumps/",
-      "-XX:NativeMemoryTracking=summary"
+      "-XX:HeapDumpPath=./heap-dumps/"
     ),
     // WartRemover incorrectly analyzes routes files - exclude warts that routes files trigger
     Compile / compile / wartremoverErrors := Warts.allBut(

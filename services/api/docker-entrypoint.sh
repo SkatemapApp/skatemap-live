@@ -7,6 +7,4 @@ if [ -z "$APPLICATION_SECRET" ]; then
 fi
 
 # Use exec to replace shell with Java process (ensures proper signal handling)
-exec bin/skatemap-live \
-  -J-XX:NativeMemoryTracking=summary \
-  -Dplay.http.secret.key="${APPLICATION_SECRET}"
+exec bin/skatemap-live -Dplay.http.secret.key="${APPLICATION_SECRET}"
