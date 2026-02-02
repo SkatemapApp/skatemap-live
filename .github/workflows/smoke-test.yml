@@ -35,8 +35,9 @@ jobs:
 
       - name: Check Railway URL configuration
         id: check-url
+        env:
+          RAILWAY_URL: ${{ inputs.target_url || secrets.RAILWAY_PRODUCTION_URL }}
         run: |
-          RAILWAY_URL="${{ inputs.target_url || secrets.RAILWAY_PRODUCTION_URL }}"
           if [ -z "$RAILWAY_URL" ]; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "::warning::RAILWAY_PRODUCTION_URL secret not configured. Skipping scheduled smoke tests."
