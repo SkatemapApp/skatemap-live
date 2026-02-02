@@ -65,6 +65,7 @@ jobs:
 
       - name: Link Railway project
         if: steps.check-url.outputs.skip == 'false'
+        working-directory: tools/load-testing
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
