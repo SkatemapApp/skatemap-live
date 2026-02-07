@@ -79,7 +79,7 @@ Response (WebSocket messages):
 
 **3. Event Lifecycle**
 
-Events are created implicitly—no explicit creation endpoint exists. When a client publishes a location to an event ID that doesn't exist, or when a viewer subscribes to a non-existent event, the system creates the necessary data structures lazily. Event cleanup occurs automatically when all locations expire and the broadcast hub is removed (see Deep Dives).
+Events are created implicitly—no explicit creation endpoint exists. When a client publishes a location to an event ID that doesn't exist, or when a viewer subscribes to a non-existent event, the system creates the necessary data structures lazily. Event cleanup occurs automatically when all locations expire and the broadcast hub is removed (see Implementation Details).
 
 ### Components
 
@@ -130,19 +130,19 @@ graph TB
 ## Technology Stack
 
 ### Application Runtime
-- **Scala 2.13** - JVM language for the API service
-- **Play Framework 3.0.9** - Web framework and HTTP server
-- **Pekko Streams 1.1.2** - Reactive stream processing
-- **Pekko Actors 1.1.2** - Actor system and concurrency
-- **SBT 1.10+** - Build tool
+- **Scala** - JVM language for the API service
+- **Play Framework** - Web framework and HTTP server
+- **Pekko Streams** - Reactive stream processing
+- **Pekko Actors** - Actor system and concurrency
+- **SBT** - Build tool
 
 ### Deployment
 - **Railway PaaS** - Production deployment platform
 - **Docker** - Container packaging
-- **JDK 21** - Java runtime
+- **JDK** - Java runtime
 
 ### Testing and Load Generation
-- **Go 1.21+** - Load testing tools (simulate-skaters, simulate-viewers)
+- **Go** - Load testing tools (simulate-skaters, simulate-viewers)
 - **Go test + Testify** - Smoke test automation framework
 - **ScalaTest** - Unit and integration tests
 
@@ -150,9 +150,9 @@ graph TB
 - **Eclipse MAT** - Heap dump analysis
 - **async-profiler** - CPU and allocation profiling
 - **Java Flight Recorder (JFR)** - Continuous memory monitoring
-- **Python 3.9+ with matplotlib** - JFR graph generation
+- **Python with matplotlib** - JFR graph generation
 
-## Deep Dives
+## Implementation Details
 
 ### Event Isolation
 
