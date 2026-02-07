@@ -13,14 +13,14 @@ Skatemap Live is a real-time GPS streaming service for organised skating events.
 
 ### What It's Designed For
 
-**Design target:** 10-15 concurrent events (realistic Friday night peak across European cities), 10,000-17,000 updates/min
+**Design target:** 10-15 concurrent events (realistic Friday night peak across European cities)
 
-**Tested capacity:** 5 concurrent events, 5,000 updates/min sustained (30-minute load tests)
+**Tested capacity:** 2 concurrent events, 200 updates/min sustained (30-minute smoke tests)
 
 The system is sized for realistic peak load. Scaling beyond 15 concurrent events would require additional testing and potentially horizontal scaling.
 
 - Per-event capacity: 50-100 skaters publishing every 2-3 seconds
-- Latency: p95 <200ms (publish to delivery)
+- HTTP request latency: 36.55ms mean (6,880 requests over 34 minutes)
 - Deployment: Single Railway instance (512 MB RAM)
 - No persistence (ephemeral data, restart = data loss)
 
