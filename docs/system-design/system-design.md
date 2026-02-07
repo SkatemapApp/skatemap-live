@@ -127,6 +127,31 @@ graph TB
 
 **BroadcasterCleanupService** shuts down inactive broadcast hubs (300-second TTL) by scanning every 60 seconds and invoking kill switches on unused hubs.
 
+## Technology Stack
+
+### Application Runtime
+- **Scala 2.13** - JVM language for the API service
+- **Play Framework 3.0.9** - Web framework and HTTP server
+- **Pekko Streams 1.1.2** - Reactive stream processing
+- **Pekko Actors 1.1.2** - Actor system and concurrency
+- **SBT 1.10+** - Build tool
+
+### Deployment
+- **Railway PaaS** - Production deployment platform
+- **Docker** - Container packaging
+- **JDK 21** - Java runtime
+
+### Testing and Load Generation
+- **Go 1.21+** - Load testing tools (simulate-skaters, simulate-viewers)
+- **Go test + Testify** - Smoke test automation framework
+- **ScalaTest** - Unit and integration tests
+
+### Profiling and Diagnostics
+- **Eclipse MAT** - Heap dump analysis
+- **async-profiler** - CPU and allocation profiling
+- **Java Flight Recorder (JFR)** - Continuous memory monitoring
+- **Python 3.9+ with matplotlib** - JFR graph generation
+
 ## Deep Dives
 
 ### Event Isolation
