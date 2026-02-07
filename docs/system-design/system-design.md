@@ -324,3 +324,232 @@ The 5-minute TTL for hubs (configured via `skatemap.hub.ttlSeconds`) is much lon
 The cleanup interval of 60 seconds is less frequent than location cleanup (10 seconds). At expected scale (10-15 concurrent events), scan cost is O(n) in active hubs. The 60-second interval limits unnecessary scans whilst ensuring hubs are removed within 6 minutes of becoming inactive (5-minute TTL plus 60-second scan interval).
 
 The main trade-off is the TTL tuning. Longer TTLs keep hubs alive through temporary inactivity, reducing churn. But they also keep unused hubs in memory longer after events genuinely end. The 5-minute setting balances these concerns based on typical European skating event durations of 30-120 minutes, where a 5-minute idle threshold captures genuine event completion rather than brief pauses.
+
+## Deployment
+
+### Single-Instance Architecture
+
+The system runs as a single JVM instance on Railway PaaS. This deployment model stems directly from the in-memory state design—the TrieMap-based location store and BroadcastHub registry exist only within one process. Multiple instances would require distributed state coordination (Redis Pub/Sub or similar), which adds latency and operational complexity unnecessary for a demonstration system targeting 10-15 concurrent events.
+
+```mermaid
+graph TB
+    subgraph "Railway Platform"
+        subgraph "Docker Container"
+            JVM[JVM Process<br/>Eclipse Temurin 21 JRE]
+
+            subgraph "Play Application"
+                HTTP[HTTP Server<br/>Port 9000]
+                WS[WebSocket Handler<br/>Pekko Streams]
+                Store[In-Memory State<br/>TrieMap]
+                Hubs[BroadcastHub Registry<br/>TrieMap]
+            end
+        end
+
+        Health[Health Check<br/>/health endpoint<br/>30s interval]
+    end
+
+    Internet[Internet] -->|HTTPS| Railway
+    Railway -->|Proxy| HTTP
+    HTTP --> WS
+    HTTP --> Store
+    WS --> Hubs
+
+    Health -.->|Monitor| HTTP
+
+    style JVM fill:#e1f5ff
+    style Store fill:#ffe1e1
+    style Hubs fill:#ffe1e1
+```
+
+The single-instance constraint has direct implications. Vertical scaling is the only option—larger instance types provide more memory and CPU, but throughput remains bounded by a single JVM process. Restart or crash causes complete data loss, as all location state and broadcast hubs exist only in heap memory. There is no write-ahead log, no replication, and no recovery mechanism.
+
+The system has no external dependencies—no database, message queue, or cache layer. All state exists within the JVM process.
+
+Railway provisions 512 MB RAM and shared vCPU on the free tier. The JVM heap is configured to 256 MB maximum (`-Xmx256m` via Docker entrypoint), leaving headroom for off-heap allocations, OS buffers, and Railway's platform overhead.
+
+### Infrastructure Requirements
+
+**JVM Version:** Eclipse Temurin 21 (LTS release), running on Linux x86_64. The Dockerfile explicitly pins `eclipse-temurin:21-jre` for the runtime image, ensuring consistent behaviour across local development and production deployment.
+
+**Memory Allocation:**
+- **Total RAM:** 512 MB (Railway platform allocation)
+- **JVM heap:** 256 MB maximum (`-Xmx256m`)
+- **Remaining memory headroom:** ~256 MB (for thread stacks, native memory, OS buffers, and Railway platform overhead)
+
+**Memory Scaling Calculation:**
+Assuming 50 skaters per event publishing every 3 seconds with 30-second TTL (pessimistic envelope treating stream buffering as if retained in location store; the authoritative location store itself holds only the latest location per skater):
+- Location data per event: 50 skaters × 10 updates (buffered) × ~48 bytes ≈ 24 KB (estimated)
+- Hub overhead per event: Queue (128 × ~48 bytes) + BroadcastHub structures ≈ 8 KB (estimated)
+- Total per event: ~32 KB
+- 15 concurrent events (target scale): ~480 KB
+- 100 concurrent events: 3.2 MB (showing capacity headroom beyond target)
+- JVM baseline: ~50-90 MB (class metadata, thread stacks, Pekko dispatcher pools; observed range varies with traffic)
+- WebSocket overhead: ~10 KB per connection (estimated), 150 concurrent viewers ≈ 1.5 MB
+
+With target scale (15 events, 150 viewers): 256 MB heap provides substantial headroom beyond baseline + active data.
+
+**CPU:** Shared vCPU on Railway (no guaranteed allocation). Cleanup scans iterate all events sequentially every 10 seconds. Scan cost is O(events × skaters), independent of publish rate—more events increase cleanup work, but higher update frequency does not materially affect cleanup cost. Pekko Streams uses internal thread pools for asynchronous operations (materialised graphs, WebSocket frame processing).
+
+**Ports:**
+- `9000`: HTTP and WebSocket traffic (Play Framework default, overridable via `PORT` environment variable)
+- Health checks: Railway platform polls `/health` endpoint every 30 seconds with 3-second timeout
+
+**Network:** Railway provides HTTPS termination automatically. The application listens on HTTP within the container; Railway's proxy handles TLS.
+
+### Configuration Management
+
+Configuration follows a layered approach: defaults in `application.conf`, overridable via environment variables. This supports local development (defaults) and production deployment (Railway environment variables) without code changes.
+
+**Configuration Structure:**
+
+```
+application.conf (defaults)
+├── play.server.http.port = 9000
+│   └── ${?PORT} override
+├── pekko.http.server.idle-timeout = 3 minutes
+│   └── ${?WEBSOCKET_IDLE_TIMEOUT} override
+└── skatemap.*
+    ├── cleanup.*
+    │   ├── initialDelaySeconds = 10
+    │   │   └── ${?CLEANUP_INITIAL_DELAY_SECONDS}
+    │   └── intervalSeconds = 10
+    │       └── ${?CLEANUP_INTERVAL_SECONDS}
+    ├── location.*
+    │   └── ttlSeconds = 30
+    │       └── ${?LOCATION_TTL_SECONDS}
+    ├── stream.*
+    │   ├── batchSize = 100
+    │   │   └── ${?STREAM_BATCH_SIZE}
+    │   └── batchIntervalMillis = 500
+    │       └── ${?STREAM_BATCH_INTERVAL_MILLIS}
+    └── hub.*
+        ├── ttlSeconds = 300
+        │   └── ${?HUB_TTL_SECONDS}
+        ├── cleanupIntervalSeconds = 60
+        │   └── ${?HUB_CLEANUP_INTERVAL_SECONDS}
+        └── bufferSize = 128
+            └── ${?HUB_BUFFER_SIZE}
+```
+
+**Note:** BroadcasterCleanupService initial delay equals `cleanupIntervalSeconds` (same value, not separately configurable).
+
+**Key Settings:**
+
+| Setting | Default | Override Env Var | Purpose |
+|---------|---------|------------------|---------|
+| `play.server.http.port` | 9000 | `PORT` | HTTP server listening port |
+| `pekko.http.server.idle-timeout` | 3 minutes | `WEBSOCKET_IDLE_TIMEOUT` | WebSocket connection timeout (no activity) |
+| `skatemap.location.ttlSeconds` | 30 | `LOCATION_TTL_SECONDS` | Location expiry window |
+| `skatemap.cleanup.intervalSeconds` | 10 | `CLEANUP_INTERVAL_SECONDS` | Location cleanup frequency |
+| `skatemap.hub.ttlSeconds` | 300 | `HUB_TTL_SECONDS` | BroadcastHub idle expiry (5 minutes) |
+| `skatemap.hub.cleanupIntervalSeconds` | 60 | `HUB_CLEANUP_INTERVAL_SECONDS` | Hub cleanup scan frequency |
+| `skatemap.hub.bufferSize` | 128 | `HUB_BUFFER_SIZE` | Messages buffered per hub |
+| `skatemap.stream.batchSize` | 100 | `STREAM_BATCH_SIZE` | Max locations per WebSocket batch |
+| `skatemap.stream.batchIntervalMillis` | 500 | `STREAM_BATCH_INTERVAL_MILLIS` | Max time between batches |
+
+**Configuration Validation:** The `skatemap.*` configuration values are validated at application startup via `SkatemapLiveModule.getPositiveInt()`. Missing required settings or non-positive values (for TTLs, intervals, buffer sizes) cause immediate startup failure with clear error messages. This fail-fast approach prevents misconfiguration from reaching production. The `/health` endpoint is implemented by `HealthController` (route: `GET /health skatemap.api.HealthController.health` in `conf/routes`) and returns 200 OK when the application is fully initialised.
+
+**Railway Environment Variables:**
+Railway injects `PORT` automatically (dynamically assigned). All other settings use defaults from `application.conf` unless explicitly overridden in Railway's service settings panel.
+
+### Packaging and Deployment Process
+
+The application is packaged as a Docker image using a multi-stage build defined in `services/api/Dockerfile.railway`. Railway automatically builds and deploys this image when changes are pushed to the connected Git branch.
+
+**Build Process (Stage 1: Builder):**
+
+1. **Base image:** `eclipse-temurin:21-jdk` provides Java Development Kit for compilation
+2. **SBT installation:** Downloads SBT 1.11.5 from official releases, installs to `/usr/local/sbt`
+3. **Dependency caching:** Railway's build system caches `/root/.sbt`, `/root/.ivy2`, `/root/.cache/coursier` between builds
+4. **Source compilation:** Copies project files (build definitions, source code, configuration) and runs `sbt stage`, which:
+   - Resolves dependencies (Scala 2.13.16, Play Framework, Pekko Streams)
+   - Compiles source files with scalac
+   - Packages application into `target/universal/stage` directory structure
+
+**Runtime Process (Stage 2: Production):**
+
+1. **Base image:** `eclipse-temurin:21-jre` provides Java Runtime Environment only (smaller image, no compiler overhead)
+2. **Non-root user:** Creates `skatemap` user and group, runs application with dropped privileges (security hardening)
+3. **Artifact copy:** Copies staged application from builder image (`/app/target/universal/stage`)
+4. **Entrypoint script:** `docker-entrypoint.sh` sets JVM options:
+   - Heap size: `-Xmx256m`
+   - GC logging: `-Xlog:gc*=debug:file=gc-%t.log:time,level,tags` (writes to container filesystem, useful for post-mortem analysis)
+   - Heap dumps: `-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./heap-dumps/` (generates dump on OOM for offline analysis)
+5. **Health check:** Docker HEALTHCHECK directive polls `http://localhost:9000/health` every 30 seconds (interval), 3-second timeout, 3 retries before marking unhealthy
+
+**Deployment Trigger:**
+
+Railway watches the configured Git branch (`master` for production). On push:
+1. Clones repository
+2. Builds Docker image using `railway.toml` configuration (`dockerfilePath: services/api/Dockerfile.railway`)
+3. Runs health check (polls `/health` with 100-second timeout, configured in `railway.toml`)
+4. If health check passes: stops old container, starts new container (no true zero-downtime on Railway free tier)
+5. If health check fails: aborts deployment, keeps old container running
+
+**Deployment Downtime:** Railway performs container replacement (stop then start) with downtime. In-memory state is lost. All active WebSocket connections drop, all location data is lost. Clients must reconnect and republish locations. This downtime is inherent to the single-instance, in-memory design—even with a more sophisticated platform, deployments would still cause state loss unless distributed state coordination were added. This is acceptable for a demonstration system at this scale but problematic for production deployment.
+
+### Operational Considerations
+
+**Startup Sequence:**
+
+1. JVM initialises (loads classes, initialises heap)
+2. Play Framework starts HTTP server on port 9000
+3. Dependency injection wires components (`SkatemapLiveModule` binds `InMemoryLocationStore`, `InMemoryBroadcaster`, cleanup services)
+4. Pekko ActorSystem initialises (thread pools, schedulers)
+5. Cleanup services schedule background tasks:
+   - `CleanupService`: schedules with 10-second initial delay, 10-second interval
+   - `BroadcasterCleanupService`: schedules with 60-second initial delay, 60-second interval
+6. `/health` endpoint becomes available (returns `200 OK` when application ready)
+
+**Typical startup time:** 15-20 seconds (observed during development on Railway). Health check allows 40 seconds before marking unhealthy (`start-period=40s` in Dockerfile).
+
+**Shutdown Sequence:**
+
+1. Railway sends `SIGTERM` to container
+2. Play Framework receives shutdown hook, stops accepting new connections
+3. In-flight HTTP requests allowed to complete (grace period: short, platform-defined, typically ~10 seconds)
+4. Pekko ActorSystem shutdown begins:
+   - Cleanup schedulers cancelled
+   - Active streams receive completion signal (WebSocket connections close gracefully)
+   - BroadcastHub kill switches invoked (streams terminate)
+5. JVM exits
+
+**Graceful shutdown limitation:** The grace period may not be sufficient for long-running WebSocket connections to drain cleanly. Active viewers experience abrupt disconnection rather than clean closure. This stems from both Railway's platform grace period and the application's lack of staged shutdown (no rejection of new WebSocket upgrades, no client signalling, no coordinated hub termination before forced closure).
+
+**Monitoring Surface:**
+
+Railway provides basic observability:
+- **Logs:** `stdout`/`stderr` from JVM captured by Railway's log aggregation (viewable in dashboard, not persisted long-term on free tier). Logback outputs text-formatted logs (timestamp, level, logger name, message)
+- **Metrics:** CPU usage (%), memory usage (MB), network I/O (bytes/sec) — visible in Railway dashboard
+- **Health checks:** `/health` endpoint polls (success/failure history)
+
+**Missing observability:**
+- No distributed tracing (no correlation IDs across requests)
+- No Prometheus metrics export (event count, location count, hub count not exposed)
+- No alerting (Railway free tier lacks alerting integrations)
+
+**GC and Heap Dumps:**
+
+The JVM is configured for profiling and post-mortem analysis:
+- **GC logs:** Written to `gc-<timestamp>.log` in container filesystem (ephemeral, lost on restart)
+- **Heap dumps:** Generated automatically on `OutOfMemoryError`, written to `./heap-dumps/` directory
+
+These files exist only within the container and are lost on restart. To retrieve them for analysis, use Railway CLI:
+
+```bash
+# Example workflow (best-effort; requires PID discoverability and sufficient container permissions, not guaranteed on all PaaS configurations)
+railway run jcmd <pid> GC.heap_dump /tmp/heap.hprof
+railway run cat /tmp/heap.hprof > local-heap.hprof
+```
+
+This workflow is manual and cumbersome. Production deployment would require persistent volume mounts or automatic upload to object storage (S3, GCS).
+
+**Crash Behaviour:**
+
+If the JVM crashes (uncaught exception, `OutOfMemoryError`, segmentation fault):
+1. Container exits with non-zero status
+2. Railway automatically restarts container (restart policy: always)
+3. Application starts fresh
+4. Clients must reconnect and republish
+
+**Recovery Time Objective (RTO):** Typically 20-30 seconds (startup time). No manual intervention required.
