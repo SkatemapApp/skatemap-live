@@ -6,10 +6,10 @@ Skatemap Live is a real-time GPS streaming service for organised skating events.
 
 ### What It Does
 
-- Event creation (UUID-based, no authentication)
+- Event identifiers are client-generated UUIDs; the server creates event state lazily on first publish or subscribe
 - Location publishing (skaters publish coordinates to events)
 - Real-time streaming (viewers receive updates via WebSocket)
-- Event isolation (complete data separation between events)
+- Event isolation (independent data structures per event; shared JVM runtime)
 
 ### What It's Designed For
 
@@ -17,11 +17,10 @@ Skatemap Live is a real-time GPS streaming service for organised skating events.
 
 **Tested capacity:** 2 concurrent events, 200 updates/min sustained (30-minute smoke tests)
 
-The system is sized for realistic peak load. Scaling beyond 15 concurrent events would require additional testing and potentially horizontal scaling.
+The system targets a realistic Friday-night peak and has been validated only at the tested capacity described below. Scaling beyond 15 concurrent events would require additional testing and a different architecture (externalised state and multi-instance coordination).
 
-- Per-event capacity: 50-100 skaters publishing every 2-3 seconds
+- Design envelope: up to ~50–100 skaters per event publishing every 2–3 seconds (not validated by load tests)
 - HTTP request latency: 36.55ms mean (6,880 requests over 34 minutes)
-- Deployment: Single Railway instance (512 MB RAM)
 - No persistence (ephemeral data, restart = data loss)
 
 ## High Level Design
@@ -53,6 +52,8 @@ Request:
 }
 ```
 
+Array format: `[longitude, latitude]` (GeoJSON convention)
+
 Response: `202 Accepted` (empty body)
 
 **2. Stream Consumption**
@@ -75,6 +76,10 @@ Response (WebSocket messages):
   "serverTime": 1633024800123
 }
 ```
+
+**3. Event Lifecycle**
+
+Events are created implicitly—no explicit creation endpoint exists. When a client publishes a location to an event ID that doesn't exist, or when a viewer subscribes to a non-existent event, the system creates the necessary data structures lazily. Event cleanup occurs automatically when all locations expire and the broadcast hub is removed (see Deep Dives).
 
 ### Components
 
@@ -102,13 +107,25 @@ graph TB
     style BCS fill:#ffe1e1
 ```
 
-- **LocationController**: Validates location data, writes to storage, and publishes to broadcaster
-- **StreamController**: Handles WebSocket connections, delegates to EventStreamService
-- **EventStreamService**: Reads initial snapshot from store, subscribes to broadcaster for live updates
-- **InMemoryLocationStore**: Stores locations in TrieMap structure (Event→Skater→Location)
-- **InMemoryBroadcaster**: Maintains one broadcast hub per event. When a location is published, it's queued and broadcast to all active subscribers for that event. Uses Pekko Streams `BroadcastHub` for fan-out
-- **CleanupService**: Removes expired locations (30s TTL)
-- **BroadcasterCleanupService**: Shuts down inactive broadcast hubs (300s TTL)
+#### Request Handling
+
+**LocationController** validates incoming location data, writes it to storage, and publishes to the broadcaster. This controller handles the HTTP PUT endpoint for location updates and returns 202 Accepted responses.
+
+**StreamController** handles WebSocket connection requests and delegates stream management to EventStreamService.
+
+#### Data Storage and Broadcasting
+
+**InMemoryLocationStore** stores locations using a nested TrieMap structure (Event→Skater→Location), providing concurrent access with O(1) event lookup. The store retains only the latest location per skater.
+
+**InMemoryBroadcaster** maintains one broadcast hub per event. When a location is published, it's queued in a bounded buffer (128 messages) and broadcast to all active subscribers via Pekko Streams BroadcastHub. This architecture provides fan-out without per-subscriber stream materialisation overhead.
+
+**EventStreamService** combines historical and live data for viewers. It reads an initial snapshot from InMemoryLocationStore, then subscribes to InMemoryBroadcaster for real-time updates, concatenating them into a single stream (initial ++ updates).
+
+#### Background Maintenance
+
+**CleanupService** removes expired locations (30-second TTL) by scanning all events every 10 seconds.
+
+**BroadcasterCleanupService** shuts down inactive broadcast hubs (300-second TTL) by scanning every 60 seconds and invoking kill switches on unused hubs.
 
 ## Deep Dives
 
@@ -160,19 +177,19 @@ The streaming layer mirrors this structure exactly. The broadcaster maintains `T
 
 When EventStreamService subscribes to Event abc-123, it calls `broadcaster.subscribe("abc-123")`, which looks up "abc-123" in the hubs map and returns that hub's source. The source is Event abc-123's `BroadcastHub` output—it only broadcasts Event abc-123's locations. Event def-456's locations flow through Event def-456's completely separate hub.
 
-Separate hubs avoid broadcasting irrelevant elements to all subscribers. While filtering could be applied downstream per subscriber (using `source.filter(_.eventId == "abc-123")`), this wastes CPU and bandwidth by pushing elements through the hub only to drop them. It also couples buffer occupancy and scheduling across events. Per-event hubs eliminate this overhead and isolate buffer state.
+We chose per-event hubs to avoid wasting resources on filtering. While we could use a single global hub and filter by eventId downstream (using `source.filter(_.eventId == "abc-123")`), this would waste CPU and bandwidth by pushing irrelevant elements through the hub only to drop them. It would also couple buffer occupancy and scheduling across events—slow subscribers on Event abc-123 would affect Event def-456's queue state. Per-event hubs eliminate this overhead and isolate buffer state.
 
-The benefits of this architecture are concrete. First, read queries scale with event size, not system size. Querying Event abc-123's 50 locations when the system has 10 events costs the same as when it has 100 events. The hash lookup is O(1), and the map conversion is O(50) regardless. Second, events are logically isolated and localise most contention paths within the application. When slow subscribers cause buffer saturation on Event abc-123, buffer pressure and any resulting drops (configured with a dropping overflow strategy, e.g., OverflowStrategy.dropHead) are confined to Event abc-123's hub—Event def-456's queue and subscribers are unaffected. A bug in some other event's data (malformed coordinates, excessive publish rate) cannot directly corrupt Event abc-123's or Event def-456's data structures because event data is partitioned into per-event structures with no cross-event mutation paths. Third, memory reclamation is granular. When Event abc-123's cleanup runs, it removes Event abc-123's locations and potentially Event abc-123's entire entry from the outer map. Event def-456's data is untouched during this process.
+The benefits of this architecture are concrete. First, read queries scale with event size, not system size. Querying Event abc-123's 50 locations when the system has 10 events costs the same as when it has 100 events. The hash lookup is O(1), and the map conversion is O(50) regardless. Second, events are logically isolated and localise most contention paths within the application. When slow subscribers cause buffer saturation on Event abc-123, buffer pressure and any resulting drops (configured with a dropping overflow strategy, e.g., OverflowStrategy.dropHead) are confined to Event abc-123's hub—Event def-456's queue and subscribers are unaffected. A bug in one event is less likely to affect another event's data because state and streams are partitioned by eventId. Third, memory reclamation is granular. When Event abc-123's cleanup runs, it removes Event abc-123's locations and potentially Event abc-123's entire entry from the outer map. Event def-456's data is untouched during this process.
 
 The resource independence is particularly valuable during cleanup. The cleanup service scans the outer map and processes each event's data independently, though all events are scanned in sequence. If Event abc-123 has 1,000 expired locations and Event def-456 has 10, Event abc-123's filtering takes longer but the operations don't interfere with each other's data structures or locks.
 
 The trade-off is memory overhead from per-event data structures. Each event requires its own TrieMap for locations and its own HubData for streaming (containing queue, source, kill switch, and timestamp reference). These incur small constant overhead costs before any locations are added.
 
-At target scale (100 concurrent events with 512 MB allocation), this per-event overhead represents a tiny fraction of total memory. Even with many single-skater events, the structural cost is negligible compared to location data and hub buffers. The system trades this fixed, small memory cost for simplified read path logic and better isolation properties.
+Per-event structures add fixed overhead. The practical memory limit depends on heap sizing, viewer count, and publish rates—none of which have been characterised beyond the documented tests. The system trades per-event structural overhead for simplified read path logic and better isolation properties.
 
 One subtle benefit: the isolation pattern makes the system's behaviour predictable. When debugging Event abc-123's missing locations, you examine Event abc-123's map and Event abc-123's hub. You don't wade through a shared structure wondering if Event def-456's data is interfering. When testing, you can create isolated test events that don't interact with real events. When monitoring, metrics are naturally per-event—Event abc-123's location count, Event def-456's hub subscriber count—without requiring tag-based filtering.
 
-It's important to note that events are logically isolated, not physically sealed. CPU, garbage collection, and memory pressure are still shared across all events. A pathological Event ghi-789 that creates massive allocation pressure will trigger GC pauses affecting all events. The JVM's heap is shared. But at the application level, the data structures and control flow are partitioned per event, which localises most operational concerns.
+It's important to note that events are logically isolated, not physically sealed. While CPU, garbage collection, and memory pressure are shared across all events at the JVM level, the application-level data structures and control flow are partitioned per event, which localises most operational concerns.
 
 ### Streaming Topology
 
@@ -215,7 +232,7 @@ Here's why this is problematic: once a viewer subscribes, they passively receive
 
 This cleanup policy prioritises memory over connection stability—hubs are shut down based on publish/subscribe activity rather than active viewer count. For events where skaters pause (no new location publishes) but viewers continue watching, all connections will be terminated after 300 seconds. This is a known limitation: the current implementation does not track active subscriber count or distinguish between "unused hub with no viewers" and "active hub with viewers but no recent publishes".
 
-This behavior is acceptable for short-lived events with continuous activity (e.g., races where skaters move constantly and events complete within 30-60 minutes). For such events, the 300-second cleanup threshold is unlikely to trigger. However, it is problematic for long-form events or events where participants take extended breaks, as viewers will be unexpectedly disconnected during pauses in activity.
+This disconnects viewers during publish inactivity. Whether that behaviour is acceptable depends on event characteristics—it suits short races with continuous movement but not long-form events where participants pause.
 
 **Potential mitigations** (not currently implemented):
 - Track active subscriber count and exclude hubs with subscribers from cleanup (most robust, but requires custom instrumentation—Pekko Streams does not expose materialisation count, so the Source would need wrapping to track when streams start and complete)
@@ -231,9 +248,9 @@ Backpressure is a fundamental challenge in streaming systems. In location stream
 
 If downstream backpressure propagates upstream in this topology, a single slow viewer would throttle all publishers and affect all other viewers. In a multi-tenant system with independent events, this violates the isolation requirement.
 
-The system decouples downstream backpressure using a bounded buffer with drop-head overflow strategy. Each event's hub uses `Source.queue` with fixed capacity (128 elements) and `OverflowStrategy.dropHead`, which evicts the head element on overflow. When the queue fills to capacity, each new offer evicts the oldest queued element. Overflow occurs upstream of the `BroadcastHub` fan-out point, so all subscribers receive the same post-drop stream. There are no per-subscriber buffers—when elements are dropped, all subscribers miss the same elements.
+The system decouples downstream backpressure using a bounded buffer with drop-head overflow strategy. Each event's hub uses `Source.queue` with fixed capacity (128 elements) and `OverflowStrategy.dropHead`, which evicts the head element on overflow. When the queue fills to capacity, each new offer evicts the oldest queued element. Overflow occurs upstream of the `BroadcastHub` fan-out point, so all subscribers receive the same post-drop stream. There are no application-managed per-subscriber buffers in the hub path; lower layers (Pekko HTTP, TCP) may still buffer frames. When elements overflow at the hub queue, all subscribers receive the same post-drop stream.
 
-For buffer sizing, assume a worst-case aggregate publishing rate of 20 locations per second per event. At this rate, the 128-element buffer represents approximately 6 seconds of data.
+For buffer sizing, we use a design assumption (not measured in production) of ~20 locations per second per event as a worst-case aggregate publishing rate. At this rate, the 128-element buffer represents approximately 6 seconds of data.
 
 When sustained publishing exceeds buffer capacity, the system drops the oldest buffered locations. For real-time GPS tracking, this is acceptable—viewers care more about current positions than complete history. `SourceQueue.offer` is asynchronous and returns `QueueOfferResult`. With `OverflowStrategy.dropHead`, the offer does not block the publisher; older elements are dropped instead of applying backpressure. The publisher proceeds without waiting for downstream demand signals.
 
@@ -283,7 +300,7 @@ The cleanup mechanism operates via Pekko's `scheduleWithFixedDelay`, running eve
 
 This design enables automatic event lifecycle management. When an event ends and skaters stop publishing, their last locations expire within the TTL window. The cleanup service removes these locations, leaving an empty event map, which is then removed. The system currently relies solely on automatic cleanup; no explicit event deletion API is implemented.
 
-The timing parameters create specific system behaviour. The 10-second cleanup interval means locations can persist up to 40 seconds in the worst case (30-second TTL plus 10-second cleanup delay). Expired locations may be served to new viewers between cleanup runs, as `InMemoryLocationStore.getAll()` does not enforce TTL to avoid per-read filtering overhead.
+The timing parameters create specific system behaviour. The 10-second cleanup interval means locations can persist up to 40 seconds in the worst case (30-second TTL plus 10-second cleanup delay). Expired locations may be served to new viewers between cleanup runs, as `InMemoryLocationStore.getAll()` does not currently enforce TTL at read time.
 
 The trade-off is memory usage approximately bounded by (active skaters × active events × TTL window). Between cleanup runs, expired-but-not-yet-deleted locations consume memory. More frequent cleanup reduces this overhead but increases CPU usage from scanning. The 10-second default interval is designed to prevent unbounded growth whilst avoiding constant scanning. Under CPU or GC pressure, cleanup may lag beyond the configured interval, allowing temporary memory growth within the TTL window.
 
@@ -315,9 +332,9 @@ A hub is created lazily on first access for an event. "Access" means either publ
 
 Each hub tracks its `lastAccessed` timestamp using an `AtomicLong`. Every publish or subscribe operation updates this timestamp atomically via `Clock.millis()` (meaning publishes prevent hub cleanup even when viewers are disconnected). This timestamp is the basis for determining hub inactivity.
 
-The lifecycle challenge is knowing when to destroy a hub. Unlike locations with their explicit timestamps, stream components don't naturally expire. A materialised stream persists until explicitly shut down. The cleanup mechanism operates via Pekko's `scheduleWithFixedDelay`, running every 60 seconds (configured via `skatemap.hub.cleanupIntervalSeconds`). Each run scans all hubs and identifies those not accessed within the TTL period of 5 minutes (configured via `skatemap.hub.ttlSeconds`). For each inactive hub, the cleanup service calls the kill switch's `shutdown()` method to complete the stream normally, then removes the hub from the `TrieMap` using atomic compare-and-swap semantics (`remove(key, hubData)`) to prevent races with concurrent publish or subscribe operations.
+The lifecycle challenge is knowing when to destroy a hub. Unlike locations with their explicit timestamps, stream components don't naturally expire. A materialised stream persists until explicitly shut down. The cleanup mechanism operates via Pekko's `scheduleWithFixedDelay`, running every 60 seconds (configured via `skatemap.hub.cleanupIntervalSeconds`). Each run scans all hubs and identifies those not accessed within the TTL period of 5 minutes (configured via `skatemap.hub.ttlSeconds`). For each inactive hub, the cleanup service calls the kill switch's `shutdown()` method to complete the stream normally, then removes the hub from the `TrieMap` using conditional removal (`remove(key, hubData)`) to reduce the risk of races with concurrent publish or subscribe operations.
 
-The kill switch is essential because simply removing the hub from the registry doesn't release the underlying Pekko Streams resources. The `BroadcastHub`'s internal stages and materialised graph references remain reachable unless the stream is completed or cancelled; the kill switch provides an explicit, supported shutdown path. When `KillSwitch.shutdown()` is invoked, it completes the stream normally, causing all downstream subscribers to receive a completion signal and disconnect gracefully.
+The kill switch is essential because simply removing the hub from the registry doesn't release the underlying Pekko Streams resources. The `BroadcastHub`'s internal stages and materialised graph references remain reachable unless the stream is completed or cancelled; the kill switch provides an explicit, supported shutdown path. When `KillSwitch.shutdown()` is invoked, it completes the stream normally, causing all downstream subscribers to receive a completion signal. WebSocket closure behaviour depends on the server and client implementation—clients may experience either graceful completion or abrupt disconnection depending on their WebSocket handling.
 
 The 5-minute TTL for hubs (configured via `skatemap.hub.ttlSeconds`) is much longer than the 30-second TTL for locations. This asymmetry is deliberate. Location data becomes irrelevant quickly—after 30 seconds, the skater has moved. But the streaming infrastructure should tolerate temporary inactivity. If viewers disconnect briefly (network blip, app background) and reconnect before the hub is cleaned up, they reuse the existing hub provided no locations were published during the gap (otherwise `lastAccessed` would have been updated by the publish operation). This avoids the overhead of repeated hub creation (which involves stream materialisation and actor system resources, not just map insertion).
 
@@ -365,7 +382,7 @@ The single-instance constraint has direct implications. Vertical scaling is the 
 
 The system has no external dependencies—no database, message queue, or cache layer. All state exists within the JVM process.
 
-Railway provisions 512 MB RAM and shared vCPU on the free tier. The JVM heap is configured to 256 MB maximum (`-Xmx256m` via Docker entrypoint), leaving headroom for off-heap allocations, OS buffers, and Railway's platform overhead.
+Railway provisions 512 MB RAM and shared vCPU on the free tier. Heap sizing is not explicitly configured, allowing the JVM to use default sizing based on the container's memory allocation.
 
 ### Infrastructure Requirements
 
@@ -373,22 +390,28 @@ Railway provisions 512 MB RAM and shared vCPU on the free tier. The JVM heap is 
 
 **Memory Allocation:**
 - **Total RAM:** 512 MB (Railway platform allocation)
-- **JVM heap:** 256 MB maximum (`-Xmx256m`)
-- **Remaining memory headroom:** ~256 MB (for thread stacks, native memory, OS buffers, and Railway platform overhead)
+- **JVM heap:** Default sizing (not explicitly configured; typically ~50-60% of container memory on modern JVMs)
 
-**Memory Scaling Calculation:**
-Assuming 50 skaters per event publishing every 3 seconds with 30-second TTL (pessimistic envelope treating stream buffering as if retained in location store; the authoritative location store itself holds only the latest location per skater):
-- Location data per event: 50 skaters × 10 updates (buffered) × ~48 bytes ≈ 24 KB (estimated)
-- Hub overhead per event: Queue (128 × ~48 bytes) + BroadcastHub structures ≈ 8 KB (estimated)
-- Total per event: ~32 KB
-- 15 concurrent events (target scale): ~480 KB
-- 100 concurrent events: 3.2 MB (showing capacity headroom beyond target)
-- JVM baseline: ~50-90 MB (class metadata, thread stacks, Pekko dispatcher pools; observed range varies with traffic)
-- WebSocket overhead: ~10 KB per connection (estimated), 150 concurrent viewers ≈ 1.5 MB
+**Memory Scaling Estimation:**
 
-With target scale (15 events, 150 viewers): 256 MB heap provides substantial headroom beyond baseline + active data.
+The following are rough estimates based on heap dump analysis during profiling (not production measurements):
 
-**CPU:** Shared vCPU on Railway (no guaranteed allocation). Cleanup scans iterate all events sequentially every 10 seconds. Scan cost is O(events × skaters), independent of publish rate—more events increase cleanup work, but higher update frequency does not materially affect cleanup cost. Pekko Streams uses internal thread pools for asynchronous operations (materialised graphs, WebSocket frame processing).
+The location store retains only the latest location per skater. Memory scales primarily with (active skaters × active events) plus per-event hub buffers:
+
+- Location data per skater: ~48 bytes estimated (coordinate pair + timestamp)
+- Hub buffer per event: Queue (128 × ~48 bytes) + BroadcastHub overhead ≈ 8 KB estimated
+- Per-event structural overhead: ~32 KB estimated (TrieMap + HubData + kill switch)
+
+At target scale (15 events, ~50 skaters per event, ~150 viewers):
+- Location data: 15 × 50 × 48 bytes ≈ 36 KB
+- Hub buffers: 15 × 8 KB ≈ 120 KB
+- Event structures: 15 × 32 KB ≈ 480 KB
+- WebSocket overhead: ~150 × 10 KB ≈ 1.5 MB estimated
+- JVM baseline: Observed 63-67 MB during single-event local profiling (heap configuration undocumented)
+
+These estimates show substantial headroom within the allocated memory, but actual memory consumption depends on GC behaviour, allocation patterns, and workload characteristics that have not been characterised at target scale.
+
+**CPU:** Shared vCPU on Railway (no guaranteed allocation). Cleanup scans iterate all events sequentially every 10 seconds. Per-run scan cost is O(events × skaters), independent of publish rate in terms of scan cardinality—more events increase cleanup work, but higher update frequency does not increase the number of items scanned per cleanup run. Pekko Streams uses internal thread pools for asynchronous operations (materialised graphs, WebSocket frame processing).
 
 **Ports:**
 - `9000`: HTTP and WebSocket traffic (Play Framework default, overridable via `PORT` environment variable)
@@ -471,10 +494,7 @@ The application is packaged as a Docker image using a multi-stage build defined 
 1. **Base image:** `eclipse-temurin:21-jre` provides Java Runtime Environment only (smaller image, no compiler overhead)
 2. **Non-root user:** Creates `skatemap` user and group, runs application with dropped privileges (security hardening)
 3. **Artifact copy:** Copies staged application from builder image (`/app/target/universal/stage`)
-4. **Entrypoint script:** `docker-entrypoint.sh` sets JVM options:
-   - Heap size: `-Xmx256m`
-   - GC logging: `-Xlog:gc*=debug:file=gc-%t.log:time,level,tags` (writes to container filesystem, useful for post-mortem analysis)
-   - Heap dumps: `-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./heap-dumps/` (generates dump on OOM for offline analysis)
+4. **Entrypoint script:** `docker-entrypoint.sh` starts the application without additional JVM options (uses JVM defaults)
 5. **Health check:** Docker HEALTHCHECK directive polls `http://localhost:9000/health` every 30 seconds (interval), 3-second timeout, 3 retries before marking unhealthy
 
 **Deployment Trigger:**
@@ -562,7 +582,7 @@ The system provides minimal observability. Logging, health checks, and post-mort
 
 **Logging:** The application uses Logback configured to write text-formatted logs to stdout and stderr. Railway's log aggregation captures these streams and makes them viewable in the dashboard, though logs are not persisted long-term on the free tier. The cleanup services emit informational logs: CleanupService logs "Location cleanup completed: removed X locations from Y events" and BroadcasterCleanupService logs "Hub cleanup completed: removed X hubs" on each run. These messages confirm that background processes are executing but provide no timing information or performance metrics.
 
-GC activity is logged via `-Xlog:gc*=debug:file=gc-%t.log` (configured in build.sbt), writing timestamped GC events to files within the container's filesystem. These logs are ephemeral—lost on container restart—and retrieved for offline analysis. Heap dumps are generated automatically on OutOfMemoryError via `-XX:+HeapDumpOnOutOfMemoryError` and written to the heap-dumps directory, providing snapshots for post-mortem analysis.
+GC logging and heap dumps are configured in build.sbt for local development profiling (`-Xlog:gc*=debug:file=gc-%t.log`, `-XX:+HeapDumpOnOutOfMemoryError`, `-XX:HeapDumpPath=./heap-dumps/`). These JVM options apply when running via `sbt run` but are not carried over to the Railway Docker deployment, where the application runs with JVM defaults.
 
 **Platform Metrics:** Railway provides CPU usage (percentage), memory usage (megabytes), and network I/O (bytes per second). These metrics show resource consumption at the container level but offer no insight into application behaviour—event count, location count, WebSocket connections, or hub activity remain invisible.
 
@@ -622,7 +642,7 @@ Throughput testing has focused on correctness and stability rather than maximum 
 
 Memory consumption during a 30-minute load test with a single event and 10 concurrent skaters publishing every 3 seconds showed heap usage between 63 MB and 67 MB. These measurements were obtained from heap dumps taken at 10-minute intervals during local profiling using Eclipse MAT. During a subsequent 20-minute idle period following the load test, heap usage decreased to 63.2 MB, showing heap reduction after the load test concluded.
 
-The application runs in a container with 512 MB total memory allocation. The JVM heap configuration during the load tests that produced the 63-67 MB measurements has not been documented. The `-Xmx256m` JVM flag is not present in the codebase (not found in `build.sbt`, `docker-entrypoint.sh`, or `railway.toml`). Railway deployment heap configuration has not been verified.
+The application runs in a container with 512 MB total memory allocation. Heap sizing is not explicitly configured in the build or deployment scripts. The JVM uses default sizing based on the container's 512 MB memory allocation. The heap configuration used during local profiling that produced the 63-67 MB measurements has not been documented.
 
 Railway platform metrics provide visibility into container-level CPU and memory usage during deployed operation. CPU utilisation during load tests was not systematically recorded from Railway metrics.
 
@@ -638,10 +658,10 @@ Load testing has covered two scenarios: a 30-minute smoke test with 2 concurrent
 
 ### Performance Bottlenecks
 
-Cleanup operations impose computational cost proportional to the number of events and skaters in memory. The location cleanup service iterates through all events and all skaters per event every 10 seconds (configured via `skatemap.cleanup.intervalSeconds`), removing locations older than 30 seconds (configured via `skatemap.location.ttlSeconds`). Similarly, the broadcast hub cleanup service scans all hubs every 60 seconds, removing those unused for 300 seconds. The sequential iteration through all events and skaters means cleanup cost grows with the number of active events and skaters, independent of publish or subscribe rates. Location cleanup must visit every skater in every event; hub cleanup must visit every hub.
+Cleanup operations impose computational cost proportional to the number of events and skaters in memory. The location cleanup service iterates through all events and all skaters per event every 10 seconds (configured via `skatemap.cleanup.intervalSeconds`), removing locations older than 30 seconds (configured via `skatemap.location.ttlSeconds`). Similarly, the broadcast hub cleanup service scans all hubs every 60 seconds, removing those unused for 300 seconds. Per-run scan cost is O(events × skaters). Higher publish rates can still increase allocation and GC pressure, but do not increase the number of items scanned per cleanup run. Location cleanup must visit every skater in every event; hub cleanup must visit every hub.
 
 TrieMap access patterns for location storage and retrieval introduce lock-free concurrent access overhead, though specific profiling of TrieMap contention has not been performed. The in-memory storage design means working set size grows linearly with the number of active events and skaters, bounded only by the location TTL and hub TTL settings.
 
-WebSocket broadcast is implemented via Pekko Streams BroadcastHub with a configured buffer size of 128 messages per hub (`skatemap.hub.bufferSize`). When the buffer fills due to slow consumers or no consumers, newer messages are dropped (`OverflowStrategy.dropNew`). Buffer overflow behaviour has been observed during profiling when subscribers disconnect but publishers continue—the configured buffer fills, overflow warnings appear in logs, and new locations are dropped. This overflow strategy prioritises recent locations over buffering for slow consumers.
+WebSocket broadcast is implemented via Pekko Streams BroadcastHub with a configured buffer size of 128 messages per hub (`skatemap.hub.bufferSize`). When the buffer fills due to slow consumers or no consumers, the oldest buffered locations are dropped (`OverflowStrategy.dropHead`). Buffer overflow behaviour has been observed during profiling when subscribers disconnect but publishers continue—the configured buffer fills and locations are dropped according to the configured overflow strategy. This overflow strategy prioritises recent locations over buffering for slow consumers.
 
 The batch size and interval for WebSocket message delivery are configured at 100 locations (`skatemap.stream.batchSize`) with a maximum 500ms delay (`skatemap.stream.batchIntervalMillis`). These values have not been tuned based on latency or throughput measurements.
