@@ -553,3 +553,57 @@ If the JVM crashes (uncaught exception, `OutOfMemoryError`, segmentation fault):
 4. Clients must reconnect and republish
 
 **Recovery Time Objective (RTO):** Typically 20-30 seconds (startup time). No manual intervention required.
+
+## Observability
+
+### Current Observability State
+
+The system provides minimal observability. Logging, health checks, and post-mortem debugging tools exist, but application-level metrics, distributed tracing, and structured logging do not.
+
+**Logging:** The application uses Logback configured to write text-formatted logs to stdout and stderr. Railway's log aggregation captures these streams and makes them viewable in the dashboard, though logs are not persisted long-term on the free tier. The cleanup services emit informational logs: CleanupService logs "Location cleanup completed: removed X locations from Y events" and BroadcasterCleanupService logs "Hub cleanup completed: removed X hubs" on each run. These messages confirm that background processes are executing but provide no timing information or performance metrics.
+
+GC activity is logged via `-Xlog:gc*=debug:file=gc-%t.log` (configured in build.sbt), writing timestamped GC events to files within the container's filesystem. These logs are ephemeral—lost on container restart—and retrieved for offline analysis. Heap dumps are generated automatically on OutOfMemoryError via `-XX:+HeapDumpOnOutOfMemoryError` and written to the heap-dumps directory, providing snapshots for post-mortem analysis.
+
+**Platform Metrics:** Railway provides CPU usage (percentage), memory usage (megabytes), and network I/O (bytes per second). These metrics show resource consumption at the container level but offer no insight into application behaviour—event count, location count, WebSocket connections, or hub activity remain invisible.
+
+**Health Endpoint:** The `/health` endpoint returns 200 OK with no body. It performs no readiness checks—does not verify cleanup services, memory headroom, or hub state. Railway uses it for deployment health checks.
+
+**Post-Mortem Tools:** When OutOfMemoryError occurs, a heap dump is generated automatically. Manual heap dumps can be triggered via `jcmd <pid> GC.heap_dump` for investigating performance or memory issues. These dumps are analysed offline. Both heap dumps and GC logs exist only within the container's ephemeral filesystem—they must be retrieved using Railway CLI before the container is replaced or restarted.
+
+### Operational Visibility
+
+The current observability state supports basic operational questions but cannot answer most runtime queries about application behaviour.
+
+**What can be answered:**
+- Has the application started successfully?
+- Are cleanup services running?
+- Is memory or CPU trending upwards?
+- Did a crash occur?
+
+**What cannot be answered:**
+- How many events are currently active?
+- How many locations are in memory per event?
+- How many WebSocket connections are active per event?
+- How many broadcast hubs exist?
+- What is the location publish rate?
+- What is the p95 latency from publish to WebSocket delivery?
+
+This gap became operationally significant during memory leak investigations. Issues [#138](https://github.com/SkatemapApp/skatemap-live/issues/138), [#142](https://github.com/SkatemapApp/skatemap-live/issues/142), [#166](https://github.com/SkatemapApp/skatemap-live/issues/166), and [#171](https://github.com/SkatemapApp/skatemap-live/issues/171) required heap dump analysis to detect memory growth trends because no runtime metrics existed. Had event count, location count, and hub count been exposed as metrics, memory leaks would have been detectable by observing these counters growing without bound rather than requiring offline heap dump comparison.
+
+### Design Tradeoff: Simplicity Over Instrumentation
+
+The minimal observability approach aligns with the demonstration system's design goals documented in [ADR 0001](../adr/0001-railway-platform-choice.md), which prioritised delivery speed over production-grade instrumentation for a single-process system with no distributed components.
+
+This tradeoff created friction during memory leak debugging. The three iterations required to achieve stable memory (MergeHub → Source.queue → Source.queue + KillSwitch + Sink.ignore) each involved Railway deployment, heap dump capture and offline analysis. Had runtime metrics exposed hub count and location count, the first iteration's memory leak would have been immediately visible as unbounded growth in these counters during load testing.
+
+### Missing Capabilities
+
+The system lacks application-level metrics, distributed tracing, structured logging, and alerting.
+
+**No application metrics:** The application exposes no metrics endpoint. Event count, location count per event, active WebSocket connections, hub count, publish rate, stream throughput, and cleanup duration are not instrumented. Observing these values requires heap dumps or code modification to add logging.
+
+**No distributed tracing:** Requests have no identifiers linking related operations. A location publish request handled by `LocationController` cannot be traced to its broadcast through `InMemoryBroadcaster` and delivery via WebSocket by `EventStreamService`. Logs from these components appear independently.
+
+**No structured logging:** Logs are text-formatted, designed for human reading rather than machine parsing. Finding all logs related to a specific event requires text search rather than field-based filtering.
+
+**No alerting:** The system provides no proactive notifications. Memory trending towards exhaustion, cleanup falling behind publish rate, or WebSocket connections failing to close do not trigger alerts. Railway's free tier does not support alerting integrations. Detection relies on manual observation—checking Railway's dashboard for memory growth, inspecting logs for error messages, or noticing application unavailability.
