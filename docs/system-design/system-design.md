@@ -607,3 +607,41 @@ The system lacks application-level metrics, distributed tracing, structured logg
 **No structured logging:** Logs are text-formatted, designed for human reading rather than machine parsing. Finding all logs related to a specific event requires text search rather than field-based filtering.
 
 **No alerting:** The system provides no proactive notifications. Memory trending towards exhaustion, cleanup falling behind publish rate, or WebSocket connections failing to close do not trigger alerts. Railway's free tier does not support alerting integrations. Detection relies on manual observation—checking Railway's dashboard for memory growth, inspecting logs for error messages, or noticing application unavailability.
+
+## Performance Characteristics
+
+### Throughput and Latency
+
+HTTP request latency for location publishing has been measured during load testing. Analysis of 6,880 location update requests over a 34-minute period with 10 concurrent skaters showed response times ranging from 15.51ms (minimum) to 403.70ms (maximum), with a mean of 36.55ms. These measurements represent the time from HTTP request submission to receiving the acknowledgement response from the server.
+
+End-to-end latency—the time from location publication to WebSocket delivery to viewers—has not been systematically measured. The load testing infrastructure includes viewer simulation capabilities with reception timestamp recording, but WebSocket latency data has not been successfully collected in documented test runs.
+
+Throughput testing has focused on correctness and stability rather than maximum capacity. Smoke tests exercise 2 concurrent events with 5 skaters each, generating approximately 200 location updates per minute sustained over 30 minutes. The system handled this load without request failures, with stable memory consumption throughout the test duration. Testing beyond this scale has not been performed, so throughput at higher concurrency levels has not been tested.
+
+### Resource Usage
+
+Memory consumption during a 30-minute load test with a single event and 10 concurrent skaters publishing every 3 seconds showed heap usage between 63 MB and 67 MB. These measurements were obtained from heap dumps taken at 10-minute intervals during local profiling using Eclipse MAT. During a subsequent 20-minute idle period following the load test, heap usage decreased to 63.2 MB, showing heap reduction after the load test concluded.
+
+The application runs in a container with 512 MB total memory allocation. The JVM heap configuration during the load tests that produced the 63-67 MB measurements has not been documented. The `-Xmx256m` JVM flag is not present in the codebase (not found in `build.sbt`, `docker-entrypoint.sh`, or `railway.toml`). Railway deployment heap configuration has not been verified.
+
+Railway platform metrics provide visibility into container-level CPU and memory usage during deployed operation. CPU utilisation during load tests was not systematically recorded from Railway metrics.
+
+Memory growth characteristics were investigated during work on Issues #138, #142, #166, and #171. Heap dump analysis identified and resolved a memory leak caused by per-publish stream materialisation. Post-fix profiling confirmed stable memory usage with no accumulation of stream interpreter instances during sustained load.
+
+### Scalability Limits
+
+The single-JVM process architecture imposes a hard constraint on horizontal scalability. In-memory state (TrieMap-based location storage and BroadcastHub registry) exists only within one process, preventing distribution across multiple instances without introducing external coordination infrastructure.
+
+The single-container architecture constrains the system to Railway's per-container resource limits. The current configuration allocates 512 MB total memory and uses Pekko's default dispatcher configuration, which provides a fork-join executor pool sized according to available CPU cores. Thread pool and dispatcher configurations have not been tuned beyond framework defaults.
+
+Load testing has covered two scenarios: a 30-minute smoke test with 2 concurrent events (5 skaters each, 200 updates/minute total), and a 34-minute single-event test with 10 concurrent skaters (200 updates/minute). The system targets 10-15 concurrent events as documented in ADR 0001. This design target has not been validated through testing. Behaviour at higher event concurrency, higher per-event skater counts, or higher aggregate throughput has not been characterised.
+
+### Performance Bottlenecks
+
+Cleanup operations impose computational cost proportional to the number of events and skaters in memory. The location cleanup service iterates through all events and all skaters per event every 10 seconds (configured via `skatemap.cleanup.intervalSeconds`), removing locations older than 30 seconds (configured via `skatemap.location.ttlSeconds`). Similarly, the broadcast hub cleanup service scans all hubs every 60 seconds, removing those unused for 300 seconds. The sequential iteration through all events and skaters means cleanup cost grows with the number of active events and skaters, independent of publish or subscribe rates. Location cleanup must visit every skater in every event; hub cleanup must visit every hub.
+
+TrieMap access patterns for location storage and retrieval introduce lock-free concurrent access overhead, though specific profiling of TrieMap contention has not been performed. The in-memory storage design means working set size grows linearly with the number of active events and skaters, bounded only by the location TTL and hub TTL settings.
+
+WebSocket broadcast is implemented via Pekko Streams BroadcastHub with a configured buffer size of 128 messages per hub (`skatemap.hub.bufferSize`). When the buffer fills due to slow consumers or no consumers, newer messages are dropped (`OverflowStrategy.dropNew`). Buffer overflow behaviour has been observed during profiling when subscribers disconnect but publishers continue—the configured buffer fills, overflow warnings appear in logs, and new locations are dropped. This overflow strategy prioritises recent locations over buffering for slow consumers.
+
+The batch size and interval for WebSocket message delivery are configured at 100 locations (`skatemap.stream.batchSize`) with a maximum 500ms delay (`skatemap.stream.batchIntervalMillis`). These values have not been tuned based on latency or throughput measurements.
