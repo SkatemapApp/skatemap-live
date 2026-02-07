@@ -673,3 +673,33 @@ TrieMap access patterns for location storage and retrieval introduce lock-free c
 WebSocket broadcast is implemented via Pekko Streams BroadcastHub with a configured buffer size of 128 messages per hub (`skatemap.hub.bufferSize`). When the buffer fills due to slow consumers or no consumers, the oldest buffered locations are dropped (`OverflowStrategy.dropHead`). Buffer overflow behaviour has been observed during profiling when subscribers disconnect but publishers continue—the configured buffer fills and locations are dropped according to the configured overflow strategy. This overflow strategy prioritises recent locations over buffering for slow consumers.
 
 The batch size and interval for WebSocket message delivery are configured at 100 locations (`skatemap.stream.batchSize`) with a maximum 500ms delay (`skatemap.stream.batchIntervalMillis`). These values have not been tuned based on latency or throughput measurements.
+
+## Future Considerations
+
+### Known Limitations
+
+**Tested capacity vs design target:**
+- Tested: 2 concurrent events, 200 updates/min
+- Design target: 10-15 concurrent events
+- Validation required at target scale
+
+**In-memory state:**
+- Single-instance architecture (no horizontal scaling)
+- All state lost on restart or crash
+- Memory capacity bounds total concurrent events
+
+**Observability:**
+- Minimal instrumentation in production
+- WebSocket end-to-end latency not measured
+- No alerting infrastructure
+
+### Potential Enhancements
+
+**Horizontal scaling:**
+Single-instance architecture limits capacity. Multi-instance deployment would require distributed state coordination and pub/sub message distribution.
+
+**Persistent storage:**
+Ephemeral in-memory design. Persistence would enable location history, event replay, and crash recovery.
+
+**Observability:**
+Comprehensive instrumentation would provide production metrics, traces, and alerting capabilities.
