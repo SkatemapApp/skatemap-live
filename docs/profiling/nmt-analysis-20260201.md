@@ -85,7 +85,7 @@ Total: reserved=3496176KB +10880KB, committed=238676KB +29052KB
         (stack: reserved=41984KB +5120KB, committed=2856KB +648KB)
 ```
 
-Full NMT diff: `services/api/heap-dumps/nmt-diff-proper-baseline-20260201-213701.txt`
+Full NMT diff: Available in git history at commit `b073759` (removed post-investigation)
 
 ## Root Cause Analysis
 
@@ -317,8 +317,7 @@ If memory constraints require action, **Option 1** (reduce code cache to 128 MB)
 
 ## Files Referenced
 
-- **NMT diff output:** `services/api/heap-dumps/nmt-diff-proper-baseline-20260201-213701.txt`
-- **NMT summary output:** `services/api/heap-dumps/nmt-summary-railway-20260201-213701.txt`
+- **NMT raw outputs:** Removed post-investigation (available in git history at commit `b073759`)
 - **Heap dump analysis:** [docs/profiling/railway-heap-dump-analysis-20260201.md](railway-heap-dump-analysis-20260201.md)
 - **NMT investigation guide:** [docs/profiling/native-memory-tracking-guide.md](native-memory-tracking-guide.md)
 
