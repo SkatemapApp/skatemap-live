@@ -107,6 +107,8 @@ graph TB
     style BCS fill:#ffe1e1
 ```
 
+*Component separation between request handling, storage, and streaming*
+
 #### Request Handling
 
 **LocationController** validates incoming location data, writes it to storage, and publishes to the broadcaster. This controller handles the HTTP PUT endpoint for location updates and returns 202 Accepted responses.
@@ -190,17 +192,43 @@ graph TB
     style HB fill:#ffe1e1
 ```
 
+*Event isolation through per-event data structures*
+
 The diagram shows conceptual separation; in implementation, both TrieMaps live within a single outer concurrent map partitioned by eventId. This design enforces a key invariant: all ingress and egress paths are keyed by eventId, and no global all-events read or stream exists.
+
+```mermaid
+sequenceDiagram
+    participant LC as LocationController
+    participant Store as InMemoryLocationStore
+    participant OuterMap as Outer TrieMap<br/>(EventId → EventMap)
+    participant EventMap as Event abc-123<br/>TrieMap<br/>(SkaterId → Location)
+    participant ESS as EventStreamService
+
+    Note over LC,EventMap: Storage Write Flow (Event abc-123)
+    LC->>Store: put("abc-123", location)
+    Store->>OuterMap: getOrElseUpdate("abc-123", TrieMap.empty)
+    OuterMap-->>Store: return eventMap
+    Store->>EventMap: put(skaterId, (location, timestamp))
+
+    Note over Store,ESS: Storage Read Flow (Event abc-123)
+    ESS->>Store: getAll("abc-123")
+    Store->>OuterMap: lookup "abc-123" (O(1) hash)
+    OuterMap-->>Store: return eventMap
+    Store->>Store: convert to immutable Map (O(n) where n = skaters)
+    Store-->>ESS: return Map snapshot
+
+    Note over LC,ESS: Event def-456 uses completely separate paths
+```
+
+*Storage and streaming operations scoped by eventId*
+
+Event isolation operates through complete path separation—all storage writes, reads, and streaming subscriptions access only their event's dedicated data structures. This enforces the key invariant: no global cross-event operations exist. Event def-456's operations follow identical flows through completely separate TrieMap instances.
 
 The storage layer uses a nested TrieMap: `TrieMap[String, TrieMap[String, (Location, Instant)]]` where the outer key is eventId and the inner map stores skater locations keyed by skaterId.
 
-Here's the exact flow when LocationController receives a location for Event abc-123. It calls `store.put("abc-123", location)`. The storage layer executes `store.getOrElseUpdate("abc-123", TrieMap.empty)`, which looks up "abc-123" in the outer map. If the event doesn't exist yet (first location for this event), it creates a new empty TrieMap and inserts it. Either way, it returns the event-specific map. Then it calls `eventMap.put(skaterId, (location, timestamp))` to store the location within Event abc-123's map.
+Storage operations are event-scoped. Writes use `getOrElseUpdate` to retrieve or create an event's TrieMap, then insert the location. Reads perform an O(1) hash lookup followed by O(n) conversion where n equals the skaters in that specific event, not the total system size.
 
-When a viewer queries Event abc-123, EventStreamService calls `store.getAll("abc-123")`. The storage layer looks up "abc-123" in the outer map—an O(1) hash lookup. If it exists, it converts the internal TrieMap to an immutable Map snapshot and returns it. This conversion is O(n) where n is the number of skaters in Event abc-123 (not the total number of skaters across all events). If the event doesn't exist, it returns an empty map. The key point: the operation only touches Event abc-123's data, regardless of how many other events exist.
-
-The streaming layer mirrors this structure exactly. The broadcaster maintains `TrieMap[String, HubData]` where each event ID maps to its own `BroadcastHub`. When LocationController publishes to Event abc-123, it calls `broadcaster.publish("abc-123", location)`. The broadcaster executes `hubs.getOrElseUpdate("abc-123", createHub())`, which either retrieves Event abc-123's existing hub or creates a new one. It then offers the location to that hub's queue: `hubData.queue.offer(location)`.
-
-When EventStreamService subscribes to Event abc-123, it calls `broadcaster.subscribe("abc-123")`, which looks up "abc-123" in the hubs map and returns that hub's source. The source is Event abc-123's `BroadcastHub` output—it only broadcasts Event abc-123's locations. Event def-456's locations flow through Event def-456's completely separate hub.
+The streaming layer uses the same isolation pattern. The broadcaster maintains `TrieMap[String, HubData]` where each event ID maps to its own `BroadcastHub`. Publish operations use `getOrElseUpdate` to retrieve or create an event's hub, then offer locations to that hub's queue. Subscribe operations return the event-specific hub's source. Event def-456's locations flow through a completely separate hub.
 
 We chose per-event hubs to avoid wasting resources on filtering. While we could use a single global hub and filter by eventId downstream (using `source.filter(_.eventId == "abc-123")`), this would waste CPU and bandwidth by pushing irrelevant elements through the hub only to drop them. It would also couple buffer occupancy and scheduling across events—slow subscribers on Event abc-123 would affect Event def-456's queue state. Per-event hubs eliminate this overhead and isolate buffer state.
 
@@ -239,13 +267,41 @@ graph LR
     style BH fill:#e1f5ff
 ```
 
-The source queue is the write end. When a publisher offers a location, it enters this queue as a buffered element. The queue has a fixed capacity of 128 elements (configurable via application.conf) and uses a drop-head overflow strategy (drop-head discards the oldest buffered element when the queue is full, discussed further in the next section). The queue is materialised once when the hub is created and persists for the hub's lifetime.
+*BroadcastHub streaming pipeline*
 
-The `Source.queue` decouples publishers from subscribers. Backpressure from slow viewers does not propagate upstream because the queue and `BroadcastHub` break the backpressure chain. However, if publishers outpace the queue capacity, elements are dropped at the `Source.queue` boundary according to the configured overflow strategy.
+```mermaid
+sequenceDiagram
+    participant LC as LocationController
+    participant B as Broadcaster
+    participant Q as Source.queue
+    participant BH as BroadcastHub
+    participant V1 as Viewer 1
+    participant V2 as Viewer 2
 
-The kill switch sits in the middle of the pipeline. It's a control point that allows graceful shutdown of the entire stream. This is critical for memory management—simply removing a hub from the registry doesn't release the materialised stream graph and its internal resources. The kill switch ensures the stream can be properly terminated.
+    Note over LC,V2: Publish Flow
+    LC->>B: publish(eventId, location)
+    B->>B: getOrElseUpdate hub
+    B->>Q: queue.offer(location)
+    Q->>BH: element flows through
+    BH->>V1: broadcast location
+    BH->>V2: broadcast location
 
-The broadcast hub is the fan-out mechanism. It receives locations from the queue and broadcasts them to all active subscribers. The hub materialises to a Source object that can be reused by multiple consumers. When EventStreamService calls subscribe, it receives this Source. Play Framework materialises the Source when the WebSocket connection is established, creating a new output stream. The BroadcastHub itself provides no replay mechanism—late subscribers to the hub receive only elements emitted after their subscription. However, EventStreamService addresses this limitation by prepending a snapshot from InMemoryLocationStore before connecting to the live stream (initial ++ updates), ensuring viewers who join late see current state immediately. The BroadcastHub internally tracks all active materialisations and sends each incoming location to all of them.
+    Note over LC,V2: Subscribe Flow
+    V1->>B: subscribe(eventId)
+    B->>B: getOrElseUpdate hub
+    B-->>V1: return hub.source
+    Note over V1: Materialises WebSocket<br/>when connection established
+```
+
+*Publish and subscribe flow through the hub*
+
+The topology decouples publishers from subscribers through the source queue—publish operations succeed regardless of subscriber count or state. Play Framework materialises the hub source when WebSocket connections are established, enabling late subscribers to attach without affecting existing viewers.
+
+The source queue has a fixed capacity of 128 elements (configurable via application.conf) and uses a drop-head overflow strategy (discussed in Backpressure Handling). The queue decouples publishers from subscribers—backpressure from slow viewers does not propagate upstream because the queue and `BroadcastHub` break the backpressure chain.
+
+The kill switch provides graceful shutdown control. This is critical for memory management—simply removing a hub from the registry doesn't release the materialised stream graph. The kill switch ensures proper termination.
+
+The BroadcastHub provides no replay mechanism—late subscribers receive only elements emitted after their subscription. EventStreamService addresses this by prepending a snapshot from InMemoryLocationStore before connecting to the live stream (initial ++ updates), ensuring viewers who join late see current state immediately.
 
 This topology solves the multi-subscriber problem. Publishers write to a single queue regardless of subscriber count. The `BroadcastHub` handles fan-out internally without application code managing a list of subscribers. Subscribers can connect and disconnect freely—each materialisation is independent.
 
@@ -275,11 +331,40 @@ If downstream backpressure propagates upstream in this topology, a single slow v
 
 The system decouples downstream backpressure using a bounded buffer with drop-head overflow strategy. Each event's hub uses `Source.queue` with fixed capacity (128 elements) and `OverflowStrategy.dropHead`, which evicts the head element on overflow. When the queue fills to capacity, each new offer evicts the oldest queued element. Overflow occurs upstream of the `BroadcastHub` fan-out point, so all subscribers receive the same post-drop stream. There are no application-managed per-subscriber buffers in the hub path; lower layers (Pekko HTTP, TCP) may still buffer frames. When elements overflow at the hub queue, all subscribers receive the same post-drop stream.
 
+```mermaid
+graph TB
+    subgraph "Source.queue (capacity: 128, OverflowStrategy.dropHead)"
+        direction LR
+        HEAD[HEAD<br/>oldest element]
+        B1[Element 2]
+        B2[Element 3]
+        DOTS[...]
+        B127[Element 127]
+        TAIL[TAIL<br/>newest element]
+
+        HEAD --> B1
+        B1 --> B2
+        B2 --> DOTS
+        DOTS --> B127
+        B127 --> TAIL
+    end
+
+    NEW[New element arrives<br/>when queue is full] -.->|1. Drop HEAD| HEAD
+    NEW -.->|2. Add to TAIL| TAIL
+
+    TAIL --> BH[BroadcastHub<br/>fans out to all viewers]
+
+    style HEAD fill:#ff9999
+    style TAIL fill:#99ff99
+    style NEW fill:#ffff99
+    style BH fill:#e1f5ff
+```
+
+*Drop-head overflow strategy in Source.queue*
+
+Drop-head prioritises recency over completeness—viewers receive the most recent locations even under sustained publishing pressure. Dropped elements are lost permanently with no client-visible signal, acceptable for real-time GPS tracking where current position matters more than historical completeness.
+
 For buffer sizing, we use a design assumption (not measured in production) of ~20 locations per second per event as a worst-case aggregate publishing rate. At this rate, the 128-element buffer represents approximately 6 seconds of data.
-
-When sustained publishing exceeds buffer capacity, the system drops the oldest buffered locations. For real-time GPS tracking, this is acceptable—viewers care more about current positions than complete history. `SourceQueue.offer` is asynchronous and returns `QueueOfferResult`. With `OverflowStrategy.dropHead`, the offer does not block the publisher; older elements are dropped instead of applying backpressure. The publisher proceeds without waiting for downstream demand signals.
-
-The system provides no delivery guarantees, no replay mechanism, and no client-visible signal when drops occur. Clients cannot distinguish network packet loss from buffer overflow.
 
 Drop-head prioritises recency and maintains event isolation. Drop-tail would violate the freshness requirement by discarding new locations. Backpressure would violate isolation by coupling events. Failing would violate availability by terminating the stream.
 
@@ -317,6 +402,33 @@ graph TB
     style EM2 fill:#e1f5ff
 ```
 
+*Location storage structure and cleanup service*
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize':'14px'}}}%%
+gantt
+    title Location Lifecycle: 30s TTL + 10s Cleanup Interval
+    dateFormat s
+    axisFormat %Ss
+
+    section Location
+    Location published              :milestone, m1, 0, 0s
+    Location valid (30s TTL)        :active, valid, 0, 30s
+    Location expired                :milestone, m2, 30, 0s
+    Location still in memory        :crit, stale, 30, 40s
+    Location removed by cleanup     :milestone, m3, 40, 0s
+
+    section Cleanup Service
+    Cleanup run #1 (skip)           :milestone, c1, 10, 0s
+    Cleanup run #2 (skip)           :milestone, c2, 20, 0s
+    Cleanup run #3 (skip)           :milestone, c3, 30, 0s
+    Cleanup run #4 (removes)        :milestone, c4, 40, 0s
+```
+
+*Location lifecycle showing worst-case 40-second persistence*
+
+Worst-case persistence is 40 seconds (30s TTL + 10s cleanup interval), whilst best-case removal occurs 10 seconds after expiry. This timing window balances memory overhead against CPU cost—more frequent cleanup would reduce the worst-case window but increase scan frequency.
+
 Location data are ephemeral by design. When a skater publishes a position, those data remain relevant for a short time window—long enough for viewers to see where skaters are now, but not requiring permanent storage. This applies to the real-time location state only; the system includes no database, persistence layer, or backup strategy for location data.
 
 Each location has a time-to-live of 30 seconds (configured via `skatemap.location.ttlSeconds`). This TTL balances two concerns. It must be long enough that viewers joining mid-event see current state—a snapshot of where all skaters are right now. But it must be short enough to prevent memory accumulation from long-running events.
@@ -325,7 +437,7 @@ The cleanup mechanism operates via Pekko's `scheduleWithFixedDelay`, running eve
 
 This design enables automatic event lifecycle management. When an event ends and skaters stop publishing, their last locations expire within the TTL window. The cleanup service removes these locations, leaving an empty event map, which is then removed. The system currently relies solely on automatic cleanup; no explicit event deletion API is implemented.
 
-The timing parameters create specific system behaviour. The 10-second cleanup interval means locations can persist up to 40 seconds in the worst case (30-second TTL plus 10-second cleanup delay). Expired locations may be served to new viewers between cleanup runs, as `InMemoryLocationStore.getAll()` does not currently enforce TTL at read time.
+Expired locations may be served to new viewers between cleanup runs, as `InMemoryLocationStore.getAll()` does not currently enforce TTL at read time.
 
 The trade-off is memory usage approximately bounded by (active skaters × active events × TTL window). Between cleanup runs, expired-but-not-yet-deleted locations consume memory. More frequent cleanup reduces this overhead but increases CPU usage from scanning. The 10-second default interval is designed to prevent unbounded growth whilst avoiding constant scanning. Under CPU or GC pressure, cleanup may lag beyond the configured interval, allowing temporary memory growth within the TTL window.
 
@@ -352,6 +464,8 @@ stateDiagram-v2
         Cleanup service scans every 60s
     end note
 ```
+
+*Hub lifecycle from creation to cleanup*
 
 A hub is created lazily on first access for an event. "Access" means either publishing a location or subscribing to the stream via the broadcaster's `publish()` or `subscribe()` methods. When LocationController publishes to Event A for the first time, it calls the broadcaster's publish method, which checks if a hub exists for Event A via `TrieMap.getOrElseUpdate`. If not, it materialises the stream topology (source queue, kill switch, broadcast hub) and stores the resulting handles in a `HubData` structure. Subsequent publishes and subscribes for Event A reuse this existing hub. This guarantee relies on all publish and subscribe operations routing through the broadcaster's registry; direct stream materialisation would bypass lifecycle management.
 
@@ -402,6 +516,8 @@ graph TB
     style Store fill:#ffe1e1
     style Hubs fill:#ffe1e1
 ```
+
+*Single-instance deployment architecture on Railway platform*
 
 The single-instance constraint has direct implications. Vertical scaling is the only option—larger instance types provide more memory and CPU, but throughput remains bounded by a single JVM process. Restart or crash causes complete data loss, as all location state and broadcast hubs exist only in heap memory. There is no write-ahead log, no replication, and no recovery mechanism.
 
