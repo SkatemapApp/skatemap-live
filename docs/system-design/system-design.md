@@ -22,7 +22,6 @@ The system targets a realistic Friday-night peak and has been validated only at 
 
 - Design envelope: up to ~50–100 skaters per event publishing every 2–3 seconds (not validated by load tests)
 - HTTP request latency: 36.55ms mean (6,880 requests over 34 minutes)
-- No persistence (ephemeral data, restart = data loss)
 
 ## High Level Design
 
@@ -86,10 +85,10 @@ Events are created implicitly—no explicit creation endpoint exists. When a cli
 
 ```mermaid
 graph TB
-    Publisher[Skater<br/>GPS Publisher]
+    Skater[Skater<br/>GPS Publisher]
     Viewer[Viewer<br/>WebSocket]
 
-    Publisher -->|location data| LC[LocationController]
+    Skater -->|location data| LC[LocationController]
     LC -->|location data| LS[InMemoryLocationStore]
     LC -->|location data| BR[InMemoryBroadcaster]
 
@@ -223,20 +222,24 @@ sequenceDiagram
 
 *Storage and streaming operations scoped by eventId*
 
-Event isolation operates through complete path separation—all storage writes, reads, and streaming subscriptions access only their event's dedicated data structures. This enforces the key invariant: no global cross-event operations exist. Event def-456's operations follow identical flows through completely separate TrieMap instances.
+Event isolation operates through event-scoped paths: storage writes, reads, and subscriptions are keyed by eventId and routed to per-event data structures. This enforces the key invariant: no global cross-event operations exist. Event def-456's operations follow identical flows through completely separate TrieMap instances.
 
+**Storage Architecture:**
 The storage layer uses a nested TrieMap: `TrieMap[String, TrieMap[String, (Location, Instant)]]` where the outer key is eventId and the inner map stores skater locations keyed by skaterId.
 
 Storage operations are event-scoped. Writes use `getOrElseUpdate` to retrieve or create an event's TrieMap, then insert the location. Reads perform an O(1) hash lookup followed by O(n) conversion where n equals the skaters in that specific event, not the total system size.
 
+**Streaming Architecture:**
 The streaming layer uses the same isolation pattern. The broadcaster maintains `TrieMap[String, HubData]` where each event ID maps to its own `BroadcastHub`. Publish operations use `getOrElseUpdate` to retrieve or create an event's hub, then offer locations to that hub's queue. Subscribe operations return the event-specific hub's source. Event def-456's locations flow through a completely separate hub.
 
 We chose per-event hubs to avoid wasting resources on filtering. While we could use a single global hub and filter by eventId downstream (using `source.filter(_.eventId == "abc-123")`), this would waste CPU and bandwidth by pushing irrelevant elements through the hub only to drop them. It would also couple buffer occupancy and scheduling across events—slow subscribers on Event abc-123 would affect Event def-456's queue state. Per-event hubs eliminate this overhead and isolate buffer state.
 
-The benefits of this architecture are concrete. First, read queries scale with event size, not system size. Querying Event abc-123's 50 locations when the system has 10 events costs the same as when it has 100 events. The hash lookup is O(1), and the map conversion is O(50) regardless. Second, events are logically isolated and localise most contention paths within the application. When slow subscribers cause buffer saturation on Event abc-123, buffer pressure and any resulting drops (configured with a dropping overflow strategy, e.g., OverflowStrategy.dropHead) are confined to Event abc-123's hub—Event def-456's queue and subscribers are unaffected. A bug in one event is less likely to affect another event's data because state and streams are partitioned by eventId. Third, memory reclamation is granular. When Event abc-123's cleanup runs, it removes Event abc-123's locations and potentially Event abc-123's entire entry from the outer map. Event def-456's data are untouched during this process.
+**Benefits:**
+The benefits of this architecture are concrete. First, read queries scale with event size, not system size. Querying Event abc-123's 50 locations when the system has 10 events costs the same as when it has 100 events. The hash lookup is O(1), and the map conversion is O(50) regardless. Second, events are logically isolated and localise most contention paths within the application. When slow subscribers cause buffer saturation on Event abc-123, buffer pressure and any resulting drops (configured with a drop-head overflow strategy, e.g. `OverflowStrategy.dropHead`) are confined to Event abc-123's hub. Event def-456's queue and subscribers are unaffected. A bug in one event is less likely to affect another event's data because state and streams are partitioned by eventId. Third, memory reclamation is granular. When Event abc-123's cleanup runs, it removes Event abc-123's locations and potentially Event abc-123's entire entry from the outer map. Event def-456's data are untouched during this process.
 
 The resource independence is particularly valuable during cleanup. The cleanup service scans the outer map and processes each event's data independently, though all events are scanned in sequence. If Event abc-123 has 1,000 expired locations and Event def-456 has 10, Event abc-123's filtering takes longer but the operations don't interfere with each other's data structures or locks.
 
+**Trade-offs:**
 The trade-off is memory overhead from per-event data structures. Each event requires its own TrieMap for locations and its own HubData for streaming (containing queue, source, kill switch, and timestamp reference). These incur small constant overhead costs before any locations are added.
 
 Per-event structures add fixed overhead. The practical memory limit depends on heap sizing, viewer count, and publish rates—none of which have been characterised beyond the documented tests. The system trades per-event structural overhead for simplified read path logic and better isolation properties.
@@ -257,7 +260,7 @@ When the broadcaster materialises the stream for an event, it creates a hub for 
 
 ```mermaid
 graph LR
-    P[Publishers] -->|offer| Q[Source.queue]
+    P[Skaters] -->|offer| Q[Source.queue]
     Q --> KS[KillSwitch]
     KS --> BH[BroadcastHub]
     BH --> S1[Viewer 1]
@@ -296,15 +299,15 @@ sequenceDiagram
 
 *Publish and subscribe flow through the hub*
 
-The topology decouples publishers from subscribers through the source queue—publish operations succeed regardless of subscriber count or state. Play Framework materialises the hub source when WebSocket connections are established, enabling late subscribers to attach without affecting existing viewers.
+The topology decouples skaters from subscribers through the source queue—publish operations succeed regardless of subscriber count or state. Play Framework materialises the hub source when WebSocket connections are established, enabling late subscribers to attach without affecting existing viewers.
 
-The source queue has a fixed capacity of 128 elements (configurable via application.conf) and uses a drop-head overflow strategy (discussed in Backpressure Handling). The queue decouples publishers from subscribers—backpressure from slow viewers does not propagate upstream because the queue and `BroadcastHub` break the backpressure chain.
+The source queue has a fixed capacity of 128 elements (configurable via application.conf) and uses a drop-head overflow strategy (discussed in Backpressure Handling). The queue decouples skaters from subscribers—backpressure from slow viewers does not propagate upstream because the queue and `BroadcastHub` break the backpressure chain.
 
 The kill switch provides graceful shutdown control. This is critical for memory management—simply removing a hub from the registry doesn't release the materialised stream graph. The kill switch ensures proper termination.
 
 The BroadcastHub provides no replay mechanism—late subscribers receive only elements emitted after their subscription. EventStreamService addresses this by prepending a snapshot from InMemoryLocationStore before connecting to the live stream (initial ++ updates), ensuring viewers who join late see current state immediately.
 
-This topology solves the multi-subscriber problem. Publishers write to a single queue regardless of subscriber count. The `BroadcastHub` handles fan-out internally without application code managing a list of subscribers. Subscribers can connect and disconnect freely—each materialisation is independent.
+This topology solves the multi-subscriber problem. Skaters write to a single queue regardless of subscriber count. The `BroadcastHub` handles fan-out internally without application code managing a list of subscribers. Subscribers can connect and disconnect freely—each materialisation is independent.
 
 The trade-off is lifecycle management complexity. The stream remains materialised and running as long as the upstream is alive, preventing garbage collection because the stream graph is still active. Without the kill switch, materialised hubs that are never explicitly shut down would leak memory indefinitely.
 
@@ -320,17 +323,17 @@ This disconnects viewers during publish inactivity. Whether that behaviour is ac
 - Track active subscriber count and exclude hubs with subscribers from cleanup (most robust, but requires custom instrumentation—Pekko Streams does not expose materialisation count, so the Source would need wrapping to track when streams start and complete)
 - Send periodic keepalive publishes (empty location updates) to prevent cleanup (simplest workaround, but treats symptom rather than cause)
 - Implement viewer-initiated heartbeat mechanism that updates `lastAccessed` (requires client changes and generates additional traffic)
-- Use separate cleanup criteria: time since last publish vs. time since last subscriber activity (more complex, but cleanly separates publisher and subscriber concerns)
+- Use separate cleanup criteria: time since last publish vs. time since last subscriber activity (more complex, but cleanly separates skater and subscriber concerns)
 
 When a viewer attempts to subscribe to a cleaned-up hub, the broadcaster creates a new hub (lazy materialisation on access). The viewer receives a fresh stream that begins with a snapshot of current locations (from InMemoryLocationStore) concatenated with live updates from the new hub.
 
 ### Backpressure Handling
 
-Backpressure is a fundamental challenge in streaming systems. In location streaming, GPS publishers can send updates every few seconds, but a viewer on a slow mobile connection might struggle to keep up. How should the system handle this mismatch?
+Backpressure is a fundamental challenge in streaming systems. In location streaming, skaters can send updates every few seconds, but a viewer on a slow mobile connection might struggle to keep up. How should the system handle this mismatch?
 
-If downstream backpressure propagates upstream in this topology, a single slow viewer would throttle all publishers and affect all other viewers. In a multi-tenant system with independent events, this violates the isolation requirement.
+If downstream backpressure propagates upstream in this topology, a single slow viewer would throttle all skaters and affect all other viewers. In a multi-tenant system with independent events, this violates the isolation requirement.
 
-The system decouples downstream backpressure using a bounded buffer with drop-head overflow strategy. Each event's hub uses `Source.queue` with fixed capacity (128 elements) and `OverflowStrategy.dropHead`, which evicts the head element on overflow. When the queue fills to capacity, each new offer evicts the oldest queued element. Overflow occurs upstream of the `BroadcastHub` fan-out point, so all subscribers receive the same post-drop stream. There are no application-managed per-subscriber buffers in the hub path; lower layers (Pekko HTTP, TCP) may still buffer frames. When elements overflow at the hub queue, all subscribers receive the same post-drop stream.
+The system decouples downstream backpressure using a bounded buffer with drop-head overflow strategy. Each event's hub uses `Source.queue` with fixed capacity (128 elements) and `OverflowStrategy.dropHead`, which evicts the head element on overflow. When the queue fills to capacity, each new offer evicts the oldest queued element. Overflow occurs upstream of the `BroadcastHub` fan-out point, so all subscribers receive the same post-drop stream. There are no application-managed per-subscriber buffers in the hub path; lower layers (Pekko HTTP, TCP) may still buffer frames.
 
 Drop-head prioritises recency over completeness—viewers receive the most recent locations even under sustained publishing pressure. Dropped elements are lost permanently with no client-visible signal, acceptable for real-time GPS tracking where current position matters more than historical completeness.
 
@@ -489,13 +492,13 @@ graph TB
 
 *Single-instance deployment architecture on Railway platform*
 
-The single-instance constraint has direct implications. Vertical scaling is the only option—larger instance types provide more memory and CPU, but throughput remains bounded by a single JVM process. Restart or crash causes complete data loss, as all location state and broadcast hubs exist only in heap memory. There is no write-ahead log, no replication, and no recovery mechanism.
+The single-instance constraint has direct implications. Vertical scaling is the only option—larger instance types provide more memory and CPU, but throughput remains bounded by a single JVM process. There is no write-ahead log, no replication, and no recovery mechanism.
 
 The system has no external dependencies—no database, message queue, or cache layer. All state exists within the JVM process.
 
-Although the Railway instance provides 8 GB RAM and 8 vCPU, the system is not designed to rely on this headroom; architectural constraints, cleanup policies, and buffer sizing are unchanged and were validated only at the documented test scale.
+Although the Railway instance provides 8 GB RAM, the system is not designed to rely on this headroom; architectural constraints, cleanup policies, and buffer sizing are unchanged and were validated only at the documented test scale.
 
-Railway allocates 8 GB RAM and 8 vCPU. Heap sizing is not explicitly configured, allowing the JVM to use default sizing based on the container's memory allocation.
+Railway allocates 8 GB RAM and shared vCPU (no guaranteed allocation). Heap sizing is not explicitly configured, allowing the JVM to use default sizing based on the container's memory allocation.
 
 ### Infrastructure Requirements
 
@@ -524,7 +527,7 @@ At target scale (15 events, ~50 skaters per event, ~150 viewers):
 
 Based on rough estimates, the 8 GB container provides substantial headroom beyond baseline and active data. These estimates illustrate order-of-magnitude behaviour rather than sizing requirements and have not been validated through testing. Actual memory consumption depends on GC behaviour, allocation patterns, and workload characteristics that have not been characterised at target scale.
 
-**CPU:** Shared vCPU on Railway (no guaranteed allocation). Cleanup scans iterate all events sequentially every 10 seconds. Per-run scan cost is O(events × skaters), independent of publish rate in terms of scan cardinality—more events increase cleanup work, but higher update frequency does not increase the number of items scanned per cleanup run. Pekko Streams uses internal thread pools for asynchronous operations (materialised graphs, WebSocket frame processing).
+**CPU:** Railway platform allocation (not reserved). Cleanup scans iterate all events sequentially every 10 seconds. Per-run scan cost is O(events × skaters), independent of publish rate in terms of scan cardinality—more events increase cleanup work, but higher update frequency does not increase the number of items scanned per cleanup run. Pekko Streams uses internal thread pools for asynchronous operations (materialised graphs, WebSocket frame processing).
 
 **Ports:**
 - `9000`: HTTP and WebSocket traffic (Play Framework default, overridable via `PORT` environment variable)
@@ -723,6 +726,12 @@ The system lacks application-level metrics, distributed tracing, structured logg
 **No alerting:** The system provides no proactive notifications. Memory trending towards exhaustion, cleanup falling behind publish rate, or WebSocket connections failing to close do not trigger alerts. Railway's free tier does not support alerting integrations. Detection relies on manual observation—checking Railway's dashboard for memory growth, inspecting logs for error messages, or noticing application unavailability.
 
 ## Performance Characteristics
+
+| Metric | Value | Scenario |
+|--------|-------|----------|
+| HTTP latency (mean) | 36.55ms | Single event, 10 skaters, 6,880 requests over 34 minutes |
+| Memory usage | 63–67 MB | Single event, 10 skaters, 30 minutes |
+| Tested throughput | 200 updates/min | Smoke test: 2 events × 5 skaters, sustained 30 minutes |
 
 ### Throughput and Latency
 
