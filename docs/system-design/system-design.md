@@ -7,7 +7,8 @@ Skatemap Live is a real-time GPS streaming service for organised skating events.
 ### What It Does
 
 - Receives real-time location updates from skaters
-- Broadcasts those locations to viewers in real-time
+- Broadcasts those locations to viewers in real-time, with logical isolation between events
+- Maintains all state in memory (ephemeral, no persistence)
 
 The system handles multiple independent skating events simultaneously.
 
@@ -552,7 +553,7 @@ At target scale (15 events, ~50 skaters per event, ~150 viewers):
 - WebSocket overhead: ~150 × 10 KB ≈ 1.5 MB estimated
 - JVM baseline: Observed 63-67 MB during single-event local profiling (heap configuration undocumented)
 
-Based on rough estimates, the 8 GB container provides substantial headroom beyond baseline and active data. These estimates have not been validated through testing. Actual memory consumption depends on GC behaviour, allocation patterns, and workload characteristics that have not been characterised at target scale. These estimates illustrate order-of-magnitude behaviour rather than sizing requirements.
+Based on rough estimates, the 8 GB container provides substantial headroom beyond baseline and active data. These estimates illustrate order-of-magnitude behaviour rather than sizing requirements and have not been validated through testing. Actual memory consumption depends on GC behaviour, allocation patterns, and workload characteristics that have not been characterised at target scale.
 
 **CPU:** Shared vCPU on Railway (no guaranteed allocation). Cleanup scans iterate all events sequentially every 10 seconds. Per-run scan cost is O(events × skaters), independent of publish rate in terms of scan cardinality—more events increase cleanup work, but higher update frequency does not increase the number of items scanned per cleanup run. Pekko Streams uses internal thread pools for asynchronous operations (materialised graphs, WebSocket frame processing).
 
