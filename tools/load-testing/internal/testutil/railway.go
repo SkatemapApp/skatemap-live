@@ -5,25 +5,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
-
-func CheckRailwayLogs(t *testing.T, pattern string, expectFound bool) {
-	t.Helper()
-
-	cmd := exec.Command("railway", "logs", "--tail", "100")
-	output, err := cmd.Output()
-	require.NoError(t, err, "Failed to fetch Railway logs")
-
-	found := regexp.MustCompile(pattern).Match(output)
-	if expectFound {
-		assert.True(t, found, "Expected to find pattern %q in Railway logs", pattern)
-	} else {
-		assert.False(t, found, "Expected NOT to find pattern %q in Railway logs", pattern)
-	}
-}
 
 func DetectCrash(t *testing.T) bool {
 	t.Helper()
