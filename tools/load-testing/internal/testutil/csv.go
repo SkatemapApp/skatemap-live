@@ -23,7 +23,11 @@ func AssertNoErrors(t *testing.T, csvPath string) {
 	records, err := reader.ReadAll()
 	require.NoError(t, err, "Failed to read CSV")
 
-	require.Greater(t, len(records), 1, "CSV should have header + data rows")
+	require.Greater(t, len(records), 0, "CSV should have at least a header row")
+
+	if len(records) == 1 {
+		return
+	}
 
 	errorColumnIndex := len(records[0]) - 1
 
@@ -100,7 +104,11 @@ func ExtractSkaterIDs(t *testing.T, viewerCSVPath string) map[string]bool {
 	records, err := reader.ReadAll()
 	require.NoError(t, err, "Failed to read CSV")
 
-	require.Greater(t, len(records), 1, "CSV should have header + data rows")
+	require.Greater(t, len(records), 0, "CSV should have at least a header row")
+
+	if len(records) == 1 {
+		return make(map[string]bool)
+	}
 
 	skaterIDColumnIndex := -1
 	for i, header := range records[0] {

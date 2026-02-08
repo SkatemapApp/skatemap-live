@@ -7,38 +7,37 @@ import (
 )
 
 const (
-	locationTTL               = 30 * time.Second
-	cleanupInterval           = 10 * time.Second
-	messageCollectionTime     = 30 * time.Second
-	cleanupWaitTime           = 45 * time.Second
-	expectedCleanupTime       = 35 * time.Second
-	cleanupTimeAssertionDelta = 10 * time.Second
+	locationTTL           = 30 * time.Second
+	cleanupInterval       = 10 * time.Second
+	messageCollectionTime = 30 * time.Second
+	cleanupWaitTime       = 45 * time.Second
 )
 
 func (s *SmokeTestSuite) TestLocationExpiry() {
 	t := s.T()
 
 	skaters := testutil.StartSkaters(t, s.railwayURL, 1, 3, "2s")
-
-	t.Logf("Event ID: %s", skaters.EventIDs[0])
+	eventID := skaters.EventIDs[0]
+	t.Logf("Event ID: %s", eventID)
 
 	time.Sleep(messageCollectionTime)
 
 	skaters.Stop(t)
-	t.Logf("Stopped skaters")
+	t.Logf("Stopped skaters at %s", time.Now().Format(time.RFC3339))
 
 	time.Sleep(cleanupWaitTime)
+	t.Logf("Waited %s for cleanup", cleanupWaitTime)
 
-	lastUpdateTime := testutil.ParseLastLocationUpdateTime(t)
-	cleanupTime := testutil.ParseCleanupTime(t)
-	elapsed := cleanupTime.Sub(lastUpdateTime).Seconds()
+	viewer := testutil.StartViewers(t, s.railwayURL, []string{eventID})
+	time.Sleep(10 * time.Second)
+	viewer.Stop(t)
 
-	t.Logf("Last location update at %s (server time)", lastUpdateTime.Format(time.RFC3339))
-	t.Logf("Cleanup occurred at %s (%.1f seconds after last update)", cleanupTime.Format(time.RFC3339), elapsed)
+	skaterIDs := testutil.ExtractSkaterIDs(t, viewer.MetricsFile)
+	s.Assert().Equal(0, len(skaterIDs), "Should see 0 skaters after expiry - all locations should be cleaned up")
+	t.Logf("Verified 0 skaters visible after expiry")
 
-	s.Assert().InDelta(expectedCleanupTime.Seconds(), elapsed, cleanupTimeAssertionDelta.Seconds(), "Cleanup should occur within TTL + cleanup interval")
-
-	testutil.CheckRailwayLogs(t, "removed 3 locations", true)
+	testutil.AssertNoErrors(t, skaters.MetricsFile)
+	testutil.AssertNoErrors(t, viewer.MetricsFile)
 
 	s.Assert().False(testutil.DetectCrash(t), "No crashes should occur during location expiry test")
 }

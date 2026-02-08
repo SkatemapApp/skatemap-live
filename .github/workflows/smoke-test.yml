@@ -52,41 +52,14 @@ jobs:
             echo "railway_url=$RAILWAY_URL" >> $GITHUB_OUTPUT
           fi
 
-      - name: Validate Railway configuration
+      - name: Validate Railway token
         if: steps.check-url.outputs.skip == 'false'
         run: |
           if [ -z "${{ secrets.RAILWAY_TOKEN }}" ]; then
             echo "::error::RAILWAY_TOKEN secret not configured"
             exit 1
           fi
-          if [ -z "${{ secrets.RAILWAY_PROJECT_ID }}" ]; then
-            echo "::error::RAILWAY_PROJECT_ID secret not configured"
-            exit 1
-          fi
-          if [ -z "${{ secrets.RAILWAY_ENVIRONMENT_ID }}" ]; then
-            echo "::error::RAILWAY_ENVIRONMENT_ID secret not configured"
-            exit 1
-          fi
-          if [ -z "${{ secrets.RAILWAY_SERVICE_ID }}" ]; then
-            echo "::error::RAILWAY_SERVICE_ID secret not configured"
-            exit 1
-          fi
-          echo "::notice::Railway configuration validated successfully"
-
-      - name: Link Railway project
-        if: steps.check-url.outputs.skip == 'false'
-        working-directory: tools/load-testing
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Linking Railway project with environment"
-          railway link --project ${{ secrets.RAILWAY_PROJECT_ID }} --environment ${{ secrets.RAILWAY_ENVIRONMENT_ID }} --service ${{ secrets.RAILWAY_SERVICE_ID }}
-          echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Railway project linked successfully (project: ${{ secrets.RAILWAY_PROJECT_ID }}, environment: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}, service: ${{ secrets.RAILWAY_SERVICE_ID }})"
-          echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Verifying Railway connectivity"
-          if ! railway status 2>&1; then
-            echo "::error::Railway status check failed"
-            exit 1
-          fi
+          echo "::notice::Railway token validated successfully"
 
       - name: Run smoke tests
         if: steps.check-url.outputs.skip == 'false'
