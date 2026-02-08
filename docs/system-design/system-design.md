@@ -332,37 +332,6 @@ If downstream backpressure propagates upstream in this topology, a single slow v
 
 The system decouples downstream backpressure using a bounded buffer with drop-head overflow strategy. Each event's hub uses `Source.queue` with fixed capacity (128 elements) and `OverflowStrategy.dropHead`, which evicts the head element on overflow. When the queue fills to capacity, each new offer evicts the oldest queued element. Overflow occurs upstream of the `BroadcastHub` fan-out point, so all subscribers receive the same post-drop stream. There are no application-managed per-subscriber buffers in the hub path; lower layers (Pekko HTTP, TCP) may still buffer frames. When elements overflow at the hub queue, all subscribers receive the same post-drop stream.
 
-```mermaid
-graph TB
-    subgraph "Source.queue (capacity: 128, OverflowStrategy.dropHead)"
-        direction LR
-        HEAD[HEAD<br/>oldest element]
-        B1[Element 2]
-        B2[Element 3]
-        DOTS[...]
-        B127[Element 127]
-        TAIL[TAIL<br/>newest element]
-
-        HEAD --> B1
-        B1 --> B2
-        B2 --> DOTS
-        DOTS --> B127
-        B127 --> TAIL
-    end
-
-    NEW[New element arrives<br/>when queue is full] -.->|1. Drop HEAD| HEAD
-    NEW -.->|2. Add to TAIL| TAIL
-
-    TAIL --> BH[BroadcastHub<br/>fans out to all viewers]
-
-    style HEAD fill:#ff9999
-    style TAIL fill:#99ff99
-    style NEW fill:#ffff99
-    style BH fill:#e1f5ff
-```
-
-*Drop-head overflow strategy in Source.queue*
-
 Drop-head prioritises recency over completeness—viewers receive the most recent locations even under sustained publishing pressure. Dropped elements are lost permanently with no client-visible signal, acceptable for real-time GPS tracking where current position matters more than historical completeness.
 
 For buffer sizing, we use a design assumption (not measured in production) of ~20 locations per second per event as a worst-case aggregate publishing rate. At this rate, the 128-element buffer represents approximately 6 seconds of data.
