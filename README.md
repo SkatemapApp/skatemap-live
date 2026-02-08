@@ -45,6 +45,7 @@ make build
 ## Documentation
 
 - [API Service Documentation](services/api/README.md)
+- [System Design](docs/system-design/system-design.md)
 - [Architecture Decision Records](docs/adr/)
 
 ## Contributing
