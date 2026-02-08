@@ -252,6 +252,6 @@ tools/load-testing/*.csv
 *.csv
 
 ### JVM Profiling ###
-heap-dumps/*.hprof
+**/heap-dumps/
 *.hprof
 gc-*.log
