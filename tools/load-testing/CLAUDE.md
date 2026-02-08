@@ -13,7 +13,7 @@ tools/load-testing/
 │   ├── metrics/             - CSV metrics writers
 │   └── testutil/            - Test helpers
 │       ├── subprocess.go    - Process lifecycle management
-│       ├── railway.go       - Railway log checking
+│       ├── railway.go       - Crash detection
 │       └── csv.go           - CSV metrics validation
 ├── test/
 │   ├── smoke_test.go              - Test suite setup
@@ -72,8 +72,6 @@ All tests extend `SmokeTestSuite` which:
 - `(*Process).Stop(t)`
 
 **railway.go:**
-- `CheckRailwayLogs(t, pattern, expectFound)`
-- `ParseCleanupTime(t) time.Time`
 - `DetectCrash(t) bool`
 
 **csv.go:**
@@ -156,13 +154,11 @@ Triggered by:
 - Manual workflow dispatch
 - Daily scheduled run (2 AM UTC)
 
-## Railway Log Parsing
+## Railway Integration
 
-**Current approach:** Parse Railway logs using `railway logs --tail N`
+**Crash detection:** `DetectCrash()` optionally fetches Railway logs to check for crash indicators (OOM, exit codes). If Railway CLI fails, it logs a warning and returns false.
 
-**Limitation:** Brittle, temporary solution
-
-**Future:** Replace with Prometheus metrics (Issue #26)
+**Note:** Tests verify observable behaviour, not internal logs. Log parsing is brittle (logs can change anytime) and has no contract.
 
 ## Common Tasks
 
