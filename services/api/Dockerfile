@@ -26,6 +26,9 @@ RUN --mount=type=cache,target=/root/.sbt \
 
 FROM eclipse-temurin:21-jre
 
+ARG OTEL_VERSION=2.24.0
+ARG OTEL_CHECKSUM=5c48cd48f9907f824214e22f14a28375c92613a94b0cf98381997e0a678220ce
+
 RUN apt-get update && \
     apt-get install -y curl && \
     rm -rf /var/lib/apt/lists/* && \
@@ -36,6 +39,10 @@ WORKDIR /app
 
 COPY --from=builder /app/target/universal/stage .
 COPY services/api/docker-entrypoint.sh /app/
+
+RUN curl -fsSL -o /app/opentelemetry-javaagent.jar \
+    "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v${OTEL_VERSION}/opentelemetry-javaagent.jar" && \
+    echo "${OTEL_CHECKSUM}  /app/opentelemetry-javaagent.jar" | sha256sum -c -
 
 RUN chown -R skatemap:skatemap /app && \
     chmod +x /app/docker-entrypoint.sh
