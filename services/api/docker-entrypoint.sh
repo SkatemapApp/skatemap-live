@@ -6,10 +6,13 @@ if [ -z "$APPLICATION_SECRET" ]; then
   exit 1
 fi
 
-OTEL_AGENT_PATH="/app/opentelemetry-javaagent.jar"
+OTEL_AGENT_JAR="/app/opentelemetry-javaagent.jar"
 
-if [ ! -f "$OTEL_AGENT_PATH" ]; then
-  echo "WARNING: OpenTelemetry agent not found at $OTEL_AGENT_PATH, starting without instrumentation" >&2
+if [ -f "$OTEL_AGENT_JAR" ]; then
+  OTEL_AGENT_PATH="$OTEL_AGENT_JAR"
+else
+  echo "WARNING: OpenTelemetry agent not found at $OTEL_AGENT_JAR, starting without instrumentation" >&2
+  OTEL_AGENT_PATH=""
 fi
 
 if [ -n "$DEBUG" ]; then
