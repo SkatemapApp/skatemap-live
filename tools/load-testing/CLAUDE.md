@@ -20,8 +20,9 @@ tools/load-testing/
 │   ├── event_isolation_test.go    - Event isolation test
 │   ├── location_expiry_test.go    - Location expiry test
 │   ├── websocket_timeout_test.go  - WebSocket timeout test
-│   ├── scale_test.go              - Scale test
-│   └── stability_test.go          - 30-minute stability test
+│   └── load/
+│       ├── scale_test.go          - Scale test
+│       └── stability_test.go      - 30-minute stability test
 ├── Makefile                 - Build and test commands
 └── go.mod                   - Go dependencies
 ```
