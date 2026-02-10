@@ -11,6 +11,19 @@ OTEL_AGENT_OPTS=""
 
 if [ -f "$OTEL_AGENT_PATH" ]; then
   OTEL_AGENT_OPTS="-J-javaagent:$OTEL_AGENT_PATH"
+
+  if [ -n "$OTEL_SDK_DISABLED" ]; then
+    OTEL_AGENT_OPTS="$OTEL_AGENT_OPTS -Dotel.sdk.disabled=$OTEL_SDK_DISABLED"
+  fi
+  if [ -n "$OTEL_EXPORTER_OTLP_ENDPOINT" ]; then
+    OTEL_AGENT_OPTS="$OTEL_AGENT_OPTS -Dotel.exporter.otlp.endpoint=$OTEL_EXPORTER_OTLP_ENDPOINT"
+  fi
+  if [ -n "$OTEL_SERVICE_NAME" ]; then
+    OTEL_AGENT_OPTS="$OTEL_AGENT_OPTS -Dotel.service.name=$OTEL_SERVICE_NAME"
+  fi
+  if [ -n "$OTEL_EXPORTER_OTLP_HEADERS" ]; then
+    OTEL_AGENT_OPTS="$OTEL_AGENT_OPTS -Dotel.exporter.otlp.headers=$OTEL_EXPORTER_OTLP_HEADERS"
+  fi
 else
   echo "WARNING: OpenTelemetry agent not found at $OTEL_AGENT_PATH, starting without instrumentation" >&2
 fi
