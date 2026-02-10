@@ -36,7 +36,7 @@ Parameters for fast, daily smoke tests:
 - **Update interval**: 3 seconds
 - **Duration**: 10-15 seconds of streaming
 - **Individual test timeout**: 5-10 minutes
-- **Suite timeout**: 10 minutes
+- **Suite timeout**: 15-20 minutes
 
 **Rationale**: Verify functionality, not capacity. Just long enough to observe one or two update cycles. The skater count and update interval aren't problematic—it's the durations that distinguish smoke from load tests.
 
