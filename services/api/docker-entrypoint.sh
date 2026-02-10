@@ -24,6 +24,10 @@ if [ -f "$OTEL_AGENT_PATH" ]; then
   if [ -n "$OTEL_EXPORTER_OTLP_HEADERS" ]; then
     OTEL_AGENT_OPTS="$OTEL_AGENT_OPTS -Dotel.exporter.otlp.headers=$OTEL_EXPORTER_OTLP_HEADERS"
   fi
+
+  if [ -n "$DEBUG" ]; then
+    echo "DEBUG: Applied OTEL options: $OTEL_AGENT_OPTS" >&2
+  fi
 else
   echo "WARNING: OpenTelemetry agent not found at $OTEL_AGENT_PATH, starting without instrumentation" >&2
 fi
