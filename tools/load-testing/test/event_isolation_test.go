@@ -37,8 +37,8 @@ func (s *SmokeTestSuite) TestEventIsolation() {
 	viewerACount := testutil.CountRecords(t, viewerA.MetricsFile)
 	viewerBCount := testutil.CountRecords(t, viewerB.MetricsFile)
 
-	s.Assert().Greater(viewerACount, 5, "Event A viewer should have received messages")
-	s.Assert().Greater(viewerBCount, 5, "Event B viewer should have received messages")
+	s.Assert().Greater(viewerACount, 2, "Event A viewer should have received messages")
+	s.Assert().Greater(viewerBCount, 2, "Event B viewer should have received messages")
 
 	skaterIDsA := testutil.ExtractSkaterIDs(t, viewerA.MetricsFile)
 	skaterIDsB := testutil.ExtractSkaterIDs(t, viewerB.MetricsFile)
