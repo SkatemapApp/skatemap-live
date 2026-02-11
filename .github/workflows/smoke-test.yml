@@ -1,3 +1,8 @@
+# Smoke Test Suite
+# Runs fast validation tests daily (2 AM UTC).
+# Complements load-test.yml which runs extended stability tests weekly.
+# Excludes load tests (those with //go:build load tags).
+
 name: Smoke Test Suite
 
 on:
@@ -73,5 +78,5 @@ jobs:
         if: always() && steps.check-url.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-test-results
+          name: smoke-test-results-${{ github.run_id }}-${{ github.run_attempt }}
           path: tools/load-testing/smoke-test-results.json

@@ -1,3 +1,8 @@
+# Load Test Suite
+# Runs extended stability and performance tests weekly (Sunday 3 AM UTC).
+# Complements smoke-test.yml which runs daily quick validation tests.
+# Uses -tags load to run only tests tagged with //go:build load.
+
 name: Load Test Suite
 
 on:
@@ -73,5 +78,5 @@ jobs:
         if: always() && steps.check-url.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: load-test-results
+          name: load-test-results-${{ github.run_id }}-${{ github.run_attempt }}
           path: tools/load-testing/load-test-results.json
