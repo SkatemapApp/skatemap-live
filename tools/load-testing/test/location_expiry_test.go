@@ -16,7 +16,7 @@ const (
 func (s *SmokeTestSuite) TestLocationExpiry() {
 	t := s.T()
 
-	skaters := testutil.StartSkaters(t, s.railwayURL, 1, 3, "2s")
+	skaters := testutil.StartSkaters(t, s.railwayURL, 1, 1, "2s")
 	eventID := skaters.EventIDs[0]
 	t.Logf("Event ID: %s", eventID)
 

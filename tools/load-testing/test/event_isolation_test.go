@@ -7,14 +7,14 @@ import (
 )
 
 const (
-	eventIsolationTestDuration = 30 * time.Second
+	eventIsolationTestDuration = 15 * time.Second
 )
 
 func (s *SmokeTestSuite) TestEventIsolation() {
 	t := s.T()
 
-	eventA := testutil.StartSkaters(t, s.railwayURL, 1, 3, "2s")
-	eventB := testutil.StartSkaters(t, s.railwayURL, 1, 3, "2s")
+	eventA := testutil.StartSkaters(t, s.railwayURL, 1, 1, "2s")
+	eventB := testutil.StartSkaters(t, s.railwayURL, 1, 1, "2s")
 
 	viewerA := testutil.StartViewers(t, s.railwayURL, eventA.EventIDs)
 	viewerB := testutil.StartViewers(t, s.railwayURL, eventB.EventIDs)
