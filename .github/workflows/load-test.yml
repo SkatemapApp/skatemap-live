@@ -1,9 +1,9 @@
-# Smoke Test Suite
-# Runs fast validation tests daily (2 AM UTC).
-# Complements load-test.yml which runs extended stability tests weekly.
-# Excludes load tests (those with //go:build load tags).
+# Load Test Suite
+# Runs extended stability and performance tests weekly (Sunday 3 AM UTC).
+# Complements smoke-test.yml which runs daily quick validation tests.
+# Uses -tags load to run only tests tagged with //go:build load.
 
-name: Smoke Test Suite
+name: Load Test Suite
 
 on:
   workflow_dispatch:
@@ -12,12 +12,12 @@ on:
         description: 'Target Railway URL'
         required: true
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 3 * * 0'
 
 jobs:
-  smoke-test:
+  load-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 120
     permissions:
       contents: read
 
@@ -48,7 +48,7 @@ jobs:
         run: |
           if [ -z "$RAILWAY_URL" ]; then
             echo "skip=true" >> $GITHUB_OUTPUT
-            echo "::warning::RAILWAY_PRODUCTION_URL secret not configured. Skipping scheduled smoke tests."
+            echo "::warning::RAILWAY_PRODUCTION_URL secret not configured. Skipping scheduled load tests."
             echo "::warning::To enable scheduled tests, add RAILWAY_PRODUCTION_URL secret in repository settings."
             echo "::warning::Or run manually via workflow_dispatch with a target_url parameter."
           else
@@ -66,17 +66,17 @@ jobs:
           fi
           echo "::notice::Railway token validated successfully"
 
-      - name: Run smoke tests
+      - name: Run load tests
         if: steps.check-url.outputs.skip == 'false'
         working-directory: tools/load-testing
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_URL: ${{ steps.check-url.outputs.railway_url }}
-        run: go test ./test/... -v -timeout 10m -json > smoke-test-results.json
+        run: go test -tags load ./test/... -v -timeout 2h -json > load-test-results.json
 
       - name: Upload test results
         if: always() && steps.check-url.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-test-results-${{ github.run_id }}-${{ github.run_attempt }}
-          path: tools/load-testing/smoke-test-results.json
+          name: load-test-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tools/load-testing/load-test-results.json

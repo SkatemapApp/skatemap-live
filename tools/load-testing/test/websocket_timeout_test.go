@@ -15,7 +15,7 @@ const (
 func (s *SmokeTestSuite) TestWebSocketTimeout() {
 	t := s.T()
 
-	skaters := testutil.StartSkaters(t, s.railwayURL, 1, 3, "2s")
+	skaters := testutil.StartSkaters(t, s.railwayURL, 1, 1, "2s")
 	eventID := skaters.EventIDs[0]
 
 	viewer := testutil.StartViewers(t, s.railwayURL, skaters.EventIDs)
@@ -33,7 +33,7 @@ func (s *SmokeTestSuite) TestWebSocketTimeout() {
 	time.Sleep(websocketIdleTime)
 	t.Logf("Waited %v (exceeds old 75s timeout)", websocketIdleTime)
 
-	skaters2 := testutil.StartSkatersWithEventID(t, s.railwayURL, eventID, 3, "2s")
+	skaters2 := testutil.StartSkatersWithEventID(t, s.railwayURL, eventID, 1, "2s")
 	defer skaters2.Stop(t)
 
 	t.Logf("Restarted skaters with same Event ID")

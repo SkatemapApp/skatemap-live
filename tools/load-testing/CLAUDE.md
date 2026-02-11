@@ -17,45 +17,75 @@ tools/load-testing/
 │       └── csv.go           - CSV metrics validation
 ├── test/
 │   ├── smoke_test.go              - Test suite setup
-│   ├── event_isolation_test.go    - Event isolation test
-│   ├── location_expiry_test.go    - Location expiry test
-│   ├── websocket_timeout_test.go  - WebSocket timeout test
-│   └── load/
-│       ├── scale_test.go          - Scale test
-│       └── stability_test.go      - 30-minute stability test
+│   ├── event_isolation_test.go    - Event isolation smoke test
+│   ├── location_expiry_test.go    - Location expiry smoke test
+│   ├── websocket_timeout_test.go  - WebSocket timeout smoke test
+│   ├── scale_test.go              - Scale load test (build tag: load)
+│   └── stability_test.go          - Stability load test (build tag: load)
 ├── Makefile                 - Build and test commands
 └── go.mod                   - Go dependencies
 ```
 
-## Running Smoke Tests
+## Smoke Tests vs Load Tests
 
-### Full Suite
+### Smoke Tests
+
+Fast validation tests that verify basic functionality. Run daily in CI.
+
+**Location:** `test/*.go` (without build tags)
+**Duration:** 2-5 minutes total
+**Parameters:** 1 skater per event, 15s duration
+**CI Schedule:** Daily at 2 AM UTC (10-minute timeout)
+
+**Tests:**
+- `TestEventIsolation` - Event isolation verification
+- `TestLocationExpiry` - Location cleanup verification
+- `TestWebSocketTimeout` - WebSocket idle timeout verification
+
+### Load Tests
+
+Extended stability and performance tests. Run weekly in CI.
+
+**Location:** `test/*.go` (with `//go:build load` tag)
+**Duration:** 30+ minutes
+**Parameters:** 5 skaters per event, 30-minute duration
+**Build Tag:** `//go:build load` (requires `-tags load` flag to run)
+**CI Schedule:** Weekly (Sunday 2 AM UTC, 2-hour timeout)
+
+**Tests:**
+- `TestScale` - Phased scaling pattern
+- `TestStability` - 30-minute soak test
+
+**Note:** All tests are in the same `test/` directory. Load tests use `//go:build load` tags to be excluded from default runs.
+
+## Running Tests Locally
+
+### Run Smoke Tests Only
 
 ```bash
 cd tools/load-testing
-RAILWAY_URL=<railway-url> go test ./test/... -v -timeout 2h
+RAILWAY_URL=<railway-url> go test ./test/... -v -timeout 10m
 ```
 
-### Single Test
+### Run Load Tests Only
+
+```bash
+cd tools/load-testing
+RAILWAY_URL=<railway-url> go test -tags load ./test/... -v -timeout 2h
+```
+
+### Run All Tests (Smoke + Load)
+
+```bash
+cd tools/load-testing
+RAILWAY_URL=<railway-url> go test -tags load ./test/... -v -timeout 2h
+```
+
+### Run Single Test
 
 ```bash
 go test ./test/... -run TestSmokeTestSuite/TestEventIsolation -v
 ```
-
-Test names:
-- `TestEventIsolation`
-- `TestLocationExpiry`
-- `TestWebSocketTimeout`
-- `TestScale`
-- `TestStability`
-
-### Skip Long Tests
-
-```bash
-go test ./test/... -short -v
-```
-
-Skips `TestStability` (30 minutes).
 
 ## Test Structure
 
@@ -92,27 +122,27 @@ Test timing constants:
 
 ## Test Organisation
 
-### When to Use `test/load/` vs Root `test/`
+### Build Tags for Test Separation
 
-**Place tests in `test/load/` if they are:**
+All tests are in the `test/` directory. Load tests use build tags for separation:
+
+**Smoke tests** (no build tag):
+- Functional tests validating specific behaviours
+- Quick smoke tests (<5 minutes)
+- Suitable for frequent CI execution
+- Run by default: `go test ./test/...`
+
+**Load tests** (tagged with `//go:build load`):
 - Long-running (>5 minutes)
 - Resource-intensive (high CPU/memory usage)
 - Performance or endurance focused (scale, stability, soak tests)
 - Not suitable for regular CI runs
-
-**Place tests in root `test/` if they are:**
-- Functional tests validating specific behaviours
-- Quick smoke tests (<5 minutes)
-- Suitable for frequent CI execution
-- Testing correctness rather than performance
-
-**Load tests use build tags:**
-- Tagged with `//go:build load`
 - Excluded by default: `go test ./test/...` skips them
-- Explicitly run with: `go test -tags=load ./test/...`
-- Or use Makefile target: `make test-load`
+- Explicitly run with: `go test -tags load ./test/...`
 
 ## Adding a New Test
+
+### Adding a Smoke Test
 
 1. Create `test/new_test_name_test.go`:
 
@@ -125,16 +155,17 @@ import (
 )
 
 const (
-	newTestDuration = 2 * time.Minute
+	newTestDuration = 15 * time.Second
 )
 
 func (s *SmokeTestSuite) TestNewFeature() {
 	t := s.T()
 
-	skaters := testutil.StartSkaters(t, s.railwayURL, 1, 3, "2s")
+	skaters := testutil.StartSkaters(t, s.railwayURL, 1, 1, "2s")
 
-	// Test logic...
+	time.Sleep(newTestDuration)
 
+	skaters.Stop(t)
 	testutil.AssertNoErrors(t, skaters.MetricsFile)
 }
 ```
@@ -143,6 +174,43 @@ func (s *SmokeTestSuite) TestNewFeature() {
 
 ```bash
 go test ./test/... -run TestSmokeTestSuite/TestNewFeature -v
+```
+
+### Adding a Load Test
+
+1. Create `test/new_load_test.go`:
+
+```go
+//go:build load
+// +build load
+
+package test
+
+import (
+	"time"
+	"github.com/SkatemapApp/skatemap-live/tools/load-testing/internal/testutil"
+)
+
+const (
+	loadTestDuration = 30 * time.Minute
+)
+
+func (s *SmokeTestSuite) TestNewLoadScenario() {
+	t := s.T()
+
+	skaters := testutil.StartSkaters(t, s.railwayURL, 1, 5, "3s")
+
+	time.Sleep(loadTestDuration)
+
+	skaters.Stop(t)
+	testutil.AssertNoErrors(t, skaters.MetricsFile)
+}
+```
+
+2. Run the test:
+
+```bash
+go test -tags load ./test/... -run TestSmokeTestSuite/TestNewLoadScenario -v
 ```
 
 ## Debugging Test Failures
@@ -171,11 +239,32 @@ Subprocesses are automatically cleaned up via `t.Cleanup()`. If tests hang, chec
 
 ## CI Integration
 
-Tests run in GitHub Actions via `.github/workflows/smoke-test.yml`.
+### Smoke Test Workflow
 
-Triggered by:
-- Manual workflow dispatch
-- Daily scheduled run (2 AM UTC)
+**File:** `.github/workflows/smoke-test.yml`
+**Schedule:** Daily at 2 AM UTC
+**Timeout:** 10 minutes
+**Command:** `go test ./test/... -v -timeout 10m`
+
+Runs smoke tests (event isolation, location expiry, websocket timeout) to verify basic functionality daily.
+
+### Load Test Workflow
+
+**File:** `.github/workflows/load-test.yml`
+**Schedule:** Weekly (Sunday 2 AM UTC)
+**Timeout:** 2 hours
+**Command:** `go test -tags load ./test/... -v -timeout 2h`
+
+Runs load tests (scale, stability) to validate system behaviour under sustained load weekly. The `-tags load` flag enables tests with `//go:build load` tags.
+
+### Manual Trigger
+
+Both workflows support manual dispatch with custom `target_url` input:
+
+```bash
+gh workflow run smoke-test.yml --repo SkatemapApp/skatemap-live -f target_url=https://custom-url.railway.app
+gh workflow run load-test.yml --repo SkatemapApp/skatemap-live -f target_url=https://custom-url.railway.app
+```
 
 ## Railway Integration
 
@@ -195,10 +284,16 @@ Creates:
 - `bin/simulate-skaters`
 - `bin/simulate-viewers`
 
-### Run All Tests Locally
+### Run Smoke Tests Locally
 
 ```bash
-RAILWAY_URL=http://localhost:9000 make smoke-test
+RAILWAY_URL=http://localhost:9000 go test ./test/... -v -timeout 10m
+```
+
+### Run Load Tests Locally
+
+```bash
+RAILWAY_URL=http://localhost:9000 go test -tags load ./test/... -v -timeout 2h
 ```
 
 ### Update Test Timing

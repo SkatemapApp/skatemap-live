@@ -7,14 +7,14 @@ import (
 )
 
 const (
-	eventIsolationTestDuration = 30 * time.Second
+	eventIsolationTestDuration = 15 * time.Second
 )
 
 func (s *SmokeTestSuite) TestEventIsolation() {
 	t := s.T()
 
-	eventA := testutil.StartSkaters(t, s.railwayURL, 1, 3, "2s")
-	eventB := testutil.StartSkaters(t, s.railwayURL, 1, 3, "2s")
+	eventA := testutil.StartSkaters(t, s.railwayURL, 1, 1, "2s")
+	eventB := testutil.StartSkaters(t, s.railwayURL, 1, 1, "2s")
 
 	viewerA := testutil.StartViewers(t, s.railwayURL, eventA.EventIDs)
 	viewerB := testutil.StartViewers(t, s.railwayURL, eventB.EventIDs)
@@ -37,8 +37,8 @@ func (s *SmokeTestSuite) TestEventIsolation() {
 	viewerACount := testutil.CountRecords(t, viewerA.MetricsFile)
 	viewerBCount := testutil.CountRecords(t, viewerB.MetricsFile)
 
-	s.Assert().Greater(viewerACount, 5, "Event A viewer should have received messages")
-	s.Assert().Greater(viewerBCount, 5, "Event B viewer should have received messages")
+	s.Assert().Greater(viewerACount, 2, "Event A viewer should have received messages")
+	s.Assert().Greater(viewerBCount, 2, "Event B viewer should have received messages")
 
 	skaterIDsA := testutil.ExtractSkaterIDs(t, viewerA.MetricsFile)
 	skaterIDsB := testutil.ExtractSkaterIDs(t, viewerB.MetricsFile)
