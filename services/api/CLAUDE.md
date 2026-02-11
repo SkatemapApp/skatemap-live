@@ -106,6 +106,18 @@ All values are validated at startup. Missing or non-positive values cause startu
 - `HUB_CLEANUP_INTERVAL_SECONDS`: Interval between hub cleanup runs (default: 60)
 - `HUB_BUFFER_SIZE`: Number of messages to buffer per hub (default: 128)
 
+### OpenTelemetry (Optional)
+The application includes the OpenTelemetry Java agent for observability. Configure via environment variables:
+
+- `OTEL_SERVICE_NAME`: Service identifier in telemetry data (e.g., "skatemap-live")
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OTLP endpoint URL (e.g., "https://api.honeycomb.io:443")
+- `OTEL_EXPORTER_OTLP_PROTOCOL`: Protocol for OTLP export (required: "http/protobuf")
+- `OTEL_EXPORTER_OTLP_HEADERS`: Authentication headers (e.g., "x-honeycomb-team=<api-key>")
+
+**Note:** `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` is required for Honeycomb and similar OTLP HTTP endpoints. Without this, the exporter defaults to gRPC which may cause authentication failures.
+
+If OTEL variables are not set, the agent loads but does not export telemetry data.
+
 ## Code Style
 - Uses Scalafmt with 120 character line limit
 - Scalastyle enabled for style checking (fails build on violations)
