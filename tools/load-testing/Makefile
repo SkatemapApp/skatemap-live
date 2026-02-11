@@ -1,4 +1,4 @@
-.PHONY: build test fmt smoke-test install-tools help
+.PHONY: build test test-unit test-load fmt smoke-test install-tools help
 
 install-tools:
 	@echo "Installing development tools..."
@@ -24,6 +24,8 @@ help:
 	@echo "  install-tools - Install development tools (goimports, etc.)"
 	@echo "  build         - Build simulation binaries"
 	@echo "  test          - Run unit tests"
+	@echo "  test-unit     - Run unit/integration tests (excludes load tests)"
+	@echo "  test-load     - Run load tests only (requires RAILWAY_URL)"
 	@echo "  fmt           - Format Go files with goimports"
 	@echo "  smoke-test    - Run smoke tests (requires RAILWAY_URL)"
 	@echo "  help          - Show this help message"
@@ -38,6 +40,24 @@ build:
 test:
 	@echo "Running unit tests..."
 	go test ./internal/... -v
+
+test-unit: build
+	@if [ -z "$(RAILWAY_URL)" ]; then \
+		echo "Error: RAILWAY_URL environment variable required"; \
+		echo "Example: RAILWAY_URL=<railway-url> make test-unit"; \
+		exit 1; \
+	fi
+	@echo "Running unit/integration tests (excluding load tests)..."
+	go test ./test/... -v -timeout 30m
+
+test-load: build
+	@if [ -z "$(RAILWAY_URL)" ]; then \
+		echo "Error: RAILWAY_URL environment variable required"; \
+		echo "Example: RAILWAY_URL=<railway-url> make test-load"; \
+		exit 1; \
+	fi
+	@echo "Running load tests..."
+	go test -tags=load ./test/load/... -v -timeout 2h
 
 fmt:
 	@echo "Formatting Go files..."

@@ -20,8 +20,9 @@ tools/load-testing/
 │   ├── event_isolation_test.go    - Event isolation test
 │   ├── location_expiry_test.go    - Location expiry test
 │   ├── websocket_timeout_test.go  - WebSocket timeout test
-│   ├── scale_test.go              - Scale test
-│   └── stability_test.go          - 30-minute stability test
+│   └── load/
+│       ├── scale_test.go          - Scale test
+│       └── stability_test.go      - 30-minute stability test
 ├── Makefile                 - Build and test commands
 └── go.mod                   - Go dependencies
 ```
@@ -88,6 +89,28 @@ Server configuration constants (align with `application.conf`):
 Test timing constants:
 - Declared per-test file
 - Only timing values are constants, not test parameters
+
+## Test Organisation
+
+### When to Use `test/load/` vs Root `test/`
+
+**Place tests in `test/load/` if they are:**
+- Long-running (>5 minutes)
+- Resource-intensive (high CPU/memory usage)
+- Performance or endurance focused (scale, stability, soak tests)
+- Not suitable for regular CI runs
+
+**Place tests in root `test/` if they are:**
+- Functional tests validating specific behaviours
+- Quick smoke tests (<5 minutes)
+- Suitable for frequent CI execution
+- Testing correctness rather than performance
+
+**Load tests use build tags:**
+- Tagged with `//go:build load`
+- Excluded by default: `go test ./test/...` skips them
+- Explicitly run with: `go test -tags=load ./test/...`
+- Or use Makefile target: `make test-load`
 
 ## Adding a New Test
 
