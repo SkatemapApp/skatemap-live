@@ -57,7 +57,7 @@ test-load: build
 		exit 1; \
 	fi
 	@echo "Running load tests..."
-	go test -tags=load ./test/load/... -v -timeout 2h
+	go test -tags=load ./test/... -v -timeout 2h
 
 fmt:
 	@echo "Formatting Go files..."
