@@ -12,7 +12,7 @@ on:
 jobs:
   smoke-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 10
     permissions:
       contents: read
 
@@ -67,7 +67,7 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_URL: ${{ steps.check-url.outputs.railway_url }}
-        run: go test ./test/... -v -timeout 2h -json > smoke-test-results.json
+        run: go test ./test/... -v -timeout 10m -json > smoke-test-results.json
 
       - name: Upload test results
         if: always() && steps.check-url.outputs.skip == 'false'
