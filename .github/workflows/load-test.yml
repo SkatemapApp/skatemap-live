@@ -67,7 +67,7 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_URL: ${{ steps.check-url.outputs.railway_url }}
-        run: go test ./test/load/... -v -timeout 2h -json > load-test-results.json
+        run: go test -tags load ./test/load/... -v -timeout 2h -json > load-test-results.json
 
       - name: Upload test results
         if: always() && steps.check-url.outputs.skip == 'false'
