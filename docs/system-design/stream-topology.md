@@ -279,7 +279,7 @@ See [issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) for th
 - [Issue #142](https://github.com/SkatemapApp/skatemap-live/issues/142) - Why KillSwitch is needed for BroadcastHub cleanup
 - [Pull Request #148](https://github.com/SkatemapApp/skatemap-live/pull/148) - Migration from MergeHub to Source.queue to fix publish memory leak
 - [Pull Request #169](https://github.com/SkatemapApp/skatemap-live/pull/169) - dropHead fix that inadvertently worsened memory leak
-- [dropHead Fix Results](/docs/profiling/drophead-fix-results-20260118.md) - Railway validation showing backpressure conflict
+- [dropHead Fix Results](/docs/profiling/results/drophead-fix-results-20260118.md) - Railway validation showing backpressure conflict
 - [ADR 0003](/docs/adr/0003-jvm-profiling-tooling.md) - Profiling tools used to diagnose memory leaks
 - [Pekko Streams Documentation](https://pekko.apache.org/docs/pekko/current/stream/) - General stream concepts
 - [Pekko BroadcastHub with Sink.ignore pattern](https://pekko.apache.org/docs/pekko/current/stream/stream-dynamic.html) - Documented pattern for draining hubs without subscribers

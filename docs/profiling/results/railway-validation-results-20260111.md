@@ -32,7 +32,7 @@ All three memory leak fixes have been validated on Railway production. The criti
 
 ### Baseline (Original Issue #138 - WITH BUG)
 
-From `docs/manual-test-results-2025-11-02.md` Phase 3:
+From `../testing/results/manual-test-results-2025-11-02.md` Phase 3:
 
 | Time | Memory | Notes |
 |------|--------|-------|
@@ -166,8 +166,8 @@ Cleanup service confirmed working correctly:
 ## Related Documentation
 
 - Original issue: #138
-- Local profiling validation: `docs/profiling/sourcequeue-fix-results-20251228.md`
-- Original manual test results: `docs/manual-test-results-2025-11-02.md`
+- Local profiling validation: `sourcequeue-fix-results-20251228.md`
+- Original manual test results: `../testing/results/manual-test-results-2025-11-02.md`
 - CI workflow run: https://github.com/SkatemapApp/skatemap-live/actions/runs/20895536645
 
 ## Screenshots

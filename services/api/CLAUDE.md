@@ -55,7 +55,7 @@ The application follows a clean architecture pattern with clear separation of co
 - Validation returns `Either[ValidationError, ValidatedType]`
 - Pure functions in core domain with no side effects
 - Framework-specific code isolated in adapters
-- Pekko Streams patterns documented in `/docs/architecture/stream-topology.md`
+- Pekko Streams patterns documented in `/docs/system-design/stream-topology.md`
 
 ## Configuration
 

@@ -65,7 +65,7 @@ Parameters for weekly or on-demand stability and scale validation:
 
 ## References
 
-- Manual smoke test plan: `docs/load-testing/manual-smoke-test-plan.md`
-- Realistic load scenarios: `docs/load-testing/realistic-scenarios.md`
+- Manual smoke test plan: `manual-smoke-test-plan.md`
+- Realistic load scenarios: `realistic-scenarios.md`
 - ADR 0004: Go test framework: `docs/adr/0004-go-test-for-smoke-test-automation.md`
 - Current test implementation: `tools/load-testing/test/`

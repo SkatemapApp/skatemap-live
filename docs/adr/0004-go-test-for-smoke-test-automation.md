@@ -181,6 +181,6 @@ See ADR 0002 for rationale on Go vs load testing frameworks. Those tools generat
 ## References
 
 - Predecessor ADR: [ADR 0002: Go for Load Testing Tools](0002-go-for-load-testing.md)
-- Manual smoke test plan: `docs/load-testing/manual-smoke-test-plan.md`
+- Manual smoke test plan: `docs/testing/manual-smoke-test-plan.md`
 - Related implementation: [Issue #141](https://github.com/SkatemapApp/skatemap-live/issues/141)
 - Future enhancement: [Issue #26: Prometheus Metrics](https://github.com/SkatemapApp/skatemap-live/issues/26)

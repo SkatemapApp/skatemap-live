@@ -262,7 +262,7 @@ If thread count is stable but committed memory grows in other categories, invest
 
 ## Next Steps After NMT Analysis
 
-1. **Document findings** in `docs/profiling/nmt-analysis-YYYYMMDD.md`
+1. **Document findings** in `../results/nmt-analysis-YYYYMMDD.md`
 2. **Update issue #166** with NMT results
 3. **Implement fix** based on findings (e.g., thread pool configuration)
 4. **Validate fix** with another Railway test showing memory returned to baseline
@@ -286,5 +286,5 @@ This would streamline future native memory investigations and enable regression 
 ## References
 
 - **Issue:** [#166 — Memory not released to OS during idle period](https://github.com/SkatemapApp/skatemap-live/issues/166)
-- **Heap dump analysis:** [docs/profiling/railway-heap-dump-analysis-20260201.md](railway-heap-dump-analysis-20260201.md)
+- **Heap dump analysis:** [docs/profiling/results/railway-heap-dump-analysis-20260201.md](../results/railway-heap-dump-analysis-20260201.md)
 - **Oracle NMT documentation:** https://docs.oracle.com/en/java/javase/21/troubleshoot/diagnostic-tools.html#GUID-90AA2C3F-4080-4CEF-B95E-0E8C2CF5F05A

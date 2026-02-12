@@ -318,8 +318,8 @@ If memory constraints require action, **Option 1** (reduce code cache to 128 MB)
 ## Files Referenced
 
 - **NMT raw outputs:** Removed post-investigation (available in git history at commit `b073759`)
-- **Heap dump analysis:** [docs/profiling/railway-heap-dump-analysis-20260201.md](railway-heap-dump-analysis-20260201.md)
-- **NMT investigation guide:** [docs/profiling/native-memory-tracking-guide.md](native-memory-tracking-guide.md)
+- **Heap dump analysis:** [docs/profiling/results/railway-heap-dump-analysis-20260201.md](railway-heap-dump-analysis-20260201.md)
+- **NMT investigation guide:** [docs/profiling/guides/native-memory-tracking-guide.md](../guides/native-memory-tracking-guide.md)
 
 ## References
 
