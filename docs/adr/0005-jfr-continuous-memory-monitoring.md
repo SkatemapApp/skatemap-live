@@ -220,6 +220,6 @@ Update existing `tools/profiling/profile-memory-leak.sh` to:
 
 - Issue #171: Continuous memory monitoring requirement
 - Issue #138: Memory leak parent tracking issue
-- [docs/profiling/drophead-fix-results-20260118.md](/docs/profiling/drophead-fix-results-20260118.md#lessons-learned-why-local-testing-failed-to-detect-the-leak)
+- [docs/profiling/results/drophead-fix-results-20260118.md](/docs/profiling/results/drophead-fix-results-20260118.md#lessons-learned-why-local-testing-failed-to-detect-the-leak)
 - [Java Flight Recorder Documentation](https://docs.oracle.com/javacomponents/jmc-5-4/jfr-runtime-guide/about.htm)
 - [JDK Mission Control](https://www.oracle.com/java/technologies/jdk-mission-control.html)
