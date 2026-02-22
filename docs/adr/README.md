@@ -24,6 +24,7 @@ Each ADR follows this structure:
 - [ADR 0003: async-profiler and Eclipse MAT for JVM Profiling](0003-jvm-profiling-tooling.md)
 - [ADR 0004: Go test for Smoke Test Automation](0004-go-test-for-smoke-test-automation.md)
 - [ADR 0005: Java Flight Recorder for Continuous Memory Monitoring](0005-jfr-continuous-memory-monitoring.md)
+- [ADR 0006: Observability Strategy with OpenTelemetry](0006-observability-strategy-opentelemetry.md)
 
 ## Further Reading
 
