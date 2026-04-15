@@ -361,6 +361,8 @@ All configuration can be overridden via environment variables:
 | `HUB_CLEANUP_INTERVAL_SECONDS` | 60 | Interval between hub cleanup runs |
 | `HUB_BUFFER_SIZE` | 128 | Number of messages to buffer per hub |
 
+**OpenTelemetry Configuration:** For distributed tracing and metrics collection, see [Observability Documentation](../../docs/observability.md) for OpenTelemetry environment variables and setup instructions.
+
 **Example:**
 ```bash
 PORT=8080 LOCATION_TTL_SECONDS=60 CLEANUP_INTERVAL_SECONDS=20 sbt run
