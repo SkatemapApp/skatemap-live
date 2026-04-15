@@ -114,4 +114,3 @@ ENTRYPOINT ["/app/docker-entrypoint.sh"]'
   [[ "$output" =~ "Endpoint: https://api.honeycomb.io" ]]
   [[ "$output" =~ "Protocol: http/protobuf" ]]
 }
-
