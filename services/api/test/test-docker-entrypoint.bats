@@ -1,5 +1,7 @@
 #!/usr/bin/env bats
 
+OTEL_AGENT_JAR="/app/opentelemetry-javaagent.jar"
+
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)"
   TEST_LABEL="test=docker-entrypoint-$$"
@@ -28,76 +30,100 @@ run_container() {
   docker run -d --label "$TEST_LABEL" "$@" "skatemap-test:$image"
 }
 
-@test "entrypoint exits with error when APPLICATION_SECRET is missing" {
-  build_test_image "no-secret" 'FROM eclipse-temurin:21-jre
+base_dockerfile() {
+  cat <<'EOF'
+FROM eclipse-temurin:21-jre
 WORKDIR /app
 RUN mkdir -p bin
-RUN echo "#!/bin/sh" > bin/skatemap-live && chmod +x bin/skatemap-live
-COPY services/api/docker-entrypoint.sh /app/
-RUN chmod +x /app/docker-entrypoint.sh
-ENTRYPOINT ["/app/docker-entrypoint.sh"]'
-
-  run sh -c "docker run --rm --label $TEST_LABEL skatemap-test:no-secret 2>&1; exit \$?"
-
-  [[ "$output" =~ "ERROR: APPLICATION_SECRET environment variable is required" ]]
-  [ "$status" -eq 1 ]
+EOF
 }
 
-@test "entrypoint starts application with OpenTelemetry agent present" {
-  build_test_image "with-agent" 'FROM eclipse-temurin:21-jre
-WORKDIR /app
-RUN mkdir -p bin
+mock_app_script() {
+  local include_output="${1:-false}"
+  if [ "$include_output" = "true" ]; then
+    cat <<'EOF'
 RUN echo "#!/bin/sh" > bin/skatemap-live && \
     echo "echo Application started" >> bin/skatemap-live && \
     echo "sleep 2" >> bin/skatemap-live && \
     chmod +x bin/skatemap-live
-RUN echo "mock-otel-agent-jar" > /app/opentelemetry-javaagent.jar
+EOF
+  else
+    cat <<'EOF'
+RUN echo "#!/bin/sh" > bin/skatemap-live && \
+    echo "sleep 2" >> bin/skatemap-live && \
+    chmod +x bin/skatemap-live
+EOF
+  fi
+}
+
+entrypoint_setup() {
+  cat <<'EOF'
 COPY services/api/docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
-ENTRYPOINT ["/app/docker-entrypoint.sh"]'
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+EOF
+}
 
+@test "entrypoint exits with error when APPLICATION_SECRET is missing" {
+  local dockerfile
+  dockerfile="$(base_dockerfile)
+RUN echo '#!/bin/sh' > bin/skatemap-live && chmod +x bin/skatemap-live
+$(entrypoint_setup)"
+
+  build_test_image "no-secret" "$dockerfile"
+  run sh -c "docker run --rm --label $TEST_LABEL skatemap-test:no-secret 2>&1; exit \$?"
+
+  [[ "$output" =~ "ERROR: APPLICATION_SECRET environment variable is required" ]] ||
+    fail "Expected error message not found in output: $output"
+  [ "$status" -eq 1 ] ||
+    fail "Expected exit code 1, got: $status"
+}
+
+@test "entrypoint starts application with OpenTelemetry agent present" {
+  local dockerfile
+  dockerfile="$(base_dockerfile)
+$(mock_app_script true)
+RUN echo 'mock-otel-agent-jar' > $OTEL_AGENT_JAR
+$(entrypoint_setup)"
+
+  build_test_image "with-agent" "$dockerfile"
   container_id=$(run_container "with-agent" -e APPLICATION_SECRET="test-secret")
   sleep 3
   run sh -c "docker logs $container_id 2>&1"
   docker rm -f "$container_id" >/dev/null 2>&1
 
-  [[ "$output" =~ "Application started" ]]
-  [[ ! "$output" =~ "WARNING: OpenTelemetry agent not found" ]]
+  [[ "$output" =~ "Application started" ]] ||
+    fail "Application failed to start. Output: $output"
+  [[ ! "$output" =~ "WARNING: OpenTelemetry agent not found" ]] ||
+    fail "Unexpected warning about missing OTEL agent. Output: $output"
 }
 
 @test "entrypoint starts application without OpenTelemetry agent" {
-  build_test_image "no-agent" 'FROM eclipse-temurin:21-jre
-WORKDIR /app
-RUN mkdir -p bin
-RUN echo "#!/bin/sh" > bin/skatemap-live && \
-    echo "echo Application started" >> bin/skatemap-live && \
-    echo "sleep 2" >> bin/skatemap-live && \
-    chmod +x bin/skatemap-live
-COPY services/api/docker-entrypoint.sh /app/
-RUN chmod +x /app/docker-entrypoint.sh
-ENTRYPOINT ["/app/docker-entrypoint.sh"]'
+  local dockerfile
+  dockerfile="$(base_dockerfile)
+$(mock_app_script true)
+$(entrypoint_setup)"
 
+  build_test_image "no-agent" "$dockerfile"
   container_id=$(run_container "no-agent" -e APPLICATION_SECRET="test-secret")
   sleep 3
   run sh -c "docker logs $container_id 2>&1"
   docker rm -f "$container_id" >/dev/null 2>&1
 
-  [[ "$output" =~ "WARNING: OpenTelemetry agent not found at /app/opentelemetry-javaagent.jar" ]]
-  [[ "$output" =~ "Application started" ]]
+  [[ "$output" =~ "WARNING: OpenTelemetry agent not found at $OTEL_AGENT_JAR" ]] ||
+    fail "Expected warning about missing OTEL agent not found. Output: $output"
+  [[ "$output" =~ "Application started" ]] ||
+    fail "Application failed to start without OTEL agent. Output: $output"
 }
 
 @test "entrypoint logs OTEL configuration in debug mode" {
-  build_test_image "debug" 'FROM eclipse-temurin:21-jre
-WORKDIR /app
-RUN mkdir -p bin
-RUN echo "#!/bin/sh" > bin/skatemap-live && \
-    echo "sleep 2" >> bin/skatemap-live && \
-    chmod +x bin/skatemap-live
-RUN echo "mock-otel-agent-jar" > /app/opentelemetry-javaagent.jar
-COPY services/api/docker-entrypoint.sh /app/
-RUN chmod +x /app/docker-entrypoint.sh
-ENTRYPOINT ["/app/docker-entrypoint.sh"]'
+  local dockerfile
+  dockerfile="$(base_dockerfile)
+$(mock_app_script false)
+RUN echo 'mock-otel-agent-jar' > $OTEL_AGENT_JAR
+$(entrypoint_setup)"
 
+  build_test_image "debug" "$dockerfile"
   container_id=$(run_container "debug" \
     -e APPLICATION_SECRET="test-secret" \
     -e DEBUG="1" \
@@ -108,9 +134,14 @@ ENTRYPOINT ["/app/docker-entrypoint.sh"]'
   run sh -c "docker logs $container_id 2>&1"
   docker rm -f "$container_id" >/dev/null 2>&1
 
-  [[ "$output" =~ "DEBUG: OTEL configuration:" ]]
-  [[ "$output" =~ "Agent: /app/opentelemetry-javaagent.jar" ]]
-  [[ "$output" =~ "Service: test-service" ]]
-  [[ "$output" =~ "Endpoint: https://api.honeycomb.io" ]]
-  [[ "$output" =~ "Protocol: http/protobuf" ]]
+  [[ "$output" =~ "DEBUG: OTEL configuration:" ]] ||
+    fail "Debug header not found. Output: $output"
+  [[ "$output" =~ "Agent: $OTEL_AGENT_JAR" ]] ||
+    fail "Agent path not logged. Output: $output"
+  [[ "$output" =~ "Service: test-service" ]] ||
+    fail "Service name not logged. Output: $output"
+  [[ "$output" =~ "Endpoint: https://api.honeycomb.io" ]] ||
+    fail "Endpoint not logged. Output: $output"
+  [[ "$output" =~ "Protocol: http/protobuf" ]] ||
+    fail "Protocol not logged. Output: $output"
 }

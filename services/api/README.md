@@ -324,6 +324,9 @@ sudo apt-get install bats
 ```bash
 cd services/api/test
 bats test-docker-entrypoint.bats
+
+# Run in parallel (faster for larger test suites)
+bats --jobs 4 test-docker-entrypoint.bats
 ```
 
 **Requirements:**
