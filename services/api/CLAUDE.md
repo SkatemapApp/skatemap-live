@@ -181,6 +181,8 @@ After deployment:
 - [Honeycomb OpenTelemetry Documentation](https://docs.honeycomb.io/send-data/opentelemetry/)
 - [OpenTelemetry Java Agent Configuration](https://opentelemetry.io/docs/languages/java/automatic/configuration/)
 
+**Alternative Backends:** The application can export to any OTLP-compatible backend (Grafana Cloud, Datadog, New Relic, Lightstep) by changing the `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` to match the backend's requirements. The instrumentation remains portable across observability platforms.
+
 ### Instrumented Components
 
 The OpenTelemetry Java agent automatically instruments the following components:
@@ -219,6 +221,22 @@ The OpenTelemetry agent is designed to fail gracefully:
 **Telemetry buffering and retry:** The agent maintains an in-memory buffer of telemetry data and retries failed exports with exponential backoff. If the buffer fills, older telemetry is dropped to prevent memory exhaustion.
 
 **Silent degradation risk:** Misconfigured OTLP endpoints result in lost telemetry with no application errors. Always verify trace ingestion in Honeycomb after deployment or configuration changes.
+
+### Troubleshooting
+
+**No traces appearing in Honeycomb:**
+- Verify `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` is set (missing this causes gRPC authentication failures)
+- Check `OTEL_EXPORTER_OTLP_HEADERS` format is `x-honeycomb-team=<api-key>` (no extra quotes or spaces)
+- Confirm API key has "Send Events" permission in Honeycomb Team Settings
+- Wait 1-2 minutes after sending requests (ingestion has slight delay)
+
+**Agent warnings in application logs:**
+- `WARN io.opentelemetry.exporter` usually indicates endpoint unreachable—verify `OTEL_EXPORTER_OTLP_ENDPOINT` is correct
+- `ERROR BatchSpanProcessor` suggests export failures—check network connectivity to OTLP endpoint
+
+**High memory usage from agent:**
+- Agent buffers telemetry during export failures—if backend is down for extended periods, buffer can grow
+- Restart application to clear buffer, then fix backend connectivity
 
 ## Code Style
 - Uses Scalafmt with 120 character line limit
