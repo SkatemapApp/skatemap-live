@@ -194,6 +194,40 @@ The instrumentation remains portable—only endpoint and authentication headers 
     skatemap-live
   ```
 
+**Verifying Agent is Working Locally:**
+
+When the agent loads successfully, you'll see this in the startup logs:
+```
+[otel.javaagent 2024-04-15 12:34:56:789 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 2.24.0
+```
+
+To verify traces are being generated:
+
+1. **Check agent initialization:**
+   ```bash
+   docker logs <container-id> 2>&1 | grep -i "opentelemetry"
+   ```
+   Look for version logging and instrumentation confirmation.
+
+2. **Send test requests:**
+   ```bash
+   curl http://localhost:9000/health
+   curl -X PUT http://localhost:9000/skatingEvents/550e8400-e29b-41d4-a716-446655440000/skaters/550e8400-e29b-41d4-a716-446655440001 \
+     -H "Content-Type: application/json" \
+     -d '{"coordinates": [-0.1278, 51.5074]}'
+   ```
+
+3. **Expected behaviour with OTLP endpoint configured:**
+   - No errors in logs (traces exported to Honeycomb)
+   - Check Honeycomb UI for incoming traces
+
+4. **Expected behaviour without OTLP endpoint:**
+   If you run without `OTEL_EXPORTER_OTLP_ENDPOINT`, the agent loads but doesn't export:
+   ```
+   [otel.javaagent] INFO io.opentelemetry.sdk.trace.export.BatchSpanProcessor - No span exporter configured
+   ```
+   This is normal—the agent instruments the application but has nowhere to send data.
+
 ### Further Reading
 
 - [OpenTelemetry Java Agent Configuration](https://opentelemetry.io/docs/languages/java/automatic/configuration/)
