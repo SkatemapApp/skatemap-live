@@ -106,17 +106,137 @@ All values are validated at startup. Missing or non-positive values cause startu
 - `HUB_CLEANUP_INTERVAL_SECONDS`: Interval between hub cleanup runs (default: 60)
 - `HUB_BUFFER_SIZE`: Number of messages to buffer per hub (default: 128)
 
-### OpenTelemetry (Optional)
-The application includes the OpenTelemetry Java agent for observability. Configure via environment variables:
+## OpenTelemetry Observability
 
-- `OTEL_SERVICE_NAME`: Service identifier in telemetry data (e.g., "skatemap-live")
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: OTLP endpoint URL (e.g., "https://api.honeycomb.io:443")
-- `OTEL_EXPORTER_OTLP_PROTOCOL`: Protocol for OTLP export (required: "http/protobuf")
-- `OTEL_EXPORTER_OTLP_HEADERS`: Authentication headers (e.g., "x-honeycomb-team=<api-key>")
+The application uses OpenTelemetry for distributed tracing and metrics collection. The OpenTelemetry Java agent (v2.24.0) provides automatic instrumentation without code changes, capturing telemetry data and exporting it to observability backends like Honeycomb.
 
-**Note:** `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` is required for Honeycomb and similar OTLP HTTP endpoints. Without this, the exporter defaults to gRPC which may cause authentication failures.
+### Overview
 
-If OTEL variables are not set, the agent loads but does not export telemetry data.
+**Auto-instrumentation:** The OpenTelemetry Java agent is attached via the `-javaagent` JVM flag at application startup. It automatically instruments:
+- HTTP request/response traces (Play Framework controllers)
+- WebSocket connection handling (Pekko HTTP)
+- JVM runtime metrics (heap usage, garbage collection, thread counts)
+- Pekko Streams operations (where supported by the agent)
+
+**Export:** Telemetry data (traces, metrics, and logs) is exported via the OpenTelemetry Protocol (OTLP) to configured backends. The application is designed to work with Honeycomb, but can export to any OTLP-compatible backend.
+
+**No code changes required:** The agent operates through bytecode instrumentation, requiring only environment variable configuration.
+
+### Required Environment Variables
+
+To enable telemetry export to Honeycomb:
+
+- `OTEL_SERVICE_NAME`: Service identifier in telemetry data (e.g., `skatemap-live`)
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: OTLP endpoint URL (e.g., `https://api.honeycomb.io:443`)
+- `OTEL_EXPORTER_OTLP_PROTOCOL`: Protocol for OTLP export (must be `http/protobuf` for Honeycomb)
+- `OTEL_EXPORTER_OTLP_HEADERS`: Authentication headers (format: `x-honeycomb-team=<api-key>`)
+
+**Critical:** `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` is required for Honeycomb and similar OTLP HTTP endpoints. Without this variable, the exporter defaults to gRPC, which causes authentication failures with Honeycomb's HTTP endpoint.
+
+### Optional Environment Variables
+
+- `OTEL_RESOURCE_ATTRIBUTES`: Additional resource attributes as key-value pairs (format: `key1=value1,key2=value2`)
+  - Example: `environment=production,region=eu-west-1`
+- `OTEL_TRACES_SAMPLER`: Sampling strategy for traces
+  - Default: `parentbased_always_on` (samples all traces)
+  - Alternative: `parentbased_traceidratio` with `OTEL_TRACES_SAMPLER_ARG` for percentage-based sampling
+- `OTEL_METRICS_EXPORTER`: Metrics export protocol
+  - Default: `otlp` (exports metrics via OTLP)
+  - Alternative: `none` (disables metrics export)
+- `OTEL_LOGS_EXPORTER`: Logs export protocol
+  - Default: `otlp` (exports logs via OTLP)
+  - Alternative: `none` (disables log export)
+
+### Honeycomb Setup
+
+**1. Obtain API Key**
+
+Create a Honeycomb account at [honeycomb.io](https://www.honeycomb.io/) and obtain an API key:
+- Log in to Honeycomb
+- Navigate to Team Settings → API Keys
+- Create a new API key with "Send Events" permission
+- Copy the API key for use in environment variables
+
+**2. Configure for Railway Deployment**
+
+Set the following environment variables in Railway:
+
+```
+OTEL_SERVICE_NAME=skatemap-live
+OTEL_EXPORTER_OTLP_ENDPOINT=https://api.honeycomb.io:443
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_EXPORTER_OTLP_HEADERS=x-honeycomb-team=YOUR_API_KEY_HERE
+```
+
+Replace `YOUR_API_KEY_HERE` with your actual Honeycomb API key.
+
+**3. Verify Telemetry Export**
+
+After deployment:
+- Send test requests to the application
+- Check Honeycomb UI for incoming traces (may take 1-2 minutes to appear)
+- Verify traces show HTTP request spans with route, status code, and duration
+
+**Documentation:**
+- [Honeycomb OpenTelemetry Documentation](https://docs.honeycomb.io/send-data/opentelemetry/)
+- [OpenTelemetry Java Agent Configuration](https://opentelemetry.io/docs/languages/java/automatic/configuration/)
+
+**Alternative Backends:** The application can export to any OTLP-compatible backend (Grafana Cloud, Datadog, New Relic, Lightstep) by changing the `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS` to match the backend's requirements. The instrumentation remains portable across observability platforms.
+
+### Instrumented Components
+
+The OpenTelemetry Java agent automatically instruments the following components:
+
+**HTTP Requests/Responses (Play Controllers)**
+- Traces every HTTP request with method, route, status code, and duration
+- Span name: `http.server.request`
+- Attributes: `http.method`, `http.route`, `http.status_code`, `http.target`
+
+**WebSocket Connections (Pekko HTTP)**
+- Traces WebSocket upgrade requests and connection lifecycle
+- Captures connection establishment and termination events
+
+**JVM Runtime Metrics**
+- Heap memory usage (used, committed, max)
+- Garbage collection events (count, duration, heap size changes)
+- Thread counts (active, daemon, peak)
+- CPU usage
+
+**Pekko Streams Operations**
+- Stream materialisation events (where supported by agent instrumentation)
+- Backpressure signals and buffer states may have limited visibility
+
+**Note:** Business-specific metrics (active event count, location publish rate, per-event subscriber count) require manual instrumentation, which is planned for future implementation. See [ADR 0006](../../docs/adr/0006-observability-strategy-opentelemetry.md) for the phased instrumentation strategy.
+
+### Graceful Degradation
+
+The OpenTelemetry agent is designed to fail gracefully:
+
+**Agent loads unconditionally:** The agent JAR is attached at startup even if OpenTelemetry environment variables are not set. Without configuration, the agent loads but does not export telemetry data.
+
+**Application continues if backend unreachable:** If the OTLP endpoint (e.g., Honeycomb) is unreachable or returns errors, the agent buffers telemetry data and retries export. The application continues serving requests without interruption.
+
+**No startup failure on misconfiguration:** Invalid or missing OTEL environment variables do not cause application startup failure. The agent will log warnings but allow the application to start normally.
+
+**Telemetry buffering and retry:** The agent maintains an in-memory buffer of telemetry data and retries failed exports with exponential backoff. If the buffer fills, older telemetry is dropped to prevent memory exhaustion.
+
+**Silent degradation risk:** Misconfigured OTLP endpoints result in lost telemetry with no application errors. Always verify trace ingestion in Honeycomb after deployment or configuration changes.
+
+### Troubleshooting
+
+**No traces appearing in Honeycomb:**
+- Verify `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` is set (missing this causes gRPC authentication failures)
+- Check `OTEL_EXPORTER_OTLP_HEADERS` format is `x-honeycomb-team=<api-key>` (no extra quotes or spaces)
+- Confirm API key has "Send Events" permission in Honeycomb Team Settings
+- Wait 1-2 minutes after sending requests (ingestion has slight delay)
+
+**Agent warnings in application logs:**
+- `WARN io.opentelemetry.exporter` usually indicates endpoint unreachable—verify `OTEL_EXPORTER_OTLP_ENDPOINT` is correct
+- `ERROR BatchSpanProcessor` suggests export failures—check network connectivity to OTLP endpoint
+
+**High memory usage from agent:**
+- Agent buffers telemetry during export failures—if backend is down for extended periods, buffer can grow
+- Restart application to clear buffer, then fix backend connectivity
 
 ## Code Style
 - Uses Scalafmt with 120 character line limit
