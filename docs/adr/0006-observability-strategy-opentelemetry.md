@@ -36,13 +36,13 @@ These gaps became operationally significant during memory leak investigations, w
 - Establishes infrastructure visibility foundation
 - OTLP protocol configuration support (PR #212)
 
-**Phase 2: Manual Instrumentation for Business Context (Planned)**
+**Phase 2: Manual Instrumentation for Business Context (In Progress)**
 - Add custom spans for business operations:
   - `location.validate` - validation logic
   - `location.store` - InMemoryLocationStore write
   - `broadcast.initiate` - InMemoryBroadcaster publish
 - Enrich spans with attributes: `event.id`, `skater.id`, `subscriber.count`
-- Build `TracedFuture` utility for Scala Future context propagation
+- Build `TracedFuture` utility for Scala Future context propagation (Issue #216 - Complete)
 
 **Phase 3: Application Metrics (Planned)**
 - Instrument domain counters/gauges:
