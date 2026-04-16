@@ -28,16 +28,13 @@ object TracedFuture {
       result
     }
 
-    Future {
-      val scope  = contextWithSpan.makeCurrent()
-      val result = Try(block)
-      scope.close()
-      result
-    }.flatMap {
+    val scope  = contextWithSpan.makeCurrent()
+    val result = Try(block)
+    scope.close()
+
+    result match {
       case Success(futureResult) =>
-        futureResult.transform { result =>
-          completeSpan(result)
-        }
+        futureResult.transform(completeSpan)
       case Failure(exception) =>
         Future.fromTry(completeSpan(Failure(exception)))
     }
