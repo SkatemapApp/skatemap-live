@@ -49,9 +49,10 @@ jobs:
       run: |
         echo "Linting shell scripts..."
         # .shellcheckrc handles disable rules, severity must be CLI flag
-        find . -name "*.sh" -type f -exec shellcheck --severity=warning {} +
-        find . -name "*.bats" -type f -exec shellcheck --severity=warning {} +
-        shellcheck --severity=warning scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
+        # --format=gcc provides file:line:col output for easier debugging
+        find . -name "*.sh" -type f -exec shellcheck --severity=warning --format=gcc {} +
+        find . -name "*.bats" -type f -exec shellcheck --severity=warning --format=gcc {} +
+        shellcheck --severity=warning --format=gcc scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
 
   docker-entrypoint-tests:
 
