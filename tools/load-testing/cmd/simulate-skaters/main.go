@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -16,6 +17,7 @@ import (
 	"load-testing/internal/skater"
 
 	"github.com/google/uuid"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -29,6 +31,8 @@ type Config struct {
 	TargetURL       string
 	MetricsFile     string
 	EventIDs        string
+	RateLimit       float64
+	RampUpDuration  time.Duration
 }
 
 func main() {
@@ -51,6 +55,10 @@ func parseFlags() Config {
 	flag.StringVar(&config.TargetURL, "target-url", "", "Target URL for the API (required)")
 	flag.StringVar(&config.MetricsFile, "metrics-file", "metrics.csv", "Output file for metrics")
 	flag.StringVar(&config.EventIDs, "event-id", "", "Comma-separated list of event IDs to use (optional, generates random if not provided)")
+	flag.Float64Var(&config.RateLimit, "rate-limit", 0, "Optional maximum requests per second (0 = unlimited)")
+
+	var rampUpStr string
+	flag.StringVar(&rampUpStr, "ramp-up-duration", "", "Optional duration to gradually increase load (e.g., 5m, 10s)")
 
 	flag.Parse()
 
@@ -77,6 +85,18 @@ func parseFlags() Config {
 		log.Fatalf("Invalid update interval: %v", err)
 	}
 	config.UpdateInterval = interval
+
+	if rampUpStr != "" {
+		rampUp, err := time.ParseDuration(rampUpStr)
+		if err != nil {
+			log.Fatalf("Invalid ramp-up duration: %v", err)
+		}
+		config.RampUpDuration = rampUp
+	}
+
+	if config.RateLimit < 0 {
+		log.Fatalf("Rate limit must be non-negative, got: %f", config.RateLimit)
+	}
 
 	return config
 }
@@ -114,6 +134,30 @@ func parseEventIDs(eventIDsStr string, numEvents int) ([]string, error) {
 func run(config Config) error {
 	log.Printf("Starting simulation with %d events, %d skaters per event, update interval: %s",
 		config.NumEvents, config.SkatersPerEvent, config.UpdateInterval)
+
+	if config.RateLimit > 0 {
+		log.Printf("Rate limiting enabled: %.2f requests/second", config.RateLimit)
+	}
+	if config.RampUpDuration > 0 {
+		log.Printf("Ramp-up enabled: %s", config.RampUpDuration)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var limiter *rate.Limiter
+	if config.RateLimit > 0 || config.RampUpDuration > 0 {
+		initialRate := config.RateLimit
+		if config.RampUpDuration > 0 {
+			initialRate = 1
+		}
+		if initialRate == 0 {
+			totalSkaters := config.NumEvents * config.SkatersPerEvent
+			naturalRate := float64(totalSkaters) / config.UpdateInterval.Seconds()
+			initialRate = naturalRate
+		}
+		limiter = rate.NewLimiter(rate.Limit(initialRate), 1)
+	}
 
 	metricsWriter, err := metrics.NewWriter(config.MetricsFile)
 	if err != nil {
@@ -184,6 +228,34 @@ func run(config Config) error {
 		}
 	}
 
+	if limiter != nil && config.RampUpDuration > 0 {
+		go func() {
+			totalSkaters := config.NumEvents * config.SkatersPerEvent
+			naturalRate := float64(totalSkaters) / config.UpdateInterval.Seconds()
+			targetRate := naturalRate
+			if config.RateLimit > 0 && config.RateLimit < naturalRate {
+				targetRate = config.RateLimit
+			}
+
+			steps := 100
+			stepDuration := config.RampUpDuration / time.Duration(steps)
+			rateIncrement := (targetRate - 1) / float64(steps)
+
+			log.Printf("Ramping up from 1 to %.2f requests/second over %s", targetRate, config.RampUpDuration)
+
+			for i := 0; i < steps; i++ {
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(stepDuration):
+					newRate := 1 + rateIncrement*float64(i+1)
+					limiter.SetLimit(rate.Limit(newRate))
+				}
+			}
+			log.Printf("Ramp-up complete: %.2f requests/second", targetRate)
+		}()
+	}
+
 	log.Printf("Starting %d skaters...", len(skaters))
 	for _, s := range skaters {
 		skatersWg.Add(1)
@@ -195,9 +267,16 @@ func run(config Config) error {
 			for {
 				select {
 				case <-ticker.C:
+					if limiter != nil {
+						if err := limiter.Wait(ctx); err != nil {
+							return
+						}
+					}
 					sk.Move()
 					result := sk.UpdateLocation()
 					results <- result
+				case <-ctx.Done():
+					return
 				case <-stopChan:
 					return
 				}
@@ -210,6 +289,7 @@ func run(config Config) error {
 
 	<-sigChan
 	log.Println("Shutting down...")
+	cancel()
 	close(stopChan)
 
 	skatersWg.Wait()
