@@ -20,10 +20,14 @@ build_test_image() {
   local dockerfile="$BATS_TEST_DIRNAME/Dockerfile.$image_name"
 
   printf '%s\n' "$dockerfile_content" >"$dockerfile"
-  docker build -f "$dockerfile" -t "$IMAGE_PREFIX:$image_name" "$REPO_ROOT" >/dev/null 2>&1
-  local build_result=$?
-  rm -f "$dockerfile"
-  return $build_result
+  trap 'rm -f "$dockerfile"' RETURN
+
+  local build_output
+  if ! build_output=$(docker build -f "$dockerfile" -t "$IMAGE_PREFIX:$image_name" "$REPO_ROOT" 2>&1); then
+    echo "Docker build failed for $image_name:" >&2
+    echo "$build_output" >&2
+    return 1
+  fi
 }
 
 run_container() {
@@ -112,7 +116,7 @@ $(entrypoint_setup)"
   run sh -c "docker logs $container_id 2>&1"
   docker rm -f "$container_id" >/dev/null 2>&1
 
-  [[ "$output" =~ "WARNING: OpenTelemetry agent not found at $OTEL_AGENT_JAR" ]] ||
+  [[ "$output" =~ WARNING:\ OpenTelemetry\ agent\ not\ found\ at\ $OTEL_AGENT_JAR ]] ||
     fail "Expected warning about missing OTEL agent not found. Output: $output"
   [[ "$output" =~ "Application started" ]] ||
     fail "Application failed to start without OTEL agent. Output: $output"
@@ -138,11 +142,11 @@ $(entrypoint_setup)"
 
   [[ "$output" =~ "DEBUG: OTEL configuration:" ]] ||
     fail "Debug header not found. Output: $output"
-  [[ "$output" =~ "Agent: $OTEL_AGENT_JAR" ]] ||
+  [[ "$output" =~ Agent:\ $OTEL_AGENT_JAR ]] ||
     fail "Agent path not logged. Output: $output"
   [[ "$output" =~ "Service: test-service" ]] ||
     fail "Service name not logged. Output: $output"
-  [[ "$output" =~ "Endpoint: https://api.honeycomb.io" ]] ||
+  [[ "$output" =~ Endpoint:\ https://api\.honeycomb\.io ]] ||
     fail "Endpoint not logged. Output: $output"
   [[ "$output" =~ "Protocol: http/protobuf" ]] ||
     fail "Protocol not logged. Output: $output"
