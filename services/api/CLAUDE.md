@@ -255,6 +255,11 @@ def put(location: Location): Future[Unit] = {
 - Creating custom spans for business operations
 - Any time you need trace context to survive Future boundaries
 
+**Performance implications:**
+- Minimal overhead: one additional Future allocation and Scope lifecycle per traced operation
+- Suitable for most business operations (controller actions, service calls, store operations)
+- For very high-frequency operations (thousands per second), consider whether the tracing overhead is justified by the observability value
+
 **Dependencies:**
 - OpenTelemetry API: `io.opentelemetry:opentelemetry-api:1.32.0`
 - Requires implicit `Tracer` (provided by OTel agent) and `ExecutionContext`
