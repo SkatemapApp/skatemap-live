@@ -7,3 +7,7 @@ severity=warning
 # Ignore rules
 # SC1091: Can't follow source - test scripts source files dynamically
 disable=SC1091
+
+# Show 3 lines of context around issues for better debugging
+# Note: Only used in CI, not in pre-commit hook
+# format=gcc

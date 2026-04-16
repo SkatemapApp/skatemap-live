@@ -140,8 +140,16 @@ if [ -n "$staged_sh_files" ]; then
     exit 1
   fi
 
-  # shellcheck disable=SC2086
-  if ! shellcheck $staged_sh_files; then
+  shellcheck_failed=false
+  for file in $staged_sh_files; do
+    if [ -f "$file" ]; then
+      if ! shellcheck "$file"; then
+        shellcheck_failed=true
+      fi
+    fi
+  done
+
+  if [ "$shellcheck_failed" = true ]; then
     echo "Error: shellcheck found issues in staged shell files" >&2
     echo "Fix the issues above and commit again" >&2
     exit 1
