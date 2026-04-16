@@ -4,7 +4,7 @@ import io.opentelemetry.api.trace.{StatusCode, Tracer}
 import io.opentelemetry.context.Context
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object TracedFuture {
   @SuppressWarnings(Array("org.wartremover.warts.ImplicitParameter"))
@@ -12,29 +12,35 @@ object TracedFuture {
     tracer: Tracer,
     ec: ExecutionContext
   ): Future[A] = {
-    val parentContext = Context.current()
-    val span          = tracer.spanBuilder(spanName).startSpan()
-    val scope         = parentContext.`with`(span).makeCurrent()
+    val parentContext   = Context.current()
+    val span            = tracer.spanBuilder(spanName).startSpan()
+    val contextWithSpan = parentContext.`with`(span)
 
-    try
-      block.andThen {
+    def completeSpan(result: Try[A]): Try[A] = {
+      result match {
         case Success(_) =>
           span.setStatus(StatusCode.OK)
-          span.end()
-          scope.close()
         case Failure(exception) =>
           span.recordException(exception)
           span.setStatus(StatusCode.ERROR)
-          span.end()
-          scope.close()
       }
-    catch {
-      case exception: Throwable =>
-        span.recordException(exception)
-        span.setStatus(StatusCode.ERROR)
-        span.end()
-        scope.close()
-        Future.failed(exception)
+      span.end()
+      result
+    }
+
+    Future {
+      contextWithSpan.makeCurrent()
+    }.flatMap { scope =>
+      Try(block) match {
+        case Success(futureResult) =>
+          futureResult.transform { result =>
+            scope.close()
+            completeSpan(result)
+          }
+        case Failure(exception) =>
+          scope.close()
+          Future.fromTry(completeSpan(Failure(exception)))
+      }
     }
   }
 }

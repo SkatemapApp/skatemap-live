@@ -10,7 +10,8 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 
 class TracedFutureSpec extends AnyFlatSpec with Matchers with ScalaFutures with BeforeAndAfterEach {
@@ -119,6 +120,41 @@ class TracedFutureSpec extends AnyFlatSpec with Matchers with ScalaFutures with 
       val events = span.getEvents.asScala
       events should have size 1
       events.head.getName shouldBe "exception"
+    }
+  }
+
+  it should "restore calling thread context after traced Future completes" in {
+    val rootSpan  = tracer.spanBuilder("root").startSpan()
+    val rootScope = rootSpan.makeCurrent()
+
+    try {
+      val future1 = TracedFuture.traced("operation-1") {
+        Future.successful("done1")
+      }
+
+      Await.result(future1, 1.second)
+
+      val future2 = TracedFuture.traced("operation-2") {
+        Future.successful("done2")
+      }
+
+      Await.result(future2, 1.second)
+
+      rootScope.close()
+      rootSpan.end()
+
+      val spans = getFinishedSpans
+      spans should have size 3
+
+      val Seq(op1, op2, root) = spans
+
+      op1.getParentSpanContext.getSpanId shouldBe root.getSpanId
+      op2.getParentSpanContext.getSpanId shouldBe root.getSpanId
+
+      op2.getParentSpanContext.getSpanId should not be op1.getSpanId
+    } finally {
+      rootScope.close()
+      rootSpan.end()
     }
   }
 }
