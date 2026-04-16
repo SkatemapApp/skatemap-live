@@ -91,6 +91,12 @@ func parseFlags() Config {
 		if err != nil {
 			log.Fatalf("Invalid ramp-up duration: %v", err)
 		}
+		if rampUp < time.Second {
+			log.Fatalf("Ramp-up duration must be at least 1 second, got: %v", rampUp)
+		}
+		if rampUp > time.Hour {
+			log.Fatalf("Ramp-up duration must be at most 1 hour, got: %v", rampUp)
+		}
 		config.RampUpDuration = rampUp
 	}
 
