@@ -136,34 +136,29 @@ class TracedFutureSpec extends AnyFlatSpec with Matchers with ScalaFutures with 
     val rootSpan  = tracer.spanBuilder("root").startSpan()
     val rootScope = rootSpan.makeCurrent()
 
-    try {
-      val future1 = TracedFuture.traced("operation-1") {
-        Future.successful("done1")
-      }
-
-      Await.result(future1, 1.second)
-
-      val future2 = TracedFuture.traced("operation-2") {
-        Future.successful("done2")
-      }
-
-      Await.result(future2, 1.second)
-
-      rootScope.close()
-      rootSpan.end()
-
-      val spans = getFinishedSpans
-      spans should have size 3
-
-      val Seq(op1, op2, root) = spans
-
-      op1.getParentSpanContext.getSpanId shouldBe root.getSpanId
-      op2.getParentSpanContext.getSpanId shouldBe root.getSpanId
-
-      op2.getParentSpanContext.getSpanId should not be op1.getSpanId
-    } finally {
-      rootScope.close()
-      rootSpan.end()
+    val future1 = TracedFuture.traced("operation-1") {
+      Future.successful("done1")
     }
+
+    Await.result(future1, 1.second)
+
+    val future2 = TracedFuture.traced("operation-2") {
+      Future.successful("done2")
+    }
+
+    Await.result(future2, 1.second)
+
+    rootScope.close()
+    rootSpan.end()
+
+    val spans = getFinishedSpans
+    spans should have size 3
+
+    val Seq(op1, op2, root) = spans
+
+    op1.getParentSpanContext.getSpanId shouldBe root.getSpanId
+    op2.getParentSpanContext.getSpanId shouldBe root.getSpanId
+
+    op2.getParentSpanContext.getSpanId should not be op1.getSpanId
   }
 }
