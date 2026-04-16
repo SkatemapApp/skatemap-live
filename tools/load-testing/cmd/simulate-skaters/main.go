@@ -153,8 +153,13 @@ func run(config Config) error {
 	defer cancel()
 
 	var limiter *rate.Limiter
+	var rampUpConfig *struct {
+		initialRate float64
+		targetRate  float64
+	}
+
 	if config.RateLimit > 0 || config.RampUpDuration > 0 {
-		var initialRate, burstRate float64
+		var initialRate float64
 		if config.RampUpDuration > 0 {
 			totalSkaters := config.NumEvents * config.SkatersPerEvent
 			naturalRate := float64(totalSkaters) / config.UpdateInterval.Seconds()
@@ -163,12 +168,14 @@ func run(config Config) error {
 				targetRate = config.RateLimit
 			}
 			initialRate = math.Max(targetRate*0.1, 0.1)
-			burstRate = targetRate
+			rampUpConfig = &struct {
+				initialRate float64
+				targetRate  float64
+			}{initialRate, targetRate}
 		} else {
 			initialRate = config.RateLimit
-			burstRate = config.RateLimit
 		}
-		burst := int(math.Ceil(burstRate))
+		burst := int(math.Ceil(initialRate))
 		if burst < 1 {
 			burst = 1
 		}
@@ -244,16 +251,10 @@ func run(config Config) error {
 		}
 	}
 
-	if limiter != nil && config.RampUpDuration > 0 {
+	if limiter != nil && rampUpConfig != nil {
 		go func() {
-			totalSkaters := config.NumEvents * config.SkatersPerEvent
-			naturalRate := float64(totalSkaters) / config.UpdateInterval.Seconds()
-			targetRate := naturalRate
-			if config.RateLimit > 0 && config.RateLimit < naturalRate {
-				targetRate = config.RateLimit
-			}
-
-			initialRate := math.Max(targetRate*0.1, 0.1)
+			initialRate := rampUpConfig.initialRate
+			targetRate := rampUpConfig.targetRate
 			steps := 100
 			stepDuration := config.RampUpDuration / time.Duration(steps)
 			rateIncrement := (targetRate - initialRate) / float64(steps)
@@ -270,7 +271,12 @@ func run(config Config) error {
 						return
 					default:
 						newRate := initialRate + rateIncrement*float64(i+1)
+						newBurst := int(math.Ceil(newRate))
+						if newBurst < 1 {
+							newBurst = 1
+						}
 						limiter.SetLimit(rate.Limit(newRate))
+						limiter.SetBurst(newBurst)
 					}
 				}
 			}
