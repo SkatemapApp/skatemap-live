@@ -8,7 +8,7 @@ set -e
 # Check if there are any staged Scala, Go, or shell files
 staged_scala_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.scala$' || true)
 staged_go_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
-staged_sh_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sh$' || true)
+staged_sh_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(sh|bats)$' || true)
 
 # Exit early only if no Scala, Go, or shell files are staged
 if [ -z "$staged_scala_files" ] && [ -z "$staged_go_files" ] && [ -z "$staged_sh_files" ]; then
@@ -127,6 +127,35 @@ if [ -n "$staged_sh_files" ]; then
   fi
 
   echo "Pre-commit shfmt check completed successfully."
+fi
+
+# Lint shell files if any are staged
+if [ -n "$staged_sh_files" ]; then
+  echo "Running shellcheck on staged shell files..."
+
+  if ! command -v shellcheck &>/dev/null; then
+    echo "Error: shellcheck not found in PATH"
+    echo "Install with: brew install shellcheck"
+    echo "Or on Linux: sudo apt-get install shellcheck"
+    exit 1
+  fi
+
+  shellcheck_failed=false
+  for file in $staged_sh_files; do
+    if [ -f "$file" ]; then
+      if ! shellcheck --severity=warning "$file"; then
+        shellcheck_failed=true
+      fi
+    fi
+  done
+
+  if [ "$shellcheck_failed" = true ]; then
+    echo "Error: shellcheck found issues in staged shell files" >&2
+    echo "Fix the issues above and commit again" >&2
+    exit 1
+  fi
+
+  echo "Pre-commit shellcheck completed successfully."
 fi
 
 exit 0
