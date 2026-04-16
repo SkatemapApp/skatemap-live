@@ -154,7 +154,7 @@ func run(config Config) error {
 
 	var limiter *rate.Limiter
 	if config.RateLimit > 0 || config.RampUpDuration > 0 {
-		var initialRate float64
+		var initialRate, burstRate float64
 		if config.RampUpDuration > 0 {
 			totalSkaters := config.NumEvents * config.SkatersPerEvent
 			naturalRate := float64(totalSkaters) / config.UpdateInterval.Seconds()
@@ -163,10 +163,12 @@ func run(config Config) error {
 				targetRate = config.RateLimit
 			}
 			initialRate = math.Max(targetRate*0.1, 0.1)
+			burstRate = targetRate
 		} else {
 			initialRate = config.RateLimit
+			burstRate = config.RateLimit
 		}
-		burst := int(math.Ceil(initialRate))
+		burst := int(math.Ceil(burstRate))
 		if burst < 1 {
 			burst = 1
 		}
