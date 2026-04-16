@@ -34,7 +34,7 @@ lazy val root = (project in file("."))
       Wart.Product
     ),
     Test / compile / wartremoverErrors := Warts
-      .allBut(Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable, Wart.Null, Wart.GlobalExecutionContext, Wart.Var),
+      .allBut(Wart.Any, Wart.NonUnitStatements, Wart.Nothing, Wart.Serializable, Wart.Null, Wart.GlobalExecutionContext, Wart.Var, Wart.Throw, Wart.IterableOps),
     scalastyleFailOnError := true
   )
 

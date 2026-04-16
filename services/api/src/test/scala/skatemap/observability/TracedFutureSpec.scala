@@ -1,23 +1,21 @@
 package skatemap.observability
 
-// import io.opentelemetry.api.trace.{SpanKind, StatusCode, Tracer}
 import io.opentelemetry.api.trace.{StatusCode, Tracer}
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter
 import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.data.SpanData
 import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-// import org.scalatest.time.{Millis, Seconds, Span}
 
 import scala.concurrent.{ExecutionContext, Future}
-// import scala.concurrent.ExecutionContext.Implicits.global
-// import scala.util.{Failure, Success}
+import scala.jdk.CollectionConverters._
 
 class TracedFutureSpec extends AnyFlatSpec with Matchers with ScalaFutures with BeforeAndAfterEach {
 
-  implicit val ex: ExecutionContext = ExecutionContext.global
+  implicit val ec: ExecutionContext = ExecutionContext.global
 
   var spanExporter: InMemorySpanExporter = _
   var tracerProvider: SdkTracerProvider  = _
@@ -37,6 +35,9 @@ class TracedFutureSpec extends AnyFlatSpec with Matchers with ScalaFutures with 
     spanExporter.reset()
   }
 
+  private def getFinishedSpans: Seq[SpanData] =
+    spanExporter.getFinishedSpanItems.asScala.toSeq
+
   "TracedFuture.traced" should "end span with OK status when Future succeeds" in {
     val result = TracedFuture.traced("test-span") {
       Future.successful(42)
@@ -45,10 +46,10 @@ class TracedFutureSpec extends AnyFlatSpec with Matchers with ScalaFutures with 
     whenReady(result) { value =>
       value shouldBe 42
 
-      val spans = spanExporter.getFinishedSpanItems
-      spans.size() shouldBe 1
+      val spans = getFinishedSpans
+      spans should have size 1
 
-      val span = spans.get(0)
+      val span = spans.head
       span.getName shouldBe "test-span"
       span.getStatus.getStatusCode shouldBe StatusCode.OK
     }
@@ -64,16 +65,16 @@ class TracedFutureSpec extends AnyFlatSpec with Matchers with ScalaFutures with 
     whenReady(result.failed) { exception =>
       exception shouldBe testException
 
-      val spans = spanExporter.getFinishedSpanItems
-      spans.size() shouldBe 1
+      val spans = getFinishedSpans
+      spans should have size 1
 
-      val span = spans.get(0)
+      val span = spans.head
       span.getName shouldBe "failing-span"
       span.getStatus.getStatusCode shouldBe StatusCode.ERROR
 
-      val events = span.getEvents
-      events.size() shouldBe 1
-      events.get(0).getName shouldBe "exception"
+      val events = span.getEvents.asScala
+      events should have size 1
+      events.head.getName shouldBe "exception"
     }
   }
 
@@ -89,14 +90,35 @@ class TracedFutureSpec extends AnyFlatSpec with Matchers with ScalaFutures with 
       parentScope.close()
       parentSpan.end()
 
-      val spans = spanExporter.getFinishedSpanItems
-      spans.size() shouldBe 2
+      val spans = getFinishedSpans
+      spans should have size 2
 
-      val childSpanData  = spans.get(0)
-      val parentSpanData = spans.get(1)
-
+      val Seq(childSpanData, parentSpanData) = spans
       childSpanData.getName shouldBe "child-span"
       childSpanData.getParentSpanContext.getSpanId shouldBe parentSpanData.getSpanId
+    }
+  }
+
+  it should "record exception when Future creation throws synchronously" in {
+    val testException = new RuntimeException("creation failed")
+
+    val result = TracedFuture.traced("sync-failure") {
+      throw testException
+    }
+
+    whenReady(result.failed) { exception =>
+      exception shouldBe testException
+
+      val spans = getFinishedSpans
+      spans should have size 1
+
+      val span = spans.head
+      span.getName shouldBe "sync-failure"
+      span.getStatus.getStatusCode shouldBe StatusCode.ERROR
+
+      val events = span.getEvents.asScala
+      events should have size 1
+      events.head.getName shouldBe "exception"
     }
   }
 }
