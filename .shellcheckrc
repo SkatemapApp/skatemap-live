@@ -1,13 +1,9 @@
 # shellcheck configuration
 # See https://github.com/koalaman/shellcheck/wiki/SC1091
 
-# Set minimum severity level (error, warning, info, style)
-severity=warning
-
 # Ignore rules
 # SC1091: Can't follow source - test scripts source files dynamically
 disable=SC1091
 
-# Show 3 lines of context around issues for better debugging
-# Note: Only used in CI, not in pre-commit hook
-# format=gcc
+# Note: severity is a CLI flag, not an rc file directive
+# Use --severity=warning on command line instead

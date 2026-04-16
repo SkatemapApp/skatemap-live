@@ -46,10 +46,10 @@ jobs:
     - name: Lint shell scripts
       run: |
         echo "Linting shell scripts..."
-        # Configuration in .shellcheckrc
-        find . -name "*.sh" -type f -exec shellcheck {} +
-        find . -name "*.bats" -type f -exec shellcheck {} +
-        shellcheck scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
+        # .shellcheckrc handles disable rules, severity must be CLI flag
+        find . -name "*.sh" -type f -exec shellcheck --severity=warning {} +
+        find . -name "*.bats" -type f -exec shellcheck --severity=warning {} +
+        shellcheck --severity=warning scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
 
   docker-entrypoint-tests:
 
