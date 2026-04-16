@@ -9,9 +9,10 @@ set -e
 staged_scala_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.scala$' || true)
 staged_go_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
 staged_sh_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sh$' || true)
+staged_bats_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.bats$' || true)
 
 # Exit early only if no Scala, Go, or shell files are staged
-if [ -z "$staged_scala_files" ] && [ -z "$staged_go_files" ] && [ -z "$staged_sh_files" ]; then
+if [ -z "$staged_scala_files" ] && [ -z "$staged_go_files" ] && [ -z "$staged_sh_files" ] && [ -z "$staged_bats_files" ]; then
   exit 0
 fi
 
@@ -96,8 +97,8 @@ if [ -n "$staged_go_files" ]; then
   echo "Pre-commit goimports check completed successfully."
 fi
 
-# Format shell files if any are staged
-if [ -n "$staged_sh_files" ]; then
+# Format shell and BATS files if any are staged
+if [ -n "$staged_sh_files" ] || [ -n "$staged_bats_files" ]; then
   echo "Running shfmt on staged shell files..."
 
   if ! command -v shfmt &>/dev/null; then
@@ -107,14 +108,14 @@ if [ -n "$staged_sh_files" ]; then
     exit 1
   fi
 
-  for file in $staged_sh_files; do
+  for file in $staged_sh_files $staged_bats_files; do
     if [ -f "$file" ]; then
       shfmt -i 2 -w "$file"
     fi
   done
 
   sh_changes_made=false
-  for file in $staged_sh_files; do
+  for file in $staged_sh_files $staged_bats_files; do
     if git diff --name-only | grep -q "^$file$"; then
       sh_changes_made=true
       echo "Formatted: $file"
@@ -127,6 +128,35 @@ if [ -n "$staged_sh_files" ]; then
   fi
 
   echo "Pre-commit shfmt check completed successfully."
+fi
+
+# Lint shell and BATS files if any are staged
+if [ -n "$staged_sh_files" ] || [ -n "$staged_bats_files" ]; then
+  echo "Running shellcheck on staged shell files..."
+
+  if ! command -v shellcheck &>/dev/null; then
+    echo "Error: shellcheck not found in PATH"
+    echo "Install with: brew install shellcheck"
+    echo "Or on Linux: sudo apt-get install shellcheck"
+    exit 1
+  fi
+
+  shellcheck_failed=false
+  for file in $staged_sh_files $staged_bats_files; do
+    if [ -f "$file" ]; then
+      if ! shellcheck --severity=warning --format=gcc "$file"; then
+        shellcheck_failed=true
+      fi
+    fi
+  done
+
+  if [ "$shellcheck_failed" = true ]; then
+    echo "Error: shellcheck found issues in staged shell files" >&2
+    echo "Fix the issues above and commit again" >&2
+    exit 1
+  fi
+
+  echo "Pre-commit shellcheck completed successfully."
 fi
 
 exit 0

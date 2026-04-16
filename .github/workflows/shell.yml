@@ -10,6 +10,7 @@ on:
       - '**/*.bats'
       - 'scripts/git-hooks/**'
       - '.github/workflows/shell.yml'
+      - '.shellcheckrc'
   pull_request:
     branches: [ master ]
     paths:
@@ -17,6 +18,7 @@ on:
       - '**/*.bats'
       - 'scripts/git-hooks/**'
       - '.github/workflows/shell.yml'
+      - '.shellcheckrc'
 
 jobs:
   quality:
@@ -46,10 +48,11 @@ jobs:
     - name: Lint shell scripts
       run: |
         echo "Linting shell scripts..."
-        # Note: SC1091 (can't follow source) is acceptable - test scripts source files dynamically
-        # Severity: error,warning (excluding info and style for now)
-        find . -name "*.sh" -type f -exec shellcheck --severity=warning {} +
-        shellcheck --severity=warning scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
+        # .shellcheckrc handles disable rules, severity must be CLI flag
+        # --format=gcc provides file:line:col output for easier debugging
+        find . -name "*.sh" -type f -exec shellcheck --severity=warning --format=gcc {} +
+        find . -name "*.bats" -type f -exec shellcheck --severity=warning --format=gcc {} +
+        shellcheck --severity=warning --format=gcc scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
 
   docker-entrypoint-tests:
 

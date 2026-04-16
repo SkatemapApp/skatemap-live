@@ -1,0 +1,9 @@
+# shellcheck configuration
+# See https://github.com/koalaman/shellcheck/wiki/SC1091
+
+# Ignore rules
+# SC1091: Can't follow source - test scripts source files dynamically
+disable=SC1091
+
+# Note: severity is a CLI flag, not an rc file directive
+# Use --severity=warning on command line instead
