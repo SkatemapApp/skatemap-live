@@ -4,12 +4,14 @@ OTEL_AGENT_JAR="/app/opentelemetry-javaagent.jar"
 
 setup() {
   REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)"
-  TEST_LABEL="test=docker-entrypoint-$$"
+  TEST_RUN_ID="$$-$RANDOM"
+  TEST_LABEL="test=docker-entrypoint-$TEST_RUN_ID"
+  IMAGE_PREFIX="skatemap-test-$TEST_RUN_ID"
 }
 
 teardown() {
   docker ps -aq -f "label=$TEST_LABEL" | xargs -r docker rm -f >/dev/null 2>&1 || true
-  docker images -q "skatemap-test:*" | xargs -r docker rmi -f >/dev/null 2>&1 || true
+  docker images -q "$IMAGE_PREFIX:*" | xargs -r docker rmi -f >/dev/null 2>&1 || true
 }
 
 build_test_image() {
@@ -18,7 +20,7 @@ build_test_image() {
   local dockerfile="$BATS_TEST_DIRNAME/Dockerfile.$image_name"
 
   printf '%s\n' "$dockerfile_content" >"$dockerfile"
-  docker build -f "$dockerfile" -t "skatemap-test:$image_name" "$REPO_ROOT" >/dev/null 2>&1
+  docker build -f "$dockerfile" -t "$IMAGE_PREFIX:$image_name" "$REPO_ROOT" >/dev/null 2>&1
   local build_result=$?
   rm -f "$dockerfile"
   return $build_result
@@ -27,7 +29,7 @@ build_test_image() {
 run_container() {
   local image="$1"
   shift
-  docker run -d --label "$TEST_LABEL" "$@" "skatemap-test:$image"
+  docker run -d --label "$TEST_LABEL" "$@" "$IMAGE_PREFIX:$image"
 }
 
 base_dockerfile() {
@@ -71,7 +73,7 @@ RUN echo '#!/bin/sh' > bin/skatemap-live && chmod +x bin/skatemap-live
 $(entrypoint_setup)"
 
   build_test_image "no-secret" "$dockerfile"
-  run sh -c "docker run --rm --label $TEST_LABEL skatemap-test:no-secret 2>&1; exit \$?"
+  run sh -c "docker run --rm --label $TEST_LABEL $IMAGE_PREFIX:no-secret 2>&1; exit \$?"
 
   [[ "$output" =~ "ERROR: APPLICATION_SECRET environment variable is required" ]] ||
     fail "Expected error message not found in output: $output"

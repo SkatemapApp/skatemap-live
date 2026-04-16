@@ -7,12 +7,14 @@ on:
     branches: [ master ]
     paths:
       - '**/*.sh'
+      - '**/*.bats'
       - 'scripts/git-hooks/**'
       - '.github/workflows/shell.yml'
   pull_request:
     branches: [ master ]
     paths:
       - '**/*.sh'
+      - '**/*.bats'
       - 'scripts/git-hooks/**'
       - '.github/workflows/shell.yml'
 
@@ -63,9 +65,9 @@ jobs:
     - name: Install BATS
       run: |
         sudo apt-get update
-        sudo apt-get install -y bats
+        sudo apt-get install -y bats parallel
 
     - name: Run Docker entrypoint integration tests
       run: |
         cd services/api/test
-        bats test-docker-entrypoint.bats
+        bats --jobs 4 test-docker-entrypoint.bats
