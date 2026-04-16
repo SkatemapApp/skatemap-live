@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"net/url"
 	"os"
 	"os/signal"
@@ -153,16 +154,19 @@ func run(config Config) error {
 
 	var limiter *rate.Limiter
 	if config.RateLimit > 0 || config.RampUpDuration > 0 {
-		initialRate := config.RateLimit
+		var initialRate float64
 		if config.RampUpDuration > 0 {
-			initialRate = 1
-		}
-		if initialRate == 0 {
 			totalSkaters := config.NumEvents * config.SkatersPerEvent
 			naturalRate := float64(totalSkaters) / config.UpdateInterval.Seconds()
-			initialRate = naturalRate
+			targetRate := naturalRate
+			if config.RateLimit > 0 && config.RateLimit < naturalRate {
+				targetRate = config.RateLimit
+			}
+			initialRate = math.Max(targetRate*0.1, 0.1)
+		} else {
+			initialRate = config.RateLimit
 		}
-		burst := int(initialRate)
+		burst := int(math.Ceil(initialRate))
 		if burst < 1 {
 			burst = 1
 		}
@@ -247,19 +251,25 @@ func run(config Config) error {
 				targetRate = config.RateLimit
 			}
 
+			initialRate := math.Max(targetRate*0.1, 0.1)
 			steps := 100
 			stepDuration := config.RampUpDuration / time.Duration(steps)
-			rateIncrement := (targetRate - 1) / float64(steps)
+			rateIncrement := (targetRate - initialRate) / float64(steps)
 
-			log.Printf("Ramping up from 1 to %.2f requests/second over %s", targetRate, config.RampUpDuration)
+			log.Printf("Ramping up from %.2f to %.2f requests/second over %s", initialRate, targetRate, config.RampUpDuration)
 
 			for i := 0; i < steps; i++ {
 				select {
 				case <-ctx.Done():
 					return
 				case <-time.After(stepDuration):
-					newRate := 1 + rateIncrement*float64(i+1)
-					limiter.SetLimit(rate.Limit(newRate))
+					select {
+					case <-ctx.Done():
+						return
+					default:
+						newRate := initialRate + rateIncrement*float64(i+1)
+						limiter.SetLimit(rate.Limit(newRate))
+					}
 				}
 			}
 			log.Printf("Ramp-up complete: %.2f requests/second", targetRate)
