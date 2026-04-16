@@ -156,7 +156,11 @@ func run(config Config) error {
 			naturalRate := float64(totalSkaters) / config.UpdateInterval.Seconds()
 			initialRate = naturalRate
 		}
-		limiter = rate.NewLimiter(rate.Limit(initialRate), 1)
+		burst := int(initialRate)
+		if burst < 1 {
+			burst = 1
+		}
+		limiter = rate.NewLimiter(rate.Limit(initialRate), burst)
 	}
 
 	metricsWriter, err := metrics.NewWriter(config.MetricsFile)
