@@ -63,7 +63,9 @@ libraryDependencies ++= Seq(
   "org.apache.pekko"       %% "pekko-http-testkit"          % "1.2.0"    % Test,
   "org.scalatestplus.play" %% "scalatestplus-play"          % "7.0.1"    % Test,
   "org.scalacheck"         %% "scalacheck"                  % "1.18.1"   % Test,
-  "org.scalatestplus"      %% "scalacheck-1-18"             % "3.2.19.0" % Test
+  "org.scalatestplus"      %% "scalacheck-1-18"             % "3.2.19.0" % Test,
+  "io.opentelemetry"       % "opentelemetry-api"            % "1.32.0",
+  "io.opentelemetry"       % "opentelemetry-sdk-testing"    % "1.32.0"   % Test
 )
 
 libraryDependencies := libraryDependencies.value.map {

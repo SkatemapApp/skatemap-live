@@ -208,6 +208,64 @@ The OpenTelemetry Java agent automatically instruments the following components:
 
 **Note:** Business-specific metrics (active event count, location publish rate, per-event subscriber count) require manual instrumentation, which is planned for future implementation. See [ADR 0006](../../docs/adr/0006-observability-strategy-opentelemetry.md) for the phased instrumentation strategy.
 
+### Manual Instrumentation with TracedFuture
+
+**Challenge:** OpenTelemetry context is stored in ThreadLocal, which doesn't survive Scala Future boundaries. When a span is created and subsequent work runs in a Future, the trace context is lost because Futures execute on different threads from the ForkJoinPool.
+
+**Solution:** The `TracedFuture` utility (`skatemap.observability.TracedFuture`) captures the OpenTelemetry context before a Future executes and restores it on the Future's thread, ensuring parent-child span relationships are preserved.
+
+**Usage pattern:**
+```scala
+import skatemap.observability.TracedFuture
+import scala.concurrent.Future
+
+// Implicit dependencies (provided by DI)
+implicit val tracer: Tracer = ...
+implicit val ec: ExecutionContext = ...
+
+// Wrap async operations with traced
+TracedFuture.traced("operation-name") {
+  Future {
+    // Your async work here
+  }
+}
+```
+
+**Example - tracing a store operation:**
+```scala
+def put(location: Location): Future[Unit] = {
+  TracedFuture.traced("location.store") {
+    Future {
+      store.put(location.eventId, location.skaterId, location)
+    }
+  }
+}
+```
+
+**What TracedFuture does:**
+1. Captures the current OpenTelemetry context (before Future executes)
+2. Creates a span with the specified name
+3. Restores the context when the Future runs on its thread
+4. Records exceptions if the Future fails
+5. Sets span status to OK (success) or ERROR (failure)
+6. Ends the span when the Future completes
+
+**When to use TracedFuture:**
+- Tracing async operations in domain services (store, broadcaster)
+- Creating custom spans for business operations
+- Any time you need trace context to survive Future boundaries
+
+**Performance implications:**
+- Minimal overhead: one additional Future allocation and Scope lifecycle per traced operation
+- Suitable for most business operations (controller actions, service calls, store operations)
+- For very high-frequency operations (thousands per second), consider whether the tracing overhead is justified by the observability value
+
+**Dependencies:**
+- OpenTelemetry API: `io.opentelemetry:opentelemetry-api:1.32.0`
+- Requires implicit `Tracer` (provided by OTel agent) and `ExecutionContext`
+
+**Testing:** See `TracedFutureSpec` for examples of testing traced operations and verifying parent-child span relationships.
+
 ### Graceful Degradation
 
 The OpenTelemetry agent is designed to fail gracefully:
