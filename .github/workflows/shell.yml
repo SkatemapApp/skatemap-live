@@ -7,12 +7,14 @@ on:
     branches: [ master ]
     paths:
       - '**/*.sh'
+      - '**/*.bats'
       - 'scripts/git-hooks/**'
       - '.github/workflows/shell.yml'
   pull_request:
     branches: [ master ]
     paths:
       - '**/*.sh'
+      - '**/*.bats'
       - 'scripts/git-hooks/**'
       - '.github/workflows/shell.yml'
 
@@ -48,3 +50,21 @@ jobs:
         # Severity: error,warning (excluding info and style for now)
         find . -name "*.sh" -type f -exec shellcheck --severity=warning {} +
         shellcheck --severity=warning scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
+
+  docker-entrypoint-tests:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install BATS
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bats parallel
+
+    - name: Run Docker entrypoint integration tests
+      run: |
+        cd services/api/test
+        bats --jobs 4 test-docker-entrypoint.bats

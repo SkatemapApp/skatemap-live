@@ -307,6 +307,43 @@ Coverage report generated at: `target/scala-2.13/scoverage-report/index.html`
 - API: `src/test/scala/skatemap/api/`
 - Integration: `src/test/scala/skatemap/integration/`
 
+### Docker Entrypoint Tests
+
+Integration tests for `docker-entrypoint.sh` verify container startup behaviour using BATS (Bash Automated Testing System).
+
+**Install BATS:**
+```bash
+# macOS
+brew install bats-core
+
+# Ubuntu/Debian
+sudo apt-get install bats
+```
+
+**Run tests:**
+```bash
+cd services/api/test
+bats test-docker-entrypoint.bats
+
+# Run in parallel (requires: brew install parallel on macOS)
+bats --jobs 4 test-docker-entrypoint.bats
+```
+
+**Requirements:**
+- BATS testing framework
+- Docker daemon running
+- Docker BuildKit enabled (default on modern installations)
+
+**Test scenarios:**
+1. Entrypoint exits with error when APPLICATION_SECRET is missing
+2. Entrypoint starts application with OpenTelemetry agent present
+3. Entrypoint starts application without OpenTelemetry agent (graceful degradation)
+4. Entrypoint logs OTEL configuration in debug mode
+
+**Note:** Health check endpoint functionality is verified by smoke tests in `tools/load-testing/test/`.
+
+**Duration:** ~30 seconds (includes Docker builds and container startup)
+
 ## Troubleshooting
 
 ### "Route not found" or 404 errors
