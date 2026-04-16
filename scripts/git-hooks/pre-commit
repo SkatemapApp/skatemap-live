@@ -144,7 +144,7 @@ if [ -n "$staged_sh_files" ] || [ -n "$staged_bats_files" ]; then
   shellcheck_failed=false
   for file in $staged_sh_files $staged_bats_files; do
     if [ -f "$file" ]; then
-      if ! shellcheck --severity=warning "$file"; then
+      if ! shellcheck --severity=warning --format=gcc "$file"; then
         shellcheck_failed=true
       fi
     fi
