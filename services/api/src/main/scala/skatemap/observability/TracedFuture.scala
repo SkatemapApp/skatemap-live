@@ -29,18 +29,17 @@ object TracedFuture {
     }
 
     Future {
-      contextWithSpan.makeCurrent()
-    }.flatMap { scope =>
-      Try(block) match {
-        case Success(futureResult) =>
-          futureResult.transform { result =>
-            scope.close()
-            completeSpan(result)
-          }
-        case Failure(exception) =>
-          scope.close()
-          Future.fromTry(completeSpan(Failure(exception)))
-      }
+      val scope  = contextWithSpan.makeCurrent()
+      val result = Try(block)
+      scope.close()
+      result
+    }.flatMap {
+      case Success(futureResult) =>
+        futureResult.transform { result =>
+          completeSpan(result)
+        }
+      case Failure(exception) =>
+        Future.fromTry(completeSpan(Failure(exception)))
     }
   }
 }
