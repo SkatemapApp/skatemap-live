@@ -1,0 +1,9 @@
+# shellcheck configuration
+# See https://github.com/koalaman/shellcheck/wiki/SC1091
+
+# Set minimum severity level (error, warning, info, style)
+severity=warning
+
+# Ignore rules
+# SC1091: Can't follow source - test scripts source files dynamically
+disable=SC1091

@@ -46,11 +46,10 @@ jobs:
     - name: Lint shell scripts
       run: |
         echo "Linting shell scripts..."
-        # Note: SC1091 (can't follow source) is acceptable - test scripts source files dynamically
-        # Severity: error,warning (excluding info and style for now)
-        find . -name "*.sh" -type f -exec shellcheck --severity=warning {} +
-        find . -name "*.bats" -type f -exec shellcheck --severity=warning {} +
-        shellcheck --severity=warning scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
+        # Configuration in .shellcheckrc
+        find . -name "*.sh" -type f -exec shellcheck {} +
+        find . -name "*.bats" -type f -exec shellcheck {} +
+        shellcheck scripts/git-hooks/pre-commit scripts/git-hooks/commit-msg
 
   docker-entrypoint-tests:
 
