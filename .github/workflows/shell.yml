@@ -10,6 +10,7 @@ on:
       - '**/*.bats'
       - 'scripts/git-hooks/**'
       - '.github/workflows/shell.yml'
+      - '.shellcheckrc'
   pull_request:
     branches: [ master ]
     paths:
@@ -17,6 +18,7 @@ on:
       - '**/*.bats'
       - 'scripts/git-hooks/**'
       - '.github/workflows/shell.yml'
+      - '.shellcheckrc'
 
 jobs:
   quality:
