@@ -22,8 +22,9 @@ validate_path() {
 extract_toml_value() {
   local key="$1"
   local file="$2"
+  local value
   set +e
-  local value=$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$file" | sed -E 's/.*= "(.*)".*/\1/')
+  value=$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$file" | sed -E 's/.*= "(.*)".*/\1/')
   set -e
   echo "$value"
 }
