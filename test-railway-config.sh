@@ -11,7 +11,7 @@ if [[ ! -f railway.toml ]]; then
   exit 1
 fi
 
-DOCKERFILE_PATH=$(grep -E '^\s*dockerfilePath\s*=' railway.toml | sed -E 's/.*= "(.*)".*/\1/')
+DOCKERFILE_PATH=$(grep -E '^\s*dockerfilePath\s*=' railway.toml | sed -E 's/.*= "(.*)".*/\1/' || true)
 if [[ -z "$DOCKERFILE_PATH" ]]; then
   echo "ERROR: dockerfilePath not found in railway.toml"
   exit 1
@@ -23,7 +23,7 @@ if [[ ! -f "$DOCKERFILE_PATH" ]]; then
 fi
 echo "✓ Dockerfile exists: $DOCKERFILE_PATH"
 
-START_COMMAND=$(grep -E '^\s*startCommand\s*=' railway.toml | sed -E 's/.*= "(.*)".*/\1/')
+START_COMMAND=$(grep -E '^\s*startCommand\s*=' railway.toml | sed -E 's/.*= "(.*)".*/\1/' || true)
 if [[ -z "$START_COMMAND" ]]; then
   echo "ERROR: startCommand not found in railway.toml"
   exit 1
@@ -40,7 +40,7 @@ else
   echo "WARNING: startCommand is $START_COMMAND (not /app/docker-entrypoint.sh)"
 fi
 
-HEALTHCHECK_PATH=$(grep -E '^\s*healthcheckPath\s*=' railway.toml | sed -E 's/.*= "(.*)".*/\1/')
+HEALTHCHECK_PATH=$(grep -E '^\s*healthcheckPath\s*=' railway.toml | sed -E 's/.*= "(.*)".*/\1/' || true)
 if [[ -z "$HEALTHCHECK_PATH" ]]; then
   echo "ERROR: healthcheckPath not found in railway.toml"
   exit 1
@@ -52,7 +52,7 @@ if [[ ! -f "$ROUTES_FILE" ]]; then
   exit 1
 fi
 
-if ! grep -q "GET\s*${HEALTHCHECK_PATH}\s" "$ROUTES_FILE"; then
+if ! grep -qE "GET\s*${HEALTHCHECK_PATH}\s" "$ROUTES_FILE"; then
   echo "ERROR: healthcheckPath $HEALTHCHECK_PATH not found in $ROUTES_FILE"
   exit 1
 fi
