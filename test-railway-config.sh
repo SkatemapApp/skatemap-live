@@ -23,7 +23,7 @@ extract_toml_value() {
   local key="$1"
   local file="$2"
   set +e
-  local value=$(grep -E "^\s*${key}\s*=" "$file" | sed -E 's/.*= "(.*)".*/\1/')
+  local value=$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$file" | sed -E 's/.*= "(.*)".*/\1/')
   set -e
   echo "$value"
 }
