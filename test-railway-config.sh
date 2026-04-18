@@ -13,7 +13,7 @@ validate_path() {
     exit 1
   fi
 
-  if [[ "$path" =~ ^/ ]] && [[ "$description" != "start command" ]]; then
+  if [[ "$path" =~ ^/ ]]; then
     echo "ERROR: Invalid $description path (absolute path not allowed): $path"
     exit 1
   fi
