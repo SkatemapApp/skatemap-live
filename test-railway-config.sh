@@ -58,7 +58,6 @@ fi
 
 if [[ "$START_COMMAND" == "/app/docker-entrypoint.sh" ]]; then
   ENTRYPOINT_SOURCE="services/api/docker-entrypoint.sh"
-  validate_path "$ENTRYPOINT_SOURCE" "entrypoint"
 
   if [[ ! -f "$ENTRYPOINT_SOURCE" ]]; then
     echo "ERROR: Entrypoint script not found at $ENTRYPOINT_SOURCE"
