@@ -81,7 +81,7 @@ if [[ ! -f "$ROUTES_FILE" ]]; then
   exit 1
 fi
 
-ESCAPED_PATH=$(echo "$HEALTHCHECK_PATH" | sed 's/[.[\*^$]/\\&/g')
+ESCAPED_PATH=$(echo "$HEALTHCHECK_PATH" | sed 's/[.[\*^$+?(){}|]/\\&/g')
 if ! grep -qE "^GET[[:space:]]+${ESCAPED_PATH}([[:space:]]|$)" "$ROUTES_FILE"; then
   echo "ERROR: healthcheckPath $HEALTHCHECK_PATH not found in $ROUTES_FILE"
   exit 1
